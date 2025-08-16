@@ -121,22 +121,27 @@ export default function GrooveBox() {
   // ===== Scheduling (decoupled from patterns/mutes/metronome state) =====
   useEffect(() => {
     if (!isPlaying || !audioCtxRef.current) return;
-
-    // Set loopStart to the beginning of the current bar based on where we start
+  
+    const ctx = audioCtxRef.current;
     const secondsPerBeat = 60.0 / bpm;
     const secondsPerStep = secondsPerBeat / PPQ;
-    const startIdx = currentStepRef.current % STEPS_PER_BAR;
-    loopStartRef.current = audioCtxRef.current.currentTime - startIdx * secondsPerStep;
-
-    // don't restart on every patterns/mutes/metronome change; only when play or bpm changes
-    nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
-
+  
+    // Start at the beginning of the bar
+    const now = ctx.currentTime;
+    loopStartRef.current = now;
+    currentStepRef.current = 0;
+    setStep(0);
+  
+    // Schedule the first tick exactly on the next step boundary
+    nextNoteTimeRef.current = now + secondsPerStep;
+  
     timerIdRef.current = setInterval(() => {
       schedule();
     }, LOOKAHEAD_MS);
-
+  
     return () => clearInterval(timerIdRef.current);
-  }, [isPlaying, bpm]); // keep metronome solid
+  }, [isPlaying, bpm]);
+  
 
   function schedule() {
     const ctx = audioCtxRef.current;
@@ -229,8 +234,18 @@ export default function GrooveBox() {
   // ===== UI handlers =====
   function togglePlay() {
     if (!audioCtxRef.current) return;
-    setIsPlaying((p) => !p);
+    setIsPlaying((p) => {
+      const next = !p;
+      if (next) {
+        // reset to the start of the bar
+        currentStepRef.current = 0;
+        setStep(0);
+        // loopStartRef + nextNoteTimeRef are set in the effect below
+      }
+      return next;
+    });
   }
+  
 
   function toggleRecord() {
     setIsRecording((r) => !r);

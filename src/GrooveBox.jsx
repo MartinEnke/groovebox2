@@ -311,13 +311,24 @@ export default function GrooveBox() {
       const next = { ...prev, [selected]: [...prev[selected]] };
       next[selected][stepIdx] = nextVel;
   
-      // Audition immediately if now active and not muted
-      if (nextVel > 0 && !mutes[selected]) {
-        playSample(selected, nextVel, 0);
-      }
-  
+      // IMPORTANT: no audition here (step buttons are silent)
       return next;
     });
+  }
+
+  function clearSelectedPattern() {
+    // reset only the currently selected instrument
+    setPatterns((prev) => {
+      const next = { ...prev, [selected]: new Array(STEPS_PER_BAR).fill(0) };
+      return next;
+    });
+  
+    // remove any skip-once tokens for this instrument
+    for (const key of Array.from(recentWritesRef.current.keys())) {
+      if (key.startsWith(`${selected}-`)) {
+        recentWritesRef.current.delete(key);
+      }
+    }
   }
 
   // ===== Render =====
@@ -385,52 +396,69 @@ export default function GrooveBox() {
 
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
-        <button onClick={togglePlay} className="btn">{isPlaying ? "Stop" : "Play"}</button>
-        <button onClick={toggleRecord} className="btn">{isRecording ? "Recording…" : "Record"}</button>
-        <div style={{ marginLeft: 8, opacity: 0.8, fontSize: 14 }}>
-          Step: {pad(step + 1)}/{STEPS_PER_BAR}
-        </div>
-        <button
-          onClick={() => {
-            setPatterns(
-              Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
-            );
-            recentWritesRef.current.clear();
-          }}
-          className="btn"
-        >
-          Clear Pattern
-        </button>
-      </div>
+  <button onClick={togglePlay} className="btn">{isPlaying ? "Stop" : "Play"}</button>
+  <button onClick={toggleRecord} className="btn">{isRecording ? "Recording…" : "Record"}</button>
+  <div style={{ marginLeft: 8, opacity: 0.8, fontSize: 14 }}>
+    Step: {pad(step + 1)}/{STEPS_PER_BAR}
+  </div>
+
+  {/* NEW: clear only selected instrument */}
+  <button onClick={clearSelectedPattern} className="btn" title="Clear selected instrument only">
+    Clear Selected
+  </button>
+
+  {/* existing: clear all */}
+  <button
+    onClick={() => {
+      setPatterns(
+        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
+      );
+      recentWritesRef.current.clear();
+    }}
+    className="btn"
+    title="Clear all instruments"
+  >
+    Clear All
+  </button>
+</div>
 
       {/* Mini step LEDs preview for selected instrument */}
-      {/* Step editor for selected instrument */}
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 24, maxWidth: 640 }}>
-    {patterns[selected].map((v, i) => {
-        const isActive = v > 0;
-        const accent = i === step;
-        const fill = isActive
-        ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})` // brighter by velocity
-        : "rgba(255,255,255,.15)";
-        return (
-        <button
-            key={`st-${i}`}
-            onClick={() => cycleStep(i)}
-            title={`Step ${i + 1}: ${v.toFixed ? v.toFixed(2) : v} — click to cycle`}
-            style={{
-            height: 20,
-            width: 20,
-            borderRadius: 3,
-            background: fill,
-            outline: accent ? "2px solid #34d399" : "none",
-            border: "1px solid rgba(255,255,255,.12)",
-            padding: 0,
-            cursor: "pointer",
-            }}
-        />
-        );
-    })}
-    </div>
+      {/* Step editor for selected instrument (single row, 16 cols) */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(16, 1fr)",
+    gap: 8,
+    marginTop: 24,
+    maxWidth: 640,
+  }}
+>
+  {patterns[selected].map((v, i) => {
+    const isActive = v > 0;
+    const accent = i === step;
+    const fill = isActive
+      ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
+      : "rgba(255,255,255,.15)";
+    return (
+      <button
+        key={`st-${i}`}
+        onClick={() => cycleStep(i)}
+        title={`Step ${i + 1}: ${v.toFixed ? v.toFixed(2) : v} — click to cycle`}
+        style={{
+          height: 20,
+          width: "100%",
+          borderRadius: 3,
+          background: fill,
+          outline: accent ? "2px solid #34d399" : "none",
+          border: "1px solid rgba(255,255,255,.12)",
+          padding: 0,
+          cursor: "pointer",
+        }}
+      />
+    );
+  })}
+</div>
+
 
 
       {/* Minimal CSS for .btn */}

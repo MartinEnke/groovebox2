@@ -121,27 +121,22 @@ export default function GrooveBox() {
   // ===== Scheduling (decoupled from patterns/mutes/metronome state) =====
   useEffect(() => {
     if (!isPlaying || !audioCtxRef.current) return;
-  
-    const ctx = audioCtxRef.current;
+
+    // Set loopStart to the beginning of the current bar based on where we start
     const secondsPerBeat = 60.0 / bpm;
     const secondsPerStep = secondsPerBeat / PPQ;
-  
-    // Start at the beginning of the bar
-    const now = ctx.currentTime;
-    loopStartRef.current = now;
-    currentStepRef.current = 0;
-    setStep(0);
-  
-    // Schedule the first tick exactly on the next step boundary
-    nextNoteTimeRef.current = now + secondsPerStep;
-  
+    const startIdx = currentStepRef.current % STEPS_PER_BAR;
+    loopStartRef.current = audioCtxRef.current.currentTime - startIdx * secondsPerStep;
+
+    // don't restart on every patterns/mutes/metronome change; only when play or bpm changes
+    nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
+
     timerIdRef.current = setInterval(() => {
       schedule();
     }, LOOKAHEAD_MS);
-  
+
     return () => clearInterval(timerIdRef.current);
-  }, [isPlaying, bpm]);
-  
+  }, [isPlaying, bpm]); // keep metronome solid
 
   function schedule() {
     const ctx = audioCtxRef.current;
@@ -266,28 +261,41 @@ export default function GrooveBox() {
 
   function onPadPress(row, col) {
     const vel = VELS[row][col];
-
-    // Always monitor the pad immediately (input monitoring)
+  
+    // Always monitor immediately
     if (!mutes[selected]) {
       playSample(selected, vel, 0);
     }
-
-    // If recording, compute the step index from the AudioContext clock
-    // so the write is aligned to transport time (no "late" quantize).
+  
     if (isRecording && isPlaying) {
-      const idx = getRecordingStepIndex();
-
+      const idx = getRecordingStepIndex(); // uses AudioContext clock
+  
+      // Write now so UI updates immediately
       setPatterns((prev) => {
         const next = { ...prev, [selected]: [...prev[selected]] };
-        next[selected][idx] = vel; // quantized to exact transport step
+        next[selected][idx] = vel;
         return next;
       });
-
-      // Skip this inst/step once to avoid double-trigger this cycle
+  
+      // --- Only skip if this step is still ahead in THIS bar ---
+      const ctx = audioCtxRef.current;
+      const secondsPerBeat = 60.0 / bpm;
+      const secondsPerStep = secondsPerBeat / PPQ;
+      const now = ctx.currentTime;
+      const tStepThisBar = loopStartRef.current + idx * secondsPerStep;
+  
       const key = `${selected}-${idx}`;
-      recentWritesRef.current.set(key, true);
+      if (tStepThisBar > now + 1e-4) {
+        // Step is in the future of the current bar → skip this upcoming pass only
+        recentWritesRef.current.set(key, true);
+      } else {
+        // We've already passed this step in the current bar → next playback is next bar, don't skip
+        // (also clear any stale token so we don’t accidentally skip next bar)
+        recentWritesRef.current.delete(key);
+      }
     }
   }
+  
 
   // ===== Render =====
   return (

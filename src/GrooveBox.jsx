@@ -28,6 +28,9 @@ const VELS = [
   [0.75, 0.45],
 ];
 
+// Click-step cycle (loud → soft → off)
+const VELOCITY_CYCLE = [0, 0.45, 0.6, 0.75, 1.0];
+
 // Sequencer constants
 const PPQ = 4; // 4 steps per beat (16 steps per bar)
 const STEPS_PER_BAR = 16;
@@ -296,6 +299,26 @@ export default function GrooveBox() {
     }
   }
   
+  function cycleStep(stepIdx) {
+    setPatterns((prev) => {
+      const curr = prev[selected][stepIdx] || 0;
+  
+      // find current index in cycle (with float tolerance)
+      const i = VELOCITY_CYCLE.findIndex(v => Math.abs(v - curr) < 1e-6);
+      const nextIdx = (i >= 0 ? i + 1 : 1) % VELOCITY_CYCLE.length; // default to first loud on empty
+      const nextVel = VELOCITY_CYCLE[nextIdx];
+  
+      const next = { ...prev, [selected]: [...prev[selected]] };
+      next[selected][stepIdx] = nextVel;
+  
+      // Audition immediately if now active and not muted
+      if (nextVel > 0 && !mutes[selected]) {
+        playSample(selected, nextVel, 0);
+      }
+  
+      return next;
+    });
+  }
 
   // ===== Render =====
   return (
@@ -381,21 +404,34 @@ export default function GrooveBox() {
       </div>
 
       {/* Mini step LEDs preview for selected instrument */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 24, maxWidth: 640 }}>
-        {patterns[selected].map((v, i) => (
-          <div
+      {/* Step editor for selected instrument */}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 24, maxWidth: 640 }}>
+    {patterns[selected].map((v, i) => {
+        const isActive = v > 0;
+        const accent = i === step;
+        const fill = isActive
+        ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})` // brighter by velocity
+        : "rgba(255,255,255,.15)";
+        return (
+        <button
             key={`st-${i}`}
-            title={`Step ${i + 1}: ${v.toFixed ? v.toFixed(2) : v}`}
+            onClick={() => cycleStep(i)}
+            title={`Step ${i + 1}: ${v.toFixed ? v.toFixed(2) : v} — click to cycle`}
             style={{
-              height: 16,
-              width: 16,
-              borderRadius: 2,
-              background: v > 0 ? "#34d399" : "rgba(255,255,255,.15)",
-              outline: i === step ? "2px solid #34d399" : "none",
+            height: 20,
+            width: 20,
+            borderRadius: 3,
+            background: fill,
+            outline: accent ? "2px solid #34d399" : "none",
+            border: "1px solid rgba(255,255,255,.12)",
+            padding: 0,
+            cursor: "pointer",
             }}
-          />
-        ))}
-      </div>
+        />
+        );
+    })}
+    </div>
+
 
       {/* Minimal CSS for .btn */}
       <style>{`

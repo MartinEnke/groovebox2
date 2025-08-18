@@ -44,9 +44,11 @@
 
 
 /* === Vertical fader (console style) === */
+/* Layout for a proper headline above the fader */
 .vfader-wrap {
-  display: flex;              /* stack vertically */
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 200px auto; /* title, fader slot, readout */
+  justify-items: center;
   align-items: center;
   gap: 8px;
   width: 72px;
@@ -60,24 +62,63 @@
   opacity: 0.9;
 }
 
-.vfader-readout {
-  font-size: 12px;
-  opacity: 0.75;
-  min-height: 16px;
+/* Dedicated vertical space for the rotated slider */
+.vfader-slot {
+  position: relative;
+  height: 200px;   /* vertical length of the fader */
+  width: 28px;     /* track thickness area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible; /* allow thumb/glow to extend */
 }
 
-/* base slider */
+/* Base slider (rotated) */
+/* sizes as variables so it's easy to tweak */
+.vfader {
+  --track-h: 6px;
+  --thumb-h: 22px;
+}
+
+/* WebKit/Blink: center the thumb over the track */
+.vfader::-webkit-slider-runnable-track {
+  height: var(--track-h);
+}
+.vfader::-webkit-slider-thumb {
+  height: var(--thumb-h);
+  /* center thumb vertically over the (thinner) track */
+  margin-top: calc((var(--track-h) - var(--thumb-h)) / 2); /* e.g. (6-22)/2 = -8px */
+}
+
+/* Firefox: center by adding vertical padding on the input,
+   since ::-moz-range-thumb margins don't take effect */
+.vfader {
+  /* make the control tall enough, then center the track inside */
+  height: calc(var(--thumb-h) + 6px);
+  padding-block: calc((var(--thumb-h) - var(--track-h)) / 2);
+}
+.vfader::-moz-range-track {
+  height: var(--track-h);
+}
+.vfader::-moz-range-thumb {
+  height: var(--thumb-h);
+}
+
+/* keep these if you haven’t already */
 .vfader {
   appearance: none;
   -webkit-appearance: none;
-  width: 180px;           /* becomes height after rotate */
-  height: 28px;           /* thumb thickness area */
+  width: 200px;          /* becomes vertical length after rotate */
   transform: rotate(-90deg);
   transform-origin: center;
-  outline: none;
   background: transparent;
+  outline: none;
   cursor: pointer;
 }
+
+
+/* keep your existing .vfader track/thumb styles below … */
+
 
 /* Chrome/Safari track */
 .vfader::-webkit-slider-runnable-track {

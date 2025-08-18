@@ -474,28 +474,32 @@ export default function GrooveBox() {
     {INSTRUMENTS.find(i => i.id === selected)?.label ?? selected}
   </div>
 
-  <input
-    className="vfader"
-    type="range"
-    min={-24}
-    max={+6}
-    step={0.1}
-    value={instGainsDb[selected]}
-    onChange={(e) => {
-      const db = parseFloat(e.target.value);
-      setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-      const g = muteGainsRef.current.get(selected);
-      if (g) g.gain.value = mutes[selected] ? 0 : Math.pow(10, db / 20);
-    }}
-    title="Volume (selected instrument)"
-  />
+  {/* dedicated vertical slot so the fader never overlaps the title */}
+  <div className="vfader-slot">
+    <input
+      className="vfader"
+      type="range"
+      min={-24}
+      max={+6}
+      step={0.1}
+      value={instGainsDb[selected]}
+      onChange={(e) => {
+        const db = parseFloat(e.target.value);
+        setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+        const g = muteGainsRef.current.get(selected);
+        if (g) g.gain.value = mutes[selected] ? 0 : Math.pow(10, db / 20);
+      }}
+      title="Volume (selected instrument)"
+    />
+  </div>
 
   <div className="vfader-readout">
-    {instGainsDb[selected] >= 0
-      ? `+${instGainsDb[selected].toFixed(1)} dB`
-      : `${instGainsDb[selected].toFixed(1)} dB`}
+    {instGainsDb[selected] >= 0 ? `+${instGainsDb[selected].toFixed(1)} dB`
+                                : `${instGainsDb[selected].toFixed(1)} dB`}
   </div>
 </div>
+
+
 
 </div>
 

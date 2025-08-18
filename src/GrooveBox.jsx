@@ -67,6 +67,45 @@ export default function GrooveBox() {
   );
   
 
+  const [soloActive, setSoloActive] = useState(false);
+const prevMutesRef = useRef(null); // to restore mutes after unsolo
+
+// helper used by solo + clear functions
+function applyMutes(newMutes) {
+    setMutes(newMutes);
+    mutesRef.current = newMutes;
+    INSTRUMENTS.forEach((i) => {
+      const g = muteGainsRef.current.get(i.id);
+      if (g) g.gain.value = newMutes[i.id] ? 0 : dbToGain(instGainsDb[i.id] ?? 0);
+    });
+  }
+
+  function toggleSolo() {
+    if (soloActive) {
+      const restore =
+        prevMutesRef.current ??
+        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
+      applyMutes(restore);
+      prevMutesRef.current = null;
+      setSoloActive(false);
+    } else {
+      prevMutesRef.current = mutesRef.current;
+      const soloMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i.id !== selected]));
+      applyMutes(soloMap);
+      setSoloActive(true);
+    }
+  }
+
+  // ⬇️ PLACE THIS EFFECT RIGHT HERE (top-level)
+  useEffect(() => {
+    if (!soloActive) return;
+    const soloMap = Object.fromEntries(
+      INSTRUMENTS.map((i) => [i.id, i.id !== selected])
+    );
+    applyMutes(soloMap);
+  }, [selected, soloActive]); // reapply solo on instrument change
+
+
   // Patterns: instrument -> Array(16) of velocities (0 = off)
   const [patterns, setPatterns] = useState(() =>
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
@@ -147,6 +186,8 @@ export default function GrooveBox() {
     timerIdRef.current = setInterval(() => {
       schedule();
     }, LOOKAHEAD_MS);
+
+    
 
     return () => clearInterval(timerIdRef.current);
   }, [isPlaying, bpm]); // keep metronome solid
@@ -267,6 +308,7 @@ export default function GrooveBox() {
       return next;
     });
   }
+
   
 
   function selectInstrument(instId) {
@@ -364,16 +406,16 @@ export default function GrooveBox() {
       Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
     );
   
-    // 2) reset all instrument gains to 0 dB
+    // 2) reset all instrument gains to 0 dB (state)
     const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     setInstGainsDb(zeroDbMap);
   
-    // 3) unmute everything
+    // 3) unmute everything (state + ref)
     const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
     setMutes(allUnmuted);
-    mutesRef.current = allUnmuted; // keep scheduler view in sync
+    mutesRef.current = allUnmuted;
   
-    // 4) apply to GainNodes
+    // 4) apply 0 dB to actual GainNodes now (don’t wait for state)
     INSTRUMENTS.forEach((i) => {
       const g = muteGainsRef.current.get(i.id);
       if (g) g.gain.value = dbToGain(0);
@@ -381,7 +423,12 @@ export default function GrooveBox() {
   
     // 5) clear any one-shot skip tokens
     recentWritesRef.current.clear();
+  
+    // 6) turn off solo + forget previous mutes
+    setSoloActive(false);
+    prevMutesRef.current = null;
   }
+  
   
   
 
@@ -497,6 +544,16 @@ export default function GrooveBox() {
     {instGainsDb[selected] >= 0 ? `+${instGainsDb[selected].toFixed(1)} dB`
                                 : `${instGainsDb[selected].toFixed(1)} dB`}
   </div>
+
+  {/* SOLO */}
+  <button
+    className="btn"
+    onClick={toggleSolo}
+    title="Solo selected instrument (mute others)"
+    style={{ width: "100%" }}
+  >
+    {soloActive ? "Unsolo" : "Solo"}
+  </button>
 </div>
 
 

@@ -7,6 +7,10 @@ import React, { useEffect, useRef, useState } from "react";
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 
+const dbToGain = (db) => Math.pow(10, db / 20);
+const formatDb = (db) => (db >= 0 ? `+${db.toFixed(1)} dB` : `${db.toFixed(1)} dB`);
+
+
 // ===== Instruments (2 x 5) =====
 const INSTRUMENTS = [
   { id: "kick", label: "BD", url: "/samples/BD.wav" },
@@ -58,6 +62,11 @@ export default function GrooveBox() {
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]))
   );
 
+  const [instGainsDb, setInstGainsDb] = useState(() =>
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0])) // 0 dB default
+  );
+  
+
   // Patterns: instrument -> Array(16) of velocities (0 = off)
   const [patterns, setPatterns] = useState(() =>
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
@@ -94,11 +103,12 @@ export default function GrooveBox() {
 
     // per-instrument mute gain nodes
     INSTRUMENTS.forEach((inst) => {
-      const g = ctx.createGain();
-      g.gain.value = 1.0;
-      g.connect(master);
-      muteGainsRef.current.set(inst.id, g);
-    });
+        const g = ctx.createGain();
+        g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
+        g.connect(master);
+        muteGainsRef.current.set(inst.id, g);
+      });
+      
 
     // metronome click buffers (tiny bleeps)
     metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
@@ -253,10 +263,11 @@ export default function GrooveBox() {
     setMutes((prev) => {
       const next = { ...prev, [instId]: !prev[instId] };
       const g = muteGainsRef.current.get(instId);
-      if (g) g.gain.value = next[instId] ? 0 : 1;
+      if (g) g.gain.value = next[instId] ? 0 : dbToGain(instGainsDb[instId] ?? 0);
       return next;
     });
   }
+  
 
   function selectInstrument(instId) {
     setSelected(instId);
@@ -317,26 +328,69 @@ export default function GrooveBox() {
   }
 
   function clearSelectedPattern() {
-    // reset only the currently selected instrument
+    // 1) wipe only the selected instrument's steps
     setPatterns((prev) => {
       const next = { ...prev, [selected]: new Array(STEPS_PER_BAR).fill(0) };
       return next;
     });
   
-    // remove any skip-once tokens for this instrument
+    // 2) reset that instrument's volume to 0 dB
+    setInstGainsDb((prev) => ({ ...prev, [selected]: 0 }));
+  
+    // 3) unmute the selected instrument
+    setMutes((prev) => {
+      const next = { ...prev, [selected]: false };
+      // keep scheduler in sync immediately
+      mutesRef.current = next;
+      return next;
+    });
+  
+    // 4) apply to the actual GainNode
+    const g = muteGainsRef.current.get(selected);
+    if (g) g.gain.value = dbToGain(0);
+  
+    // 5) remove any skip-once tokens for this instrument
     for (const key of Array.from(recentWritesRef.current.keys())) {
       if (key.startsWith(`${selected}-`)) {
         recentWritesRef.current.delete(key);
       }
     }
   }
+  
+
+  function clearAllPatternsAndLevels() {
+    // 1) clear patterns for all instruments
+    setPatterns(
+      Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
+    );
+  
+    // 2) reset all instrument gains to 0 dB
+    const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    setInstGainsDb(zeroDbMap);
+  
+    // 3) unmute everything
+    const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
+    setMutes(allUnmuted);
+    mutesRef.current = allUnmuted; // keep scheduler view in sync
+  
+    // 4) apply to GainNodes
+    INSTRUMENTS.forEach((i) => {
+      const g = muteGainsRef.current.get(i.id);
+      if (g) g.gain.value = dbToGain(0);
+    });
+  
+    // 5) clear any one-shot skip tokens
+    recentWritesRef.current.clear();
+  }
+  
+  
 
   // ===== Render =====
   return (
     <div style={{ color: "white" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: 0.4 }}>DRUMS</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: 0.4 }}>DR7</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
             <span>Metronome</span>
@@ -360,6 +414,7 @@ export default function GrooveBox() {
         </div>
       </div>
 
+
       {/* Instruments grid 2 x 5 with mutes */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
         {INSTRUMENTS.slice(0, 5).map(renderInstrumentButton)}
@@ -378,21 +433,73 @@ export default function GrooveBox() {
       {/* Divider */}
       <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-      {/* Pads Section */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 480 }}>
-        {[0, 1].map((r) => (
-          <div key={`row-${r}`} style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 16 }}>
-            {[0, 1].map((c) => (
-              <PadButton
-                key={`pad-${r}-${c}`}
-                label={`PAD`}
-                sub={`vel ${VELS[r][c].toFixed(2)}`}
-                onPress={() => onPadPress(r, c)}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
+    
+{/* Pads + Volume Fader */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 88px", // big area for pads, slim column for fader
+    gap: 16,
+    alignItems: "center",
+    maxWidth: 560,
+    marginTop: 16,
+  }}
+>
+  {/* 2x2 Pads, centered in their column */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gridTemplateRows: "1fr 1fr",
+      gap: 16,
+      justifyItems: "center",
+      alignItems: "center",
+    }}
+  >
+    {[0, 1].map((r) =>
+      [0, 1].map((c) => (
+        <PadButton
+          key={`pad-${r}-${c}`}
+          label="PAD"
+          sub={`vel ${VELS[r][c].toFixed(2)}`}
+          onPress={() => onPadPress(r, c)}
+        />
+      ))
+    )}
+  </div>
+
+  {/* Vertical fader for SELECTED instrument */}
+  <div className="vfader-wrap">
+  <div className="vfader-title">
+    {INSTRUMENTS.find(i => i.id === selected)?.label ?? selected}
+  </div>
+
+  <input
+    className="vfader"
+    type="range"
+    min={-24}
+    max={+6}
+    step={0.1}
+    value={instGainsDb[selected]}
+    onChange={(e) => {
+      const db = parseFloat(e.target.value);
+      setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+      const g = muteGainsRef.current.get(selected);
+      if (g) g.gain.value = mutes[selected] ? 0 : Math.pow(10, db / 20);
+    }}
+    title="Volume (selected instrument)"
+  />
+
+  <div className="vfader-readout">
+    {instGainsDb[selected] >= 0
+      ? `+${instGainsDb[selected].toFixed(1)} dB`
+      : `${instGainsDb[selected].toFixed(1)} dB`}
+  </div>
+</div>
+
+</div>
+
+
 
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
@@ -408,18 +515,9 @@ export default function GrooveBox() {
   </button>
 
   {/* existing: clear all */}
-  <button
-    onClick={() => {
-      setPatterns(
-        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
-      );
-      recentWritesRef.current.clear();
-    }}
-    className="btn"
-    title="Clear all instruments"
-  >
-    Clear All
-  </button>
+  <button onClick={clearAllPatternsAndLevels} className="btn" title="Clear all instruments">
+  Clear All
+</button>
 </div>
 
       {/* Mini step LEDs preview for selected instrument */}

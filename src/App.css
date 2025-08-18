@@ -40,3 +40,91 @@
 .read-the-docs {
   color: #888;
 }
+
+
+
+/* === Vertical fader (console style) === */
+.vfader-wrap {
+  display: flex;              /* stack vertically */
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 72px;
+}
+
+.vfader-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.vfader-readout {
+  font-size: 12px;
+  opacity: 0.75;
+  min-height: 16px;
+}
+
+/* base slider */
+.vfader {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 180px;           /* becomes height after rotate */
+  height: 28px;           /* thumb thickness area */
+  transform: rotate(-90deg);
+  transform-origin: center;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Chrome/Safari track */
+.vfader::-webkit-slider-runnable-track {
+  height: 6px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.12) 0 100%),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(255,255,255,.08) 8px 9px);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 2px 4px rgba(0,0,0,.5);
+}
+/* Firefox track */
+.vfader::-moz-range-track {
+  height: 6px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.12) 0 100%),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(255,255,255,.08) 8px 9px);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 2px 4px rgba(0,0,0,.5);
+}
+
+/* Chrome/Safari thumb */
+.vfader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, #e5e5e5, #bdbdbd),
+    radial-gradient(closest-side, rgba(255,255,255,.8), rgba(255,255,255,0) 70%);
+  border: 1px solid rgba(0,0,0,.4);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 -1px 0 rgba(0,0,0,.2) inset,
+    0 2px 6px rgba(0,0,0,.6);
+}
+/* Firefox thumb */
+.vfader::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, #e5e5e5, #bdbdbd),
+    radial-gradient(closest-side, rgba(255,255,255,.8), rgba(255,255,255,0) 70%);
+  border: 1px solid rgba(0,0,0,.4);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 -1px 0 rgba(0,0,0,.2) inset,
+    0 2px 6px rgba(0,0,0,.6);
+}

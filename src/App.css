@@ -171,19 +171,14 @@
 }
 
 
-
-/* one-line swing row */
+/* one-line swing row: label | short select | long slider | % | global column */
+/* selector | per-inst block | global block */
 .swing-row {
   display: grid;
-  grid-template-columns: auto 56px 1fr auto; /* label | short select | slider | % */
+  grid-template-columns: 56px 1fr 140px; /* selector | big | small */
+  gap: 8px;
   align-items: center;
-  gap: 6px;
   width: 100%;
-}
-
-.swing-label {
-  font-size: 12px;
-  opacity: 0.85;
 }
 
 .swing-select {
@@ -196,13 +191,25 @@
   padding: 0 6px;
 }
 
-.swing-slider {
-  width: 100%;
+/* both blocks stack: slider then caption */
+.swing-block,
+.swing-global {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-items: center;
+  justify-items: center;
+  gap: 4px;
 }
 
-.swing-val {
+.swing-slider,
+.swing-gslider {
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.swing-caption {
   font-size: 12px;
-  width: 34px;
-  text-align: right;
-  opacity: 0.85;
+  opacity: 0.9;
 }

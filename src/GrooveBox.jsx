@@ -171,6 +171,13 @@ function applyMutes(newMutes) {
   }, []);
 
 
+
+    // Global swing scale (0..150%), default 100
+const [globalSwingPct, setGlobalSwingPct] = useState(100);
+const globalSwingPctRef = useRef(100);
+useEffect(() => { globalSwingPctRef.current = globalSwingPct; }, [globalSwingPct]);
+
+
   // Per-instrument swing type and amount
 const [instSwingType, setInstSwingType] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, "none"])) // "none" | "8" | "16"
@@ -187,31 +194,30 @@ const [instSwingType, setInstSwingType] = useState(
 
   
   // Returns a positive delay (seconds) to apply to this inst/step
-function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
+  function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
     const type = instSwingTypeRef.current?.[instId] ?? "none";
-    const amt = (instSwingAmtRef.current?.[instId] ?? 0) / 100; // 0..1
+    // per-instrument amount (0..1) * global (0..1.5)
+    const amtLocal = (instSwingAmtRef.current?.[instId] ?? 0) / 100;
+    const amtGlobal = (globalSwingPctRef.current ?? 100) / 100; // 1.0 = 100%
+    const amt = amtLocal * amtGlobal; // allow up to 1.5 (150%)
+  
     if (type === "none" || amt <= 0) return 0;
   
     const withinBeat = stepIndex % 4;
   
     if (type === "8") {
-      // Delay the off-beat 8th (step 2 within each beat) up to triplet feel.
-      // Max delay at 100% = 1/6 of a beat (straight->triplet).
-      if (withinBeat === 2) return amt * (secondsPerBeat / 6);
-      return 0;
+      // delay the off-beat 8th (index 2 within each beat)
+      return withinBeat === 2 ? amt * (secondsPerBeat / 6) : 0;
     }
   
     if (type === "16") {
-      // Delay the off 16ths (indices 1 and 3) within each beat.
-      // Max delay at 100% ≈ 1/3 of a 16th (triplet-ish inside the pair).
-      const isOff16 = (withinBeat % 2 === 1); // 1 or 3
-      if (!isOff16) return 0;
-      return amt * ((secondsPerBeat / 4) / 3); // (secondsPerStep)/3
+      // delay off 16ths (indices 1 and 3)
+      const isOff16 = (withinBeat % 2 === 1);
+      return isOff16 ? amt * ((secondsPerBeat / 4) / 3) : 0;
     }
   
     return 0;
   }
-
   
 
   // ===== Scheduling (decoupled from patterns/mutes/metronome state) =====
@@ -537,14 +543,16 @@ function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: "1fr 88px", // big area for pads, slim column for fader
+    gridTemplateColumns: "1fr 88px",
     gap: 16,
     alignItems: "center",
     maxWidth: 560,
     marginTop: 16,
+    marginLeft: "auto",
+    marginRight: "auto",
   }}
 >
-  {/* 2x2 Pads, centered in their column */}
+  {/* 2x2 Pads */}
   <div
     style={{
       display: "grid",
@@ -567,88 +575,104 @@ function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
     )}
   </div>
 
-  {/* Vertical fader for SELECTED instrument */}
+  {/* Fader column */}
   <div className="vfader-wrap">
-  <div className="vfader-title">
-    {INSTRUMENTS.find(i => i.id === selected)?.label ?? selected}
-  </div>
+    <div className="vfader-title">
+      {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
+    </div>
 
-  {/* dedicated vertical slot so the fader never overlaps the title */}
-  <div className="vfader-slot">
-    <input
-      className="vfader"
-      type="range"
-      min={-24}
-      max={+6}
-      step={0.1}
-      value={instGainsDb[selected]}
-      onChange={(e) => {
-        const db = parseFloat(e.target.value);
-        setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-        const g = muteGainsRef.current.get(selected);
-        if (g) g.gain.value = mutes[selected] ? 0 : Math.pow(10, db / 20);
-      }}
-      title="Volume (selected instrument)"
-    />
-  </div>
+    <div className="vfader-slot">
+      <input
+        className="vfader"
+        type="range"
+        min={-24}
+        max={+6}
+        step={0.1}
+        value={instGainsDb[selected]}
+        onChange={(e) => {
+          const db = parseFloat(e.target.value);
+          setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+          const g = muteGainsRef.current.get(selected);
+          if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+        }}
+        title="Volume (selected instrument)"
+      />
+    </div>
 
-  <div className="vfader-readout">
-    {instGainsDb[selected] >= 0 ? `+${instGainsDb[selected].toFixed(1)} dB`
-                                : `${instGainsDb[selected].toFixed(1)} dB`}
-  </div>
+    <div className="vfader-readout">
+      {instGainsDb[selected] >= 0
+        ? `+${instGainsDb[selected].toFixed(1)} dB`
+        : `${instGainsDb[selected].toFixed(1)} dB`}
+    </div>
 
-  {/* SOLO */}
-  <button
-    className="btn"
-    onClick={toggleSolo}
-    title="Solo selected instrument (mute others)"
-    style={{ width: "100%" }}
-  >
-    {soloActive ? "Unsolo" : "Solo"}
-  </button>
+    <button
+      className="btn"
+      onClick={toggleSolo}
+      title="Solo selected instrument (mute others)"
+      style={{ width: "100%" }}
+    >
+      {soloActive ? "Unsolo" : "Solo"}
+    </button>
+  </div>
 </div>
 
-{/* SWING controls (per selected instrument) */}
-{/* SWING (one-line) */}
-<div className="swing-row">
-  <span className="swing-label">Swing</span>
+{/* SWING — full width below */}
+<div style={{ marginTop: 16, width: "100%" }}>
+  <div className="swing-row">
+    {/* short grid selector (8th/16th/off) */}
+    <select
+      className="swing-select"
+      value={instSwingType[selected]}
+      onChange={(e) =>
+        setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
+      }
+      title="Swing grid"
+    >
+      <option value="none">Off</option>
+      <option value="8">8th</option>
+      <option value="16">16th</option>
+    </select>
 
-  <select
-    className="swing-select"
-    value={instSwingType[selected]}
-    onChange={(e) =>
-      setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
-    }
-    title="Swing grid"
-  >
-    <option value="none">Off</option>
-    <option value="8">8th</option>
-    <option value="16">16th</option>
-  </select>
+    {/* per-instrument swing block (slider + caption below) */}
+    <div className="swing-block">
+      <input
+        className="swing-slider"
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={instSwingAmt[selected]}
+        onChange={(e) =>
+          setInstSwingAmt((prev) => ({
+            ...prev,
+            [selected]: parseInt(e.target.value, 10),
+          }))
+        }
+        disabled={instSwingType[selected] === "none"}
+        title="Swing amount (%)"
+      />
+      <div className="swing-caption">
+        Swing {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+      </div>
+    </div>
 
-  <input
-    className="swing-slider"
-    type="range"
-    min={0}
-    max={100}
-    step={1}
-    value={instSwingAmt[selected]}
-    onChange={(e) =>
-      setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
-    }
-    disabled={instSwingType[selected] === "none"}
-    title="Swing amount (%)"
-  />
-
-  <span className="swing-val">{instSwingAmt[selected]}%</span>
+    {/* global swing block (slider + caption below, right side) */}
+    <div className="swing-global">
+      <input
+        className="swing-gslider"
+        type="range"
+        min={0}
+        max={150}
+        step={1}
+        value={globalSwingPct}
+        onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
+        title={`Global swing: ${globalSwingPct}%`}
+      />
+      <div className="swing-caption">Global {globalSwingPct}%</div>
+    </div>
+  </div>
 </div>
 
-
-
-
-
-
-</div>
 
 
 

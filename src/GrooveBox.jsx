@@ -1,15 +1,10 @@
 // src/GrooveBox.jsx
-
 import React, { useEffect, useRef, useState } from "react";
-
 
 // ===== Utility helpers =====
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
-
 const dbToGain = (db) => Math.pow(10, db / 20);
-const formatDb = (db) => (db >= 0 ? `+${db.toFixed(1)} dB` : `${db.toFixed(1)} dB`);
-
 
 // ===== Instruments (2 x 5) =====
 const INSTRUMENTS = [
@@ -23,23 +18,23 @@ const INSTRUMENTS = [
   { id: "hihat", label: "HH", url: "/samples/HH.wav" },
   { id: "openhihat", label: "OHH", url: "/samples/OHH.wav" },
   { id: "ride", label: "RIDE", url: "/samples/RIDE.wav" },
-
 ];
 
-// 2x2 velocity matrix – tweak to taste
+// Pads velocity matrix
 const VELS = [
-  [1.00, 0.6],
+  [1.0, 0.6],
   [0.75, 0.45],
 ];
 
-// Click-step cycle (loud → soft → off)
-const VELOCITY_CYCLE = [0, 0.45, 0.6, 0.75, 1.0];
+// Click-step cycle
+const STEP_CYCLE_ORDER = [0.45, 0.6, 0.75, 1.0, 0];
+
 
 // Sequencer constants
 const PPQ = 4; // 4 steps per beat (16 steps per bar)
 const STEPS_PER_BAR = 16;
-const LOOKAHEAD_MS = 25;             // scheduler check interval
-const SCHEDULE_AHEAD_TIME = 0.1;     // seconds to schedule into the future
+const LOOKAHEAD_MS = 25;
+const SCHEDULE_AHEAD_TIME = 0.1;
 
 export default function GrooveBox() {
   // ===== Audio graph refs =====
@@ -56,98 +51,126 @@ export default function GrooveBox() {
   const [metronomeOn, setMetronomeOn] = useState(true);
   const [step, setStep] = useState(0); // UI indicator only
 
+  // Which row (A/B) is active *for UI* this bar
+const [uiLatchedRow, setUiLatchedRow] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, "A"]))
+  );
+
+
+  // per-instrument per-row unfold state (false = 1x16, true = 2x8 large)
+const [rowExpanded, setRowExpanded] = useState(() =>
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, { A: false, B: false }]))
+  );
+  
+  function toggleRowExpanded(instId, row) {
+    setRowExpanded(prev => ({
+      ...prev,
+      [instId]: { ...prev[instId], [row]: !prev[instId][row] },
+    }));
+  }
+
+
   // Selected instrument & mutes
   const [selected, setSelected] = useState(INSTRUMENTS[0].id);
   const [mutes, setMutes] = useState(() =>
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]))
   );
 
+  // Per-instrument volume (dB)
   const [instGainsDb, setInstGainsDb] = useState(() =>
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0])) // 0 dB default
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
   );
-  
 
+  // Solo
   const [soloActive, setSoloActive] = useState(false);
-const prevMutesRef = useRef(null); // to restore mutes after unsolo
+  const prevMutesRef = useRef(null); // to restore mutes after unsolo
 
-// helper used by solo + clear functions
-function applyMutes(newMutes) {
-    setMutes(newMutes);
-    mutesRef.current = newMutes;
-    INSTRUMENTS.forEach((i) => {
-      const g = muteGainsRef.current.get(i.id);
-      if (g) g.gain.value = newMutes[i.id] ? 0 : dbToGain(instGainsDb[i.id] ?? 0);
-    });
-  }
-
-  function toggleSolo() {
-    if (soloActive) {
-      const restore =
-        prevMutesRef.current ??
-        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
-      applyMutes(restore);
-      prevMutesRef.current = null;
-      setSoloActive(false);
-    } else {
-      prevMutesRef.current = mutesRef.current;
-      const soloMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, i.id !== selected]));
-      applyMutes(soloMap);
-      setSoloActive(true);
-    }
-  }
-
-  // ⬇️ PLACE THIS EFFECT RIGHT HERE (top-level)
+  // Global swing scale (0..150%), default 100
+  const [globalSwingPct, setGlobalSwingPct] = useState(100);
+  const globalSwingPctRef = useRef(100);
   useEffect(() => {
-    if (!soloActive) return;
-    const soloMap = Object.fromEntries(
-      INSTRUMENTS.map((i) => [i.id, i.id !== selected])
-    );
-    applyMutes(soloMap);
-  }, [selected, soloActive]); // reapply solo on instrument change
+    globalSwingPctRef.current = globalSwingPct;
+  }, [globalSwingPct]);
 
+  // Per-instrument swing type and amount
+  const [instSwingType, setInstSwingType] = useState(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"])) // "none" | "8" | "16"
+  );
+  const [instSwingAmt, setInstSwingAmt] = useState(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0])) // 0..100 (%)
+  );
+  const instSwingTypeRef = useRef(instSwingType);
+  const instSwingAmtRef = useRef(instSwingAmt);
+  useEffect(() => {
+    instSwingTypeRef.current = instSwingType;
+  }, [instSwingType]);
+  useEffect(() => {
+    instSwingAmtRef.current = instSwingAmt;
+  }, [instSwingAmt]);
 
-  // Patterns: instrument -> Array(16) of velocities (0 = off)
+  // Patterns: instrument -> { A: Array(16), B: Array(16) } (velocities 0..1)
   const [patterns, setPatterns] = useState(() =>
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
+    Object.fromEntries(
+      INSTRUMENTS.map((i) => [
+        i.id,
+        { A: new Array(STEPS_PER_BAR).fill(0), B: new Array(STEPS_PER_BAR).fill(0) },
+      ])
+    )
+  );
+
+  // Row activity (at least one true)
+  const [rowActive, setRowActive] = useState(() =>
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: true, B: false }]))
   );
 
   // Scheduler internals
-  const nextNoteTimeRef = useRef(0); // time (s) of next step
+  const nextNoteTimeRef = useRef(0);
   const currentStepRef = useRef(0);
   const timerIdRef = useRef(null);
-
-  // Skip-once map: keys like "kick-3" mean "ignore this step one time"
-  const recentWritesRef = useRef(new Map());
-
-  // Start-of-loop (bar) reference in AudioContext time
+  const recentWritesRef = useRef(new Map()); // keys like "kick-A-3"
   const loopStartRef = useRef(0);
 
-  // ===== Mirrors of state in refs to keep scheduler stable =====
+  // Mirrors of state in refs
   const patternsRef = useRef(patterns);
   const mutesRef = useRef(mutes);
   const metronomeOnRef = useRef(metronomeOn);
+  const rowActiveRef = useRef(rowActive);
+  useEffect(() => {
+    patternsRef.current = patterns;
+  }, [patterns]);
+  useEffect(() => {
+    mutesRef.current = mutes;
+  }, [mutes]);
+  useEffect(() => {
+    metronomeOnRef.current = metronomeOn;
+  }, [metronomeOn]);
+  useEffect(() => {
+    rowActiveRef.current = rowActive;
+  }, [rowActive]);
 
-  useEffect(() => { patternsRef.current = patterns; }, [patterns]);
-  useEffect(() => { mutesRef.current = mutes; }, [mutes]);
-  useEffect(() => { metronomeOnRef.current = metronomeOn; }, [metronomeOn]);
+  // Latched row for each instrument (which row plays this bar)
+  const latchedRowRef = useRef(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "A"]))
+  );
+
 
   // ===== Init Audio =====
   useEffect(() => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioCtxRef.current = ctx;
+
     const master = ctx.createGain();
     master.gain.value = 0.9;
     master.connect(ctx.destination);
     masterGainRef.current = master;
 
-    // per-instrument mute gain nodes
+    // per-instrument mute+volume gain nodes
     INSTRUMENTS.forEach((inst) => {
-        const g = ctx.createGain();
-        g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
-        g.connect(master);
-        muteGainsRef.current.set(inst.id, g);
-      });
-      
+      const g = ctx.createGain();
+      g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
+      g.connect(master);
+      muteGainsRef.current.set(inst.id, g);
+    });
 
     // metronome click buffers (tiny bleeps)
     metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
@@ -168,117 +191,161 @@ function applyMutes(newMutes) {
     })();
 
     return () => ctx.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-
-    // Global swing scale (0..150%), default 100
-const [globalSwingPct, setGlobalSwingPct] = useState(100);
-const globalSwingPctRef = useRef(100);
-useEffect(() => { globalSwingPctRef.current = globalSwingPct; }, [globalSwingPct]);
-
-
-  // Per-instrument swing type and amount
-const [instSwingType, setInstSwingType] = useState(
-    Object.fromEntries(INSTRUMENTS.map(i => [i.id, "none"])) // "none" | "8" | "16"
-  );
-  const [instSwingAmt, setInstSwingAmt] = useState(
-    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0])) // 0..100 (%)
-  );
-  
-  // Mirror to refs so scheduler doesn't restart on UI changes
-  const instSwingTypeRef = useRef(instSwingType);
-  const instSwingAmtRef = useRef(instSwingAmt);
-  useEffect(() => { instSwingTypeRef.current = instSwingType; }, [instSwingType]);
-  useEffect(() => { instSwingAmtRef.current = instSwingAmt; }, [instSwingAmt]);
-
-  
-  // Returns a positive delay (seconds) to apply to this inst/step
-  function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
-    const type = instSwingTypeRef.current?.[instId] ?? "none";
-    // per-instrument amount (0..1) * global (0..1.5)
-    const amtLocal = (instSwingAmtRef.current?.[instId] ?? 0) / 100;
-    const amtGlobal = (globalSwingPctRef.current ?? 100) / 100; // 1.0 = 100%
-    const amt = amtLocal * amtGlobal; // allow up to 1.5 (150%)
-  
-    if (type === "none" || amt <= 0) return 0;
-  
-    const withinBeat = stepIndex % 4;
-  
-    if (type === "8") {
-      // delay the off-beat 8th (index 2 within each beat)
-      return withinBeat === 2 ? amt * (secondsPerBeat / 6) : 0;
-    }
-  
-    if (type === "16") {
-      // delay off 16ths (indices 1 and 3)
-      const isOff16 = (withinBeat % 2 === 1);
-      return isOff16 ? amt * ((secondsPerBeat / 4) / 3) : 0;
-    }
-  
-    return 0;
+  // ===== Solo helpers =====
+  function applyMutes(newMutes) {
+    setMutes(newMutes);
+    mutesRef.current = newMutes;
+    INSTRUMENTS.forEach((i) => {
+      const g = muteGainsRef.current.get(i.id);
+      if (g) g.gain.value = newMutes[i.id] ? 0 : dbToGain(instGainsDb[i.id] ?? 0);
+    });
   }
-  
 
-  // ===== Scheduling (decoupled from patterns/mutes/metronome state) =====
+  function toggleSolo() {
+    if (soloActive) {
+      const restore =
+        prevMutesRef.current ??
+        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
+      applyMutes(restore);
+      prevMutesRef.current = null;
+      setSoloActive(false);
+    } else {
+      prevMutesRef.current = mutesRef.current;
+      const soloMap = Object.fromEntries(
+        INSTRUMENTS.map((i) => [i.id, i.id !== selected])
+      );
+      applyMutes(soloMap);
+      setSoloActive(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!soloActive) return;
+    const soloMap = Object.fromEntries(
+      INSTRUMENTS.map((i) => [i.id, i.id !== selected])
+    );
+    applyMutes(soloMap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, soloActive]);
+
+  // ===== Scheduling =====
   useEffect(() => {
     if (!isPlaying || !audioCtxRef.current) return;
 
-    // Set loopStart to the beginning of the current bar based on where we start
+    // align loop start to current bar
     const secondsPerBeat = 60.0 / bpm;
     const secondsPerStep = secondsPerBeat / PPQ;
     const startIdx = currentStepRef.current % STEPS_PER_BAR;
-    loopStartRef.current = audioCtxRef.current.currentTime - startIdx * secondsPerStep;
+    loopStartRef.current =
+      audioCtxRef.current.currentTime - startIdx * secondsPerStep;
 
-    // don't restart on every patterns/mutes/metronome change; only when play or bpm changes
     nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
 
     timerIdRef.current = setInterval(() => {
       schedule();
     }, LOOKAHEAD_MS);
 
-    
-
     return () => clearInterval(timerIdRef.current);
-  }, [isPlaying, bpm]); // keep metronome solid
+  }, [isPlaying, bpm]);
+
+  function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
+    const type = instSwingTypeRef.current?.[instId] ?? "none";
+    const amtLocal = (instSwingAmtRef.current?.[instId] ?? 0) / 100;
+    const amtGlobal = (globalSwingPctRef.current ?? 100) / 100; // 1.0 = 100%
+    const amt = amtLocal * amtGlobal; // up to 1.5 (150%)
+
+    if (type === "none" || amt <= 0) return 0;
+
+    const withinBeat = stepIndex % 4;
+
+    if (type === "8") {
+      // delay the off-beat 8th (index 2 within each beat)
+      return withinBeat === 2 ? amt * (secondsPerBeat / 6) : 0;
+    }
+    if (type === "16") {
+      // delay off 16ths (indices 1 and 3)
+      const isOff16 = withinBeat % 2 === 1;
+      return isOff16 ? amt * ((secondsPerBeat / 4) / 3) : 0;
+    }
+    return 0;
+  }
 
   function schedule() {
     const ctx = audioCtxRef.current;
     const secondsPerBeat = 60.0 / bpm;
     const secondsPerStep = secondsPerBeat / PPQ;
-
+  
     while (nextNoteTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_TIME) {
       const stepIndex = currentStepRef.current % STEPS_PER_BAR;
-
-      // metronome (read from ref so toggling doesn't restart scheduler)
+  
+      // 1) Latch rows exactly at bar start, then sync UI latched rows
+      if (stepIndex === 0) {
+        INSTRUMENTS.forEach((inst) => {
+          const ra = rowActiveRef.current?.[inst.id] || { A: true, B: false };
+          const prev = latchedRowRef.current[inst.id] || "A";
+          if (ra.A && ra.B) {
+            latchedRowRef.current[inst.id] = prev === "A" ? "B" : "A";
+          } else if (ra.A) {
+            latchedRowRef.current[inst.id] = "A";
+          } else if (ra.B) {
+            latchedRowRef.current[inst.id] = "B";
+          } else {
+            latchedRowRef.current[inst.id] = prev || "A"; // safety
+          }
+        });
+  
+        // reflect latches in UI immediately (avoid extra renders if unchanged)
+        setUiLatchedRow((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          INSTRUMENTS.forEach((inst) => {
+            const v = latchedRowRef.current[inst.id];
+            if (next[inst.id] !== v) {
+              next[inst.id] = v;
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      }
+  
+      // 2) Metronome (unchanged)
       if (metronomeOnRef.current) {
         const click = stepIndex % 4 === 0 ? metClickRef.current.hi : metClickRef.current.lo;
         playBuffer(click, 0.15, nextNoteTimeRef.current);
       }
-
-      // notes per instrument (read patterns/mutes from refs)
+  
+      // 3) Schedule notes for this exact step
       INSTRUMENTS.forEach((inst) => {
-  const vel = (patternsRef.current?.[inst.id]?.[stepIndex]) || 0;
-  if (vel > 0 && !mutesRef.current?.[inst.id]) {
-    const key = `${inst.id}-${stepIndex}`;
-    if (recentWritesRef.current.has(key)) {
-      recentWritesRef.current.delete(key);
-    } else {
-      const buf = buffersRef.current.get(inst.id);
-      const when = nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
-      if (buf) playSample(inst.id, vel, when);
-    }
-  }
-});
-
-      // advance to next 16th note
+        const row = latchedRowRef.current[inst.id] || "A";
+        const patt = patternsRef.current?.[inst.id]?.[row];
+        const vel = (patt?.[stepIndex]) || 0;
+  
+        if (vel > 0 && !mutesRef.current?.[inst.id]) {
+          const key = `${inst.id}-${row}-${stepIndex}`;
+          if (recentWritesRef.current.has(key)) {
+            recentWritesRef.current.delete(key);
+          } else {
+            const buf = buffersRef.current.get(inst.id);
+            const when =
+              nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
+            if (buf) playSample(inst.id, vel, when);
+          }
+        }
+      });
+  
+      // 4) Update the UI step to THIS step index (precise, not relative)
+      setStep(stepIndex);
+  
+      // 5) Advance scheduler
       nextNoteTimeRef.current += secondsPerStep;
       currentStepRef.current = (currentStepRef.current + 1) % STEPS_PER_BAR;
-
-      // update UI step (safe; doesn't affect scheduler stability)
-      setStep((s) => (s + 1) % STEPS_PER_BAR);
     }
   }
+  
 
   // ===== Compute precise step from AudioContext time (for recording) =====
   function getRecordingStepIndex() {
@@ -287,22 +354,13 @@ const [instSwingType, setInstSwingType] = useState(
 
     const secondsPerBeat = 60.0 / bpm;
     const secondsPerStep = secondsPerBeat / PPQ;
-    const barDur = secondsPerStep * STEPS_PER_BAR;
 
     const now = ctx.currentTime;
     const elapsed = now - loopStartRef.current;
-
-    // Guard against negative / startup jitter
     const safeElapsed = elapsed < 0 ? 0 : elapsed;
 
-    // Steps from loop start; +epsilon to avoid floating point flicker at boundaries
     const steps = safeElapsed / secondsPerStep + 1e-6;
     const idx = Math.floor(steps % STEPS_PER_BAR);
-
-    // Optional: if you want to shift forward when very close to a boundary:
-    // const frac = steps - Math.floor(steps);
-    // if (frac > 0.98) return (idx + 1) % STEPS_PER_BAR;
-
     return idx;
   }
 
@@ -336,15 +394,12 @@ const [instSwingType, setInstSwingType] = useState(
     setIsPlaying((p) => {
       const next = !p;
       if (next) {
-        // reset to the start of the bar
         currentStepRef.current = 0;
         setStep(0);
-        // loopStartRef + nextNoteTimeRef are set in the effect below
       }
       return next;
     });
   }
-  
 
   function toggleRecord() {
     setIsRecording((r) => !r);
@@ -359,136 +414,159 @@ const [instSwingType, setInstSwingType] = useState(
     });
   }
 
-  
-
   function selectInstrument(instId) {
     setSelected(instId);
   }
 
-  function onPadPress(row, col) {
-    const vel = VELS[row][col];
-  
-    // Always monitor immediately
-    if (!mutes[selected]) {
-      playSample(selected, vel, 0);
-    }
-  
+  function onPadPress(r, c) {
+    const vel = VELS[r][c];
+
+    // Monitor immediately
+    if (!mutes[selected]) playSample(selected, vel, 0);
+
     if (isRecording && isPlaying) {
-      const idx = getRecordingStepIndex(); // uses AudioContext clock
-  
-      // Write now so UI updates immediately
+      const idx = getRecordingStepIndex();
+      const row = latchedRowRef.current[selected] || "A";
+
+      // Write now
       setPatterns((prev) => {
-        const next = { ...prev, [selected]: [...prev[selected]] };
-        next[selected][idx] = vel;
+        const next = {
+          ...prev,
+          [selected]: {
+            A: [...prev[selected].A],
+            B: [...prev[selected].B],
+          },
+        };
+        next[selected][row][idx] = vel;
         return next;
       });
-  
-      // --- Only skip if this step is still ahead in THIS bar ---
+
+      // Skip once only if this step is still ahead in THIS bar
       const ctx = audioCtxRef.current;
       const secondsPerBeat = 60.0 / bpm;
       const secondsPerStep = secondsPerBeat / PPQ;
       const now = ctx.currentTime;
       const tStepThisBar = loopStartRef.current + idx * secondsPerStep;
-  
-      const key = `${selected}-${idx}`;
+
+      const key = `${selected}-${row}-${idx}`;
       if (tStepThisBar > now + 1e-4) {
-        // Step is in the future of the current bar → skip this upcoming pass only
         recentWritesRef.current.set(key, true);
       } else {
-        // We've already passed this step in the current bar → next playback is next bar, don't skip
-        // (also clear any stale token so we don’t accidentally skip next bar)
         recentWritesRef.current.delete(key);
       }
     }
   }
-  
-  function cycleStep(stepIdx) {
+
+  function cycleStepRow(row, stepIdx) {
     setPatterns((prev) => {
-      const curr = prev[selected][stepIdx] || 0;
+      const next = {
+        ...prev,
+        [selected]: { A: [...prev[selected].A], B: [...prev[selected].B] },
+      };
   
-      // find current index in cycle (with float tolerance)
-      const i = VELOCITY_CYCLE.findIndex(v => Math.abs(v - curr) < 1e-6);
-      const nextIdx = (i >= 0 ? i + 1 : 1) % VELOCITY_CYCLE.length; // default to first loud on empty
-      const nextVel = VELOCITY_CYCLE[nextIdx];
+      const curr = next[selected][row][stepIdx] ?? 0;
   
-      const next = { ...prev, [selected]: [...prev[selected]] };
-      next[selected][stepIdx] = nextVel;
+      // Find current in our explicit order [1.0, 0.75, 0.6, 0.45, 0]
+      let i = STEP_CYCLE_ORDER.findIndex(v => Math.abs(v - curr) < 1e-6);
   
-      // IMPORTANT: no audition here (step buttons are silent)
+      // If not found (shouldn't happen), start at index -1 so next = 1.0
+      if (i === -1) i = STEP_CYCLE_ORDER.length - 1; // treat as if at "0"
+  
+      const nextVel = STEP_CYCLE_ORDER[(i + 1) % STEP_CYCLE_ORDER.length];
+      next[selected][row][stepIdx] = nextVel;
+  
       return next;
     });
   }
 
+  function toggleRowActiveUI(instId, row) {
+    setRowActive((prev) => {
+      const other = row === "A" ? "B" : "A";
+      const curr = prev[instId];
+      const nextVal = !curr[row];
+
+      // Disallow disabling both
+      if (!nextVal && !curr[other]) return prev;
+
+      return {
+        ...prev,
+        [instId]: { ...curr, [row]: nextVal },
+      };
+    });
+  }
+
   function clearSelectedPattern() {
-    // 1) wipe only the selected instrument's steps
+    // wipe both rows for selected instrument
     setPatterns((prev) => {
-      const next = { ...prev, [selected]: new Array(STEPS_PER_BAR).fill(0) };
+      const next = {
+        ...prev,
+        [selected]: {
+          A: new Array(STEPS_PER_BAR).fill(0),
+          B: new Array(STEPS_PER_BAR).fill(0),
+        },
+      };
       return next;
     });
-  
-    // 2) reset that instrument's volume to 0 dB
+
+    // reset volume to 0 dB and unmute
     setInstGainsDb((prev) => ({ ...prev, [selected]: 0 }));
-  
-    // 3) unmute the selected instrument
     setMutes((prev) => {
       const next = { ...prev, [selected]: false };
-      // keep scheduler in sync immediately
       mutesRef.current = next;
       return next;
     });
-  
-    // 4) apply to the actual GainNode
     const g = muteGainsRef.current.get(selected);
     if (g) g.gain.value = dbToGain(0);
-  
-    // 5) remove any skip-once tokens for this instrument
+
+    // clear any skip tokens for this instrument (both rows)
     for (const key of Array.from(recentWritesRef.current.keys())) {
       if (key.startsWith(`${selected}-`)) {
         recentWritesRef.current.delete(key);
       }
     }
   }
-  
 
   function clearAllPatternsAndLevels() {
-    // 1) Clear patterns for all instruments
+    // 1) Clear patterns (both rows)
     setPatterns(
-      Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
+      Object.fromEntries(
+        INSTRUMENTS.map((i) => [
+          i.id,
+          { A: new Array(STEPS_PER_BAR).fill(0), B: new Array(STEPS_PER_BAR).fill(0) },
+        ])
+      )
     );
-  
-    // 2) Reset all instrument gains to 0 dB (state)
+
+    // 2) Reset all volumes to 0 dB
     const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     setInstGainsDb(zeroDbMap);
-  
-    // 3) Reset swing (state + refs so scheduler reads it right away)
+
+    // 3) Reset swing (type none, amt 0) + refs
     const swingTypeNone = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
     const swingAmtZero = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     setInstSwingType(swingTypeNone);
     setInstSwingAmt(swingAmtZero);
-    if (instSwingTypeRef) instSwingTypeRef.current = swingTypeNone;
-    if (instSwingAmtRef) instSwingAmtRef.current = swingAmtZero;
-  
-    // 4) Unmute everything (state + ref)
+    instSwingTypeRef.current = swingTypeNone;
+    instSwingAmtRef.current = swingAmtZero;
+
+    // 4) Unmute everything
     const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
     setMutes(allUnmuted);
     mutesRef.current = allUnmuted;
-  
-    // 5) Apply 0 dB to actual GainNodes now (don’t wait for state)
+
+    // 5) Apply 0 dB to GainNodes
     INSTRUMENTS.forEach((i) => {
       const g = muteGainsRef.current.get(i.id);
       if (g) g.gain.value = dbToGain(0);
     });
-  
-    // 6) Clear any one-shot skip tokens
+
+    // 6) Clear skip-once tokens
     recentWritesRef.current.clear();
-  
-    // 7) Turn off solo + forget previous mutes
+
+    // 7) Turn off solo
     setSoloActive(false);
     prevMutesRef.current = null;
   }
-  
-  
-  
 
   // ===== Render =====
   return (
@@ -519,7 +597,6 @@ const [instSwingType, setInstSwingType] = useState(
         </div>
       </div>
 
-
       {/* Instruments grid 2 x 5 with mutes */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
         {INSTRUMENTS.slice(0, 5).map(renderInstrumentButton)}
@@ -527,7 +604,6 @@ const [instSwingType, setInstSwingType] = useState(
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
         {INSTRUMENTS.slice(0, 5).map(renderMuteButton)}
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 16 }}>
         {INSTRUMENTS.slice(5, 10).map(renderInstrumentButton)}
       </div>
@@ -538,217 +614,268 @@ const [instSwingType, setInstSwingType] = useState(
       {/* Divider */}
       <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-    
-{/* Pads + Volume Fader */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1fr 88px",
-    gap: 16,
-    alignItems: "center",
-    maxWidth: 560,
-    marginTop: 16,
-    marginLeft: "auto",
-    marginRight: "auto",
-  }}
->
-  {/* 2x2 Pads */}
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gridTemplateRows: "1fr 1fr",
-      gap: 16,
-      justifyItems: "center",
-      alignItems: "center",
-    }}
-  >
-    {[0, 1].map((r) =>
-      [0, 1].map((c) => (
-        <PadButton
-          key={`pad-${r}-${c}`}
-          label="PAD"
-          sub={`vel ${VELS[r][c].toFixed(2)}`}
-          onPress={() => onPadPress(r, c)}
-        />
-      ))
-    )}
-  </div>
-
-  {/* Fader column */}
-  <div className="vfader-wrap">
-    <div className="vfader-title">
-      {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
-    </div>
-
-    <div className="vfader-slot">
-      <input
-        className="vfader"
-        type="range"
-        min={-24}
-        max={+6}
-        step={0.1}
-        value={instGainsDb[selected]}
-        onChange={(e) => {
-          const db = parseFloat(e.target.value);
-          setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-          const g = muteGainsRef.current.get(selected);
-          if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+      {/* Pads + Volume Fader */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 88px",
+          gap: 16,
+          alignItems: "center",
+          maxWidth: 560,
+          marginTop: 16,
+          marginLeft: "auto",
+          marginRight: "auto",
         }}
-        title="Volume (selected instrument)"
-      />
-    </div>
+      >
+        {/* 2x2 Pads */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "1fr 1fr",
+            gap: 16,
+            justifyItems: "center",
+            alignItems: "center",
+          }}
+        >
+          {[0, 1].map((r) =>
+            [0, 1].map((c) => (
+              <PadButton
+                key={`pad-${r}-${c}`}
+                label="PAD"
+                sub={`vel ${VELS[r][c].toFixed(2)}`}
+                onPress={() => onPadPress(r, c)}
+              />
+            ))
+          )}
+        </div>
 
-    <div className="vfader-readout">
-      {instGainsDb[selected] >= 0
-        ? `+${instGainsDb[selected].toFixed(1)} dB`
-        : `${instGainsDb[selected].toFixed(1)} dB`}
-    </div>
+        {/* Fader column */}
+        <div className="vfader-wrap">
+          <div className="vfader-title">
+            {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
+          </div>
 
-    <button
-      className="btn"
-      onClick={toggleSolo}
-      title="Solo selected instrument (mute others)"
-      style={{ width: "100%" }}
-    >
-      {soloActive ? "Unsolo" : "Solo"}
-    </button>
-  </div>
-</div>
+          <div className="vfader-slot">
+            <input
+              className="vfader"
+              type="range"
+              min={-24}
+              max={+6}
+              step={0.1}
+              value={instGainsDb[selected]}
+              onChange={(e) => {
+                const db = parseFloat(e.target.value);
+                setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+                const g = muteGainsRef.current.get(selected);
+                if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+              }}
+              title="Volume (selected instrument)"
+            />
+          </div>
 
-{/* SWING — full width below */}
-<div style={{ marginTop: 16, width: "100%" }}>
-  <div className="swing-row">
-    {/* short grid selector (8th/16th/off) */}
-    <select
-      className="swing-select"
-      value={instSwingType[selected]}
-      onChange={(e) =>
-        setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
-      }
-      title="Swing grid"
-    >
-      <option value="none">Off</option>
-      <option value="8">8th</option>
-      <option value="16">16th</option>
-    </select>
+          <div className="vfader-readout">
+            {instGainsDb[selected] >= 0
+              ? `+${instGainsDb[selected].toFixed(1)} dB`
+              : `${instGainsDb[selected].toFixed(1)} dB`}
+          </div>
 
-    {/* per-instrument swing block (slider + caption below) */}
-    <div className="swing-block">
-      <input
-        className="swing-slider"
-        type="range"
-        min={0}
-        max={100}
-        step={1}
-        value={instSwingAmt[selected]}
-        onChange={(e) =>
-          setInstSwingAmt((prev) => ({
-            ...prev,
-            [selected]: parseInt(e.target.value, 10),
-          }))
-        }
-        disabled={instSwingType[selected] === "none"}
-        title="Swing amount (%)"
-      />
-      <div className="swing-caption">
-        Swing {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+          <button
+            className="btn"
+            onClick={toggleSolo}
+            title="Solo selected instrument (mute others)"
+            style={{ width: "100%" }}
+          >
+            {soloActive ? "Unsolo" : "Solo"}
+          </button>
+        </div>
       </div>
-    </div>
 
-    {/* global swing block (slider + caption below, right side) */}
-    <div className="swing-global">
-      <input
-        className="swing-gslider"
-        type="range"
-        min={0}
-        max={150}
-        step={1}
-        value={globalSwingPct}
-        onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
-        title={`Global swing: ${globalSwingPct}%`}
-      />
-      <div className="swing-caption">Global {globalSwingPct}%</div>
-    </div>
-  </div>
-</div>
+      {/* Divider */}
+      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+      {/* SWING — full width below */}
+      <div style={{ marginTop: 16, width: "100%" }}>
+        <div className="swing-row">
+          {/* short grid selector (8th/16th/off) */}
+          <select
+            className="swing-select"
+            value={instSwingType[selected]}
+            onChange={(e) =>
+              setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
+            }
+            title="Swing grid"
+          >
+            <option value="none">Off</option>
+            <option value="8">8th</option>
+            <option value="16">16th</option>
+          </select>
+
+          {/* per-instrument swing block (slider + caption below) */}
+          <div className="swing-block">
+            <input
+              className="swing-slider"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={instSwingAmt[selected]}
+              onChange={(e) =>
+                setInstSwingAmt((prev) => ({
+                  ...prev,
+                  [selected]: parseInt(e.target.value, 10),
+                }))
+              }
+              disabled={instSwingType[selected] === "none"}
+              title="Swing amount (%)"
+            />
+            <div className="swing-caption">
+              Swing {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+            </div>
+          </div>
+
+          {/* global swing block (slider + caption below, right side) */}
+          <div className="swing-global">
+            <input
+              className="swing-gslider"
+              type="range"
+              min={0}
+              max={150}
+              step={1}
+              value={globalSwingPct}
+              onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
+              title={`Global swing: ${globalSwingPct}%`}
+            />
+            <div className="swing-caption">Global {globalSwingPct}%</div>
+          </div>
+        </div>
+      </div>
 
 
-
+      {/* Divider */}
+      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
-  <button onClick={togglePlay} className="btn">{isPlaying ? "Stop" : "Play"}</button>
-  <button onClick={toggleRecord} className="btn">{isRecording ? "Recording…" : "Record"}</button>
-  <div style={{ marginLeft: 8, opacity: 0.8, fontSize: 14 }}>
-    Step: {pad(step + 1)}/{STEPS_PER_BAR}
+        <button onClick={togglePlay} className="btn">
+          {isPlaying ? "Stop" : "Play"}
+        </button>
+        <button onClick={toggleRecord} className="btn">
+          {isRecording ? "Recording…" : "Record"}
+        </button>
+        <div style={{ marginLeft: 8, opacity: 0.8, fontSize: 14 }}>
+          Step: {pad(step + 1)}/{STEPS_PER_BAR}
+        </div>
+
+        <button
+          onClick={clearSelectedPattern}
+          className="btn"
+          title="Clear selected instrument only"
+        >
+          Clear Selected
+        </button>
+
+        <button
+          onClick={clearAllPatternsAndLevels}
+          className="btn"
+          title="Clear all instruments"
+        >
+          Clear All
+        </button>
+      </div>
+
+      {/* Step editor: each row has a centered pill + chevron; steps switch 1x16 <-> 2x8 */}
+<div className="rows-wrap">
+  {/* Row A */}
+  <div className="row-section">
+    <div className="row-pill-wrap">
+      <button
+        className={`row-pill ${rowActive[selected]?.A ? "row-pill--on" : "row-pill--off"}`}
+        onClick={() => toggleRowActiveUI(selected, "A")}
+        aria-pressed={rowActive[selected]?.A}
+        title={`Row A ${rowActive[selected]?.A ? "On" : "Off"}`}
+      >
+        A
+      </button>
+      <button
+        className={`row-expand ${rowExpanded[selected]?.A ? "open" : ""}`}
+        onClick={() => toggleRowExpanded(selected, "A")}
+        aria-expanded={rowExpanded[selected]?.A}
+        title={rowExpanded[selected]?.A ? "Collapse (1×16)" : "Expand (2×8 large)"}
+      >
+        ▾
+      </button>
+    </div>
+
+    <div className={`row-steps ${rowExpanded[selected]?.A ? "row-steps--lg" : ""}`}>
+      {patterns[selected].A.map((v, i) => {
+        const isActive = v > 0;
+        const accent = i === step && (uiLatchedRow[selected] || "A") === "A";
+        const fill = isActive
+          ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
+          : "rgba(255,255,255,.15)";
+        return (
+          <button
+            key={`A-${i}`}
+            className={`step-btn ${rowExpanded[selected]?.A ? "step-btn--lg" : ""}`}
+            onClick={() => cycleStepRow("A", i)}
+            title={`Row A • Step ${i + 1}`}
+            style={{
+              background: fill,
+              outline: accent ? "2px solid #34d399" : "none",
+            }}
+          />
+        );
+      })}
+    </div>
   </div>
 
-  {/* NEW: clear only selected instrument */}
-  <button onClick={clearSelectedPattern} className="btn" title="Clear selected instrument only">
-    Clear Selected
-  </button>
-
-  {/* existing: clear all */}
-  <button onClick={clearAllPatternsAndLevels} className="btn" title="Clear all instruments">
-  Clear All
-</button>
-</div>
-
-      {/* Mini step LEDs preview for selected instrument */}
-      {/* Step editor for selected instrument (single row, 16 cols) */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(16, 1fr)",
-    gap: 8,
-    marginTop: 24,
-    maxWidth: 640,
-  }}
->
-  {patterns[selected].map((v, i) => {
-    const isActive = v > 0;
-    const accent = i === step;
-    const fill = isActive
-      ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
-      : "rgba(255,255,255,.15)";
-    return (
+  {/* Row B */}
+  <div className="row-section">
+    <div className="row-pill-wrap">
       <button
-        key={`st-${i}`}
-        onClick={() => cycleStep(i)}
-        title={`Step ${i + 1}: ${v.toFixed ? v.toFixed(2) : v} — click to cycle`}
-        style={{
-          height: 20,
-          width: "100%",
-          borderRadius: 3,
-          background: fill,
-          outline: accent ? "2px solid #34d399" : "none",
-          border: "1px solid rgba(255,255,255,.12)",
-          padding: 0,
-          cursor: "pointer",
-        }}
-      />
-    );
-  })}
+        className={`row-pill ${rowActive[selected]?.B ? "row-pill--on" : "row-pill--off"}`}
+        onClick={() => toggleRowActiveUI(selected, "B")}
+        aria-pressed={rowActive[selected]?.B}
+        title={`Row B ${rowActive[selected]?.B ? "On" : "Off"}`}
+      >
+        B
+      </button>
+      <button
+        className={`row-expand ${rowExpanded[selected]?.B ? "open" : ""}`}
+        onClick={() => toggleRowExpanded(selected, "B")}
+        aria-expanded={rowExpanded[selected]?.B}
+        title={rowExpanded[selected]?.B ? "Collapse (1×16)" : "Expand (2×8 large)"}
+      >
+        ▾
+      </button>
+    </div>
+
+    <div className={`row-steps ${rowExpanded[selected]?.B ? "row-steps--lg" : ""}`}>
+      {patterns[selected].B.map((v, i) => {
+        const isActive = v > 0;
+        const accent = i === step && (uiLatchedRow[selected] || "A") === "B";
+        const fill = isActive
+          ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
+          : "rgba(255,255,255,.15)";
+        return (
+          <button
+            key={`B-${i}`}
+            className={`step-btn ${rowExpanded[selected]?.B ? "step-btn--lg" : ""}`}
+            onClick={() => cycleStepRow("B", i)}
+            title={`Row B • Step ${i + 1}`}
+            style={{
+              background: fill,
+              outline: accent ? "2px solid #34d399" : "none",
+            }}
+          />
+        );
+      })}
+    </div>
+  </div>
 </div>
 
 
-
-      {/* Minimal CSS for .btn */}
-      <style>{`
-        .btn {
-          padding: 8px 12px;
-          border-radius: 12px;
-          background: #444;
-          color: white;
-          border: 1px solid rgba(255,255,255,.1);
-          box-shadow: 0 1px 2px rgba(0,0,0,.3);
-          cursor: pointer;
-          transition: transform .05s ease, background .15s ease;
-        }
-        .btn:hover { background: #555; }
-        .btn:active { transform: scale(0.98); }
-      `}</style>
     </div>
   );
 
@@ -788,7 +915,10 @@ function PadButton({ label, sub, onPress }) {
   return (
     <button
       onPointerDown={onPress}
-      onTouchStart={(e) => { e.preventDefault(); onPress(); }}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        onPress();
+      }}
       style={{
         height: 144,
         width: 144,

@@ -169,3 +169,40 @@
     0 -1px 0 rgba(0,0,0,.2) inset,
     0 2px 6px rgba(0,0,0,.6);
 }
+
+
+
+/* one-line swing row */
+.swing-row {
+  display: grid;
+  grid-template-columns: auto 56px 1fr auto; /* label | short select | slider | % */
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.swing-label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.swing-select {
+  width: 56px;
+  height: 28px;
+  background: #3a3a3a;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.swing-slider {
+  width: 100%;
+}
+
+.swing-val {
+  font-size: 12px;
+  width: 34px;
+  text-align: right;
+  opacity: 0.85;
+}

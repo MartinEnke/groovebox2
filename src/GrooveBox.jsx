@@ -170,6 +170,50 @@ function applyMutes(newMutes) {
     return () => ctx.close();
   }, []);
 
+
+  // Per-instrument swing type and amount
+const [instSwingType, setInstSwingType] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, "none"])) // "none" | "8" | "16"
+  );
+  const [instSwingAmt, setInstSwingAmt] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0])) // 0..100 (%)
+  );
+  
+  // Mirror to refs so scheduler doesn't restart on UI changes
+  const instSwingTypeRef = useRef(instSwingType);
+  const instSwingAmtRef = useRef(instSwingAmt);
+  useEffect(() => { instSwingTypeRef.current = instSwingType; }, [instSwingType]);
+  useEffect(() => { instSwingAmtRef.current = instSwingAmt; }, [instSwingAmt]);
+
+  
+  // Returns a positive delay (seconds) to apply to this inst/step
+function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
+    const type = instSwingTypeRef.current?.[instId] ?? "none";
+    const amt = (instSwingAmtRef.current?.[instId] ?? 0) / 100; // 0..1
+    if (type === "none" || amt <= 0) return 0;
+  
+    const withinBeat = stepIndex % 4;
+  
+    if (type === "8") {
+      // Delay the off-beat 8th (step 2 within each beat) up to triplet feel.
+      // Max delay at 100% = 1/6 of a beat (straight->triplet).
+      if (withinBeat === 2) return amt * (secondsPerBeat / 6);
+      return 0;
+    }
+  
+    if (type === "16") {
+      // Delay the off 16ths (indices 1 and 3) within each beat.
+      // Max delay at 100% ≈ 1/3 of a 16th (triplet-ish inside the pair).
+      const isOff16 = (withinBeat % 2 === 1); // 1 or 3
+      if (!isOff16) return 0;
+      return amt * ((secondsPerBeat / 4) / 3); // (secondsPerStep)/3
+    }
+  
+    return 0;
+  }
+
+  
+
   // ===== Scheduling (decoupled from patterns/mutes/metronome state) =====
   useEffect(() => {
     if (!isPlaying || !audioCtxRef.current) return;
@@ -208,18 +252,18 @@ function applyMutes(newMutes) {
 
       // notes per instrument (read patterns/mutes from refs)
       INSTRUMENTS.forEach((inst) => {
-        const vel = (patternsRef.current?.[inst.id]?.[stepIndex]) || 0;
-        if (vel > 0 && !mutesRef.current?.[inst.id]) {
-          const key = `${inst.id}-${stepIndex}`;
-          if (recentWritesRef.current.has(key)) {
-            // Skip this pass once, then allow future playbacks
-            recentWritesRef.current.delete(key);
-          } else {
-            const buf = buffersRef.current.get(inst.id);
-            if (buf) playSample(inst.id, vel, nextNoteTimeRef.current);
-          }
-        }
-      });
+  const vel = (patternsRef.current?.[inst.id]?.[stepIndex]) || 0;
+  if (vel > 0 && !mutesRef.current?.[inst.id]) {
+    const key = `${inst.id}-${stepIndex}`;
+    if (recentWritesRef.current.has(key)) {
+      recentWritesRef.current.delete(key);
+    } else {
+      const buf = buffersRef.current.get(inst.id);
+      const when = nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
+      if (buf) playSample(inst.id, vel, when);
+    }
+  }
+});
 
       // advance to next 16th note
       nextNoteTimeRef.current += secondsPerStep;
@@ -401,30 +445,38 @@ function applyMutes(newMutes) {
   
 
   function clearAllPatternsAndLevels() {
-    // 1) clear patterns for all instruments
+    // 1) Clear patterns for all instruments
     setPatterns(
       Object.fromEntries(INSTRUMENTS.map((i) => [i.id, new Array(STEPS_PER_BAR).fill(0)]))
     );
   
-    // 2) reset all instrument gains to 0 dB (state)
+    // 2) Reset all instrument gains to 0 dB (state)
     const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     setInstGainsDb(zeroDbMap);
   
-    // 3) unmute everything (state + ref)
+    // 3) Reset swing (state + refs so scheduler reads it right away)
+    const swingTypeNone = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
+    const swingAmtZero = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    setInstSwingType(swingTypeNone);
+    setInstSwingAmt(swingAmtZero);
+    if (instSwingTypeRef) instSwingTypeRef.current = swingTypeNone;
+    if (instSwingAmtRef) instSwingAmtRef.current = swingAmtZero;
+  
+    // 4) Unmute everything (state + ref)
     const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
     setMutes(allUnmuted);
     mutesRef.current = allUnmuted;
   
-    // 4) apply 0 dB to actual GainNodes now (don’t wait for state)
+    // 5) Apply 0 dB to actual GainNodes now (don’t wait for state)
     INSTRUMENTS.forEach((i) => {
       const g = muteGainsRef.current.get(i.id);
       if (g) g.gain.value = dbToGain(0);
     });
   
-    // 5) clear any one-shot skip tokens
+    // 6) Clear any one-shot skip tokens
     recentWritesRef.current.clear();
   
-    // 6) turn off solo + forget previous mutes
+    // 7) Turn off solo + forget previous mutes
     setSoloActive(false);
     prevMutesRef.current = null;
   }
@@ -555,6 +607,44 @@ function applyMutes(newMutes) {
     {soloActive ? "Unsolo" : "Solo"}
   </button>
 </div>
+
+{/* SWING controls (per selected instrument) */}
+{/* SWING (one-line) */}
+<div className="swing-row">
+  <span className="swing-label">Swing</span>
+
+  <select
+    className="swing-select"
+    value={instSwingType[selected]}
+    onChange={(e) =>
+      setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
+    }
+    title="Swing grid"
+  >
+    <option value="none">Off</option>
+    <option value="8">8th</option>
+    <option value="16">16th</option>
+  </select>
+
+  <input
+    className="swing-slider"
+    type="range"
+    min={0}
+    max={100}
+    step={1}
+    value={instSwingAmt[selected]}
+    onChange={(e) =>
+      setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
+    }
+    disabled={instSwingType[selected] === "none"}
+    title="Swing amount (%)"
+  />
+
+  <span className="swing-val">{instSwingAmt[selected]}%</span>
+</div>
+
+
+
 
 
 

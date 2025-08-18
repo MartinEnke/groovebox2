@@ -1,6 +1,10 @@
 // src/GrooveBox.jsx
 import React, { useEffect, useRef, useState } from "react";
 
+
+
+
+  
 // ===== Utility helpers =====
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
@@ -50,6 +54,17 @@ export default function GrooveBox() {
   const [isRecording, setIsRecording] = useState(false);
   const [metronomeOn, setMetronomeOn] = useState(true);
   const [step, setStep] = useState(0); // UI indicator only
+
+
+  // Metronome mode: "beats" (4), "all" (16), "off"
+const [metMode, setMetMode] = useState("beats");
+const metModeRef = useRef(metMode);
+useEffect(() => { metModeRef.current = metMode; }, [metMode]);
+
+function cycleMetronomeMode() {
+  setMetMode(prev => (prev === "beats" ? "all" : prev === "all" ? "off" : "beats"));
+}
+
 
   // Which row (A/B) is active *for UI* this bar
 const [uiLatchedRow, setUiLatchedRow] = useState(
@@ -206,17 +221,14 @@ const [rowExpanded, setRowExpanded] = useState(() =>
 
   function toggleSolo() {
     if (soloActive) {
-      const restore =
-        prevMutesRef.current ??
-        Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
-      applyMutes(restore);
-      prevMutesRef.current = null;
+      // Turning SOLO off → unmute everything
+      const allUnmuted = Object.fromEntries(INSTRUMENTS.map(i => [i.id, false]));
+      applyMutes(allUnmuted);          // updates state + GainNodes
       setSoloActive(false);
+      prevMutesRef.current = null;     // optional: we no longer restore previous mutes
     } else {
-      prevMutesRef.current = mutesRef.current;
-      const soloMap = Object.fromEntries(
-        INSTRUMENTS.map((i) => [i.id, i.id !== selected])
-      );
+      // Turning SOLO on → mute all others, leave selected on
+      const soloMap = Object.fromEntries(INSTRUMENTS.map(i => [i.id, i.id !== selected]));
       applyMutes(soloMap);
       setSoloActive(true);
     }
@@ -313,10 +325,14 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       }
   
       // 2) Metronome (unchanged)
-      if (metronomeOnRef.current) {
-        const click = stepIndex % 4 === 0 ? metClickRef.current.hi : metClickRef.current.lo;
-        playBuffer(click, 0.15, nextNoteTimeRef.current);
-      }
+      const mm = metModeRef.current;
+if (mm === "beats") {
+  if (stepIndex % 4 === 0) playBuffer(metClickRef.current.hi, 0.15, nextNoteTimeRef.current);
+} else if (mm === "all") {
+  const click = stepIndex % 4 === 0 ? metClickRef.current.hi : metClickRef.current.lo;
+  playBuffer(click, 0.15, nextNoteTimeRef.current);
+} // mm === "off" → no clicks
+
   
       // 3) Schedule notes for this exact step
       INSTRUMENTS.forEach((inst) => {
@@ -576,12 +592,19 @@ const [rowExpanded, setRowExpanded] = useState(() =>
         <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: 0.4 }}>DR7</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
-            <span>Metronome</span>
-            <input
-              type="checkbox"
-              checked={metronomeOn}
-              onChange={(e) => setMetronomeOn(e.target.checked)}
-            />
+            
+          <button
+  className={`btn metro-btn mode-${metMode}`}
+  onClick={cycleMetronomeMode}
+  title={
+    metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
+    : metMode === "all" ? "Metronome: all 16th (click for off)"
+    : "Metronome: off (click for 4 downbeats)"
+  }
+>
+  {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
+</button>
+
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span>BPM</span>
@@ -681,13 +704,14 @@ const [rowExpanded, setRowExpanded] = useState(() =>
           </div>
 
           <button
-            className="btn"
-            onClick={toggleSolo}
-            title="Solo selected instrument (mute others)"
-            style={{ width: "100%" }}
-          >
-            {soloActive ? "Unsolo" : "Solo"}
-          </button>
+  className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
+  onClick={toggleSolo}
+  aria-pressed={soloActive}
+  title="Solo selected instrument (mute others)"
+  style={{ width: "100%" }}
+>
+  Solo
+</button>
         </div>
       </div>
 
@@ -756,49 +780,75 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
       {/* Transport */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
-        <button onClick={togglePlay} className="btn">
-          {isPlaying ? "Stop" : "Play"}
-        </button>
-        <button onClick={toggleRecord} className="btn">
-          {isRecording ? "Recording…" : "Record"}
-        </button>
-        <div style={{ marginLeft: 8, opacity: 0.8, fontSize: 14 }}>
-          Step: {pad(step + 1)}/{STEPS_PER_BAR}
-        </div>
+<div className="transport">
+  {/* Play / Stop (triangle / square) */}
+  <button
+    onClick={togglePlay}
+    className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
+    aria-pressed={isPlaying}
+    title={isPlaying ? "Stop" : "Play"}
+  >
+    <span className="tri" aria-hidden="true"></span>
+    <span className="sq" aria-hidden="true"></span>
+  </button>
 
-        <button
-          onClick={clearSelectedPattern}
-          className="btn"
-          title="Clear selected instrument only"
-        >
-          Clear Selected
-        </button>
+  {/* Record (dot only) */}
+  <button
+    onClick={toggleRecord}
+    className={`btn press rec ${isRecording ? "on" : ""}`}
+    aria-pressed={isRecording}
+    title="Record"
+  >
+    <span className="rec-dot" aria-hidden="true"></span>
+  </button>
 
-        <button
-          onClick={clearAllPatternsAndLevels}
-          className="btn"
-          title="Clear all instruments"
-        >
-          Clear All
-        </button>
-      </div>
+  {/* Digital step display */}
+  <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
 
-      {/* Step editor: each row has a centered pill + chevron; steps switch 1x16 <-> 2x8 */}
-<div className="rows-wrap">
+  {/* Clear selected (Del Pat) */}
+<button
+  onClick={clearSelectedPattern}
+  className="btn press clear-btn pat"
+  title="Clear selected instrument"
+>
+  <span className="sym">Del Pat</span>
+</button>
+
+{/* Clear all (Del All) */}
+<button
+  onClick={clearAllPatternsAndLevels}
+  className="btn press clear-btn all"
+  title="Clear all"
+>
+  <span className="sym">Del All</span>
+</button>
+</div>
+
+
+
+      {/* Step editor: oldschool — row button on left, chevron on right */}
+<div style={{ marginTop: 24, width: "100%", maxWidth: 760 }}>
   {/* Row A */}
-  <div className="row-section">
-    <div className="row-pill-wrap">
+  <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8 }}>
+    {/* Header line: A button (left) + chevron (right) */}
+    <div style={{ display: "flex", alignItems: "center" }}>
       <button
-        className={`row-pill ${rowActive[selected]?.A ? "row-pill--on" : "row-pill--off"}`}
+        className="btn btn-ab"
         onClick={() => toggleRowActiveUI(selected, "A")}
-        aria-pressed={rowActive[selected]?.A}
         title={`Row A ${rowActive[selected]?.A ? "On" : "Off"}`}
+        aria-pressed={rowActive[selected]?.A}
+        style={{
+          background: rowActive[selected]?.A ? "#059669" : "#333",
+          fontWeight: 800,
+        }}
       >
         A
       </button>
+
+      <div style={{ flex: 1 }} />
+
       <button
-        className={`row-expand ${rowExpanded[selected]?.A ? "open" : ""}`}
+        className={`btn btn-ab-chevron ${rowExpanded[selected]?.A ? "open" : ""}`}
         onClick={() => toggleRowExpanded(selected, "A")}
         aria-expanded={rowExpanded[selected]?.A}
         title={rowExpanded[selected]?.A ? "Collapse (1×16)" : "Expand (2×8 large)"}
@@ -807,7 +857,16 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       </button>
     </div>
 
-    <div className={`row-steps ${rowExpanded[selected]?.A ? "row-steps--lg" : ""}`}>
+    {/* Steps: 1×16 or 2×8 (larger) */}
+    <div
+      className="row-steps"
+      style={{
+        display: "grid",
+        gridTemplateColumns: rowExpanded[selected]?.A ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
+        gap: rowExpanded[selected]?.A ? 10 : 8,
+        alignItems: "center",
+      }}
+    >
       {patterns[selected].A.map((v, i) => {
         const isActive = v > 0;
         const accent = i === step && (uiLatchedRow[selected] || "A") === "A";
@@ -817,12 +876,17 @@ const [rowExpanded, setRowExpanded] = useState(() =>
         return (
           <button
             key={`A-${i}`}
-            className={`step-btn ${rowExpanded[selected]?.A ? "step-btn--lg" : ""}`}
             onClick={() => cycleStepRow("A", i)}
             title={`Row A • Step ${i + 1}`}
             style={{
+              height: rowExpanded[selected]?.A ? 44 : 20,
+              width: "100%",
+              borderRadius: rowExpanded[selected]?.A ? 6 : 3,
               background: fill,
               outline: accent ? "2px solid #34d399" : "none",
+              border: "1px solid rgba(255,255,255,.12)",
+              padding: 0,
+              cursor: "pointer",
             }}
           />
         );
@@ -831,18 +895,26 @@ const [rowExpanded, setRowExpanded] = useState(() =>
   </div>
 
   {/* Row B */}
-  <div className="row-section">
-    <div className="row-pill-wrap">
+  <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8, marginTop: 14 }}>
+    {/* Header line: B button (left) + chevron (right) */}
+    <div style={{ display: "flex", alignItems: "center" }}>
       <button
-        className={`row-pill ${rowActive[selected]?.B ? "row-pill--on" : "row-pill--off"}`}
+        className="btn btn-ab"
         onClick={() => toggleRowActiveUI(selected, "B")}
-        aria-pressed={rowActive[selected]?.B}
         title={`Row B ${rowActive[selected]?.B ? "On" : "Off"}`}
+        aria-pressed={rowActive[selected]?.B}
+        style={{
+          background: rowActive[selected]?.B ? "#059669" : "#333",
+          fontWeight: 800,
+        }}
       >
         B
       </button>
+
+      <div style={{ flex: 1 }} />
+
       <button
-        className={`row-expand ${rowExpanded[selected]?.B ? "open" : ""}`}
+        className={`btn btn-ab-chevron ${rowExpanded[selected]?.B ? "open" : ""}`}
         onClick={() => toggleRowExpanded(selected, "B")}
         aria-expanded={rowExpanded[selected]?.B}
         title={rowExpanded[selected]?.B ? "Collapse (1×16)" : "Expand (2×8 large)"}
@@ -851,7 +923,16 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       </button>
     </div>
 
-    <div className={`row-steps ${rowExpanded[selected]?.B ? "row-steps--lg" : ""}`}>
+    {/* Steps */}
+    <div
+      className="row-steps"
+      style={{
+        display: "grid",
+        gridTemplateColumns: rowExpanded[selected]?.B ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
+        gap: rowExpanded[selected]?.B ? 10 : 8,
+        alignItems: "center",
+      }}
+    >
       {patterns[selected].B.map((v, i) => {
         const isActive = v > 0;
         const accent = i === step && (uiLatchedRow[selected] || "A") === "B";
@@ -861,12 +942,17 @@ const [rowExpanded, setRowExpanded] = useState(() =>
         return (
           <button
             key={`B-${i}`}
-            className={`step-btn ${rowExpanded[selected]?.B ? "step-btn--lg" : ""}`}
             onClick={() => cycleStepRow("B", i)}
             title={`Row B • Step ${i + 1}`}
             style={{
+              height: rowExpanded[selected]?.B ? 44 : 20,
+              width: "100%",
+              borderRadius: rowExpanded[selected]?.B ? 6 : 3,
               background: fill,
               outline: accent ? "2px solid #34d399" : "none",
+              border: "1px solid rgba(255,255,255,.12)",
+              padding: 0,
+              cursor: "pointer",
             }}
           />
         );
@@ -874,6 +960,7 @@ const [rowExpanded, setRowExpanded] = useState(() =>
     </div>
   </div>
 </div>
+
 
 
     </div>
@@ -886,7 +973,7 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       <button
         key={inst.id}
         onClick={() => selectInstrument(inst.id)}
-        className="btn"
+        className="btn inst-btn"                // ← add inst-btn here
         title={`Select ${inst.label}`}
         style={{ background: isSel ? "#059669" : "#333" }}
       >
@@ -894,6 +981,7 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       </button>
     );
   }
+  
 
   function renderMuteButton(inst) {
     const muted = mutes[inst.id];
@@ -905,7 +993,7 @@ const [rowExpanded, setRowExpanded] = useState(() =>
         title={`Mute ${inst.label}`}
         style={{ background: muted ? "#b91c1c" : "#444" }}
       >
-        {muted ? "Muted" : "Mute"}
+        {muted ? "Mute" : "Mute"}
       </button>
     );
   }

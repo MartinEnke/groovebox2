@@ -60,6 +60,9 @@ const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
   );
 
+  // Global reverb length mode: 'S' (4 steps), 'M' (8), 'L' (16)
+const [revLenMode, setRevLenMode] = useState('M');
+
   // ===== FX buses & per-instrument sends =====
 const delayInRef = useRef(null);
 const delayNodeRef = useRef(null);
@@ -337,6 +340,31 @@ useEffect(() => {
     d.delayTime.cancelScheduledValues(ctx.currentTime);
     d.delayTime.linearRampToValueAtTime(target, ctx.currentTime + 0.01);
   }, [bpm]);
+
+
+  // ===== Keep reverb tail length locked to BPM & mode =====
+useEffect(() => {
+    const ctx = audioCtxRef.current;
+    const convolver = reverbConvolverRef.current;
+    if (!ctx || !convolver) return;
+  
+    // each step = 1/16 note (PPQ=4 → 4 steps per beat)
+    const secondsPerBeat = 60 / bpm;
+    const secondsPerStep = secondsPerBeat / PPQ;
+  
+    const steps =
+      revLenMode === 'S' ? 4  :   // 1 beat (quarter note)
+      revLenMode === 'M' ? 8  :   // 2 beats (half note)
+                              16; // 4 beats (1 bar)
+  
+    const duration = Math.max(0.2, steps * secondsPerStep); // seconds
+    const decay =
+      revLenMode === 'S' ? 1.8 :
+      revLenMode === 'M' ? 2.2 : 2.8;
+  
+    // (re)build IR for this BPM/mode
+    convolver.buffer = makeImpulseResponse(ctx, duration, decay);
+  }, [bpm, revLenMode]);
 
   
   // ===== Scheduling =====
@@ -883,6 +911,24 @@ INSTRUMENTS.forEach((i) => {
       title="Reverb wet (%)"
     />
   </div>
+</div>
+
+<div className="revlen-wrap">
+  {['S','M','L'].map((m) => (
+    <button
+      key={m}
+      type="button"
+      className={`revlen-btn ${revLenMode === m ? 'on' : ''}`}
+      onClick={() => setRevLenMode(m)}
+      title={
+        m === 'S' ? 'Short (4 steps)' :
+        m === 'M' ? 'Medium (8 steps)' :
+                    'Long (16 steps)'
+      }
+    >
+      {m}
+    </button>
+  ))}
 </div>
 
       {/* Divider */}

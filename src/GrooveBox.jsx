@@ -52,35 +52,36 @@ export default function GrooveBox() {
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
 
-  // FX wet % per instrument (0..100)
+  // --- FX wet % per instrument (0..100) ---
 const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
   );
+  // Per-instrument delay mode: 'N16' (1/16), 'N8' (1/8), 'N3_4' (3/4)
+const [instDelayMode, setInstDelayMode] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 'N8']))
+  );
+  
+  
   const [instReverbWet, setInstReverbWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
   );
-  
   // Per-instrument REVERB length mode: 'S' (4 steps), 'M' (8), 'L' (16)
   const [instRevMode, setInstRevMode] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 'M']))
   );
   
   // ===== FX buses & per-instrument sends =====
-  // Delay (unchanged from your version)
-  const delayInRef = useRef(null);
-  const delayNodeRef = useRef(null);
-  const delayFbRef = useRef(null);
-  const delayFilterRef = useRef(null);
-  const delayWetGainRef = useRef(null);
+  
+  // Delay: three global buses (tempo-synced): 1/16, 1/8, 3/8
+  // Delay buses registry
+const delayBusesRef = useRef({ N16: null, N8: null, N3_4: null });
+  // per-instrument delay sends: instId -> { N16: GainNode, N8: GainNode, N3_8: GainNode }
+  const delaySendGainsRef = useRef(new Map());
   
   // Reverb: three global buses (S/M/L)
   const reverbConvRef = useRef({ S: null, M: null, L: null });
   const reverbWetGainRef = useRef({ S: null, M: null, L: null });
-  
-  // Per-instrument send gains:
-  // delay: instId -> GainNode
-  const delaySendGainsRef = useRef(new Map());
-  // reverb: instId -> {S: GainNode, M: GainNode, L: GainNode}
+  // per-instrument reverb sends: instId -> { S: GainNode, M: GainNode, L: GainNode }
   const reverbSendGainsRef = useRef(new Map());
   
 
@@ -120,6 +121,25 @@ const [rowExpanded, setRowExpanded] = useState(() =>
       [instId]: { ...prev[instId], [row]: !prev[instId][row] },
     }));
   }
+
+  function updateDelaySends(instId, pctOverride) {
+    const sends = delaySendGainsRef.current.get(instId);
+    if (!sends) return;
+  
+    const pct  = pctOverride ?? instDelayWet[instId] ?? 0;
+    const mode = instDelayMode[instId] ?? 'N8';
+    const v = pct / 100;
+  
+    sends.N16.gain.value  = mode === 'N16'  ? v : 0;
+    sends.N8.gain.value   = mode === 'N8'   ? v : 0;
+    sends.N3_4.gain.value = mode === 'N3_4' ? v : 0;
+  }
+
+  useEffect(() => {
+    INSTRUMENTS.forEach(i => updateDelaySends(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instDelayMode, instDelayWet]);
+  
 
 
   function updateReverbSends(instId, pctOverride) {
@@ -227,110 +247,137 @@ const [rowExpanded, setRowExpanded] = useState(() =>
 
   // ===== Init Audio =====
 useEffect(() => {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  audioCtxRef.current = ctx;
-
-  // Master
-  const master = ctx.createGain();
-  master.gain.value = 0.9;
-  master.connect(ctx.destination);
-  masterGainRef.current = master;
-
-  // Per-instrument post nodes (mute + volume)
-  INSTRUMENTS.forEach((inst) => {
-    const g = ctx.createGain();
-    g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
-    g.connect(master);
-    muteGainsRef.current.set(inst.id, g);
-  });
-
-  // ===== Delay bus (shared) =====
-  const delayIn = ctx.createGain();            delayIn.gain.value = 1.0;
-  const delay   = ctx.createDelay(2.0);        // max 2s
-  const fb      = ctx.createGain();            fb.gain.value = 0.35;
-  const dlp     = ctx.createBiquadFilter();    dlp.type = "lowpass"; dlp.frequency.value = 5000;
-  const dWet    = ctx.createGain();            dWet.gain.value = 1.0;
-
-  delayIn.connect(delay);
-  delay.connect(dlp);
-  dlp.connect(dWet);
-  dWet.connect(master);
-  delay.connect(fb);
-  fb.connect(delay);
-
-  // initial tempo sync (1/8 note)
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtxRef.current = ctx;
+  
+    // Master
+    const master = ctx.createGain();
+    master.gain.value = 0.9;
+    master.connect(ctx.destination);
+    masterGainRef.current = master;
+  
+    // Per-instrument post nodes (mute + volume)
+    INSTRUMENTS.forEach((inst) => {
+      const g = ctx.createGain();
+      g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
+      g.connect(master);
+      muteGainsRef.current.set(inst.id, g);
+    });
+  
+    // ===== Delay buses (three: 1/16, 1/8, 3/8) =====
+    // ===== Delay buses (three: 1/16, 1/8, 3/4) =====
+const mkDelayBus = () => {
+    const inGain = ctx.createGain();            inGain.gain.value = 1.0;
+    const node   = ctx.createDelay(2.0);        // max 2s
+    const fb     = ctx.createGain();            fb.gain.value    = 0.35;
+    const filt   = ctx.createBiquadFilter();    filt.type = "lowpass"; filt.frequency.value = 5000;
+    const wet    = ctx.createGain();            wet.gain.value   = 1.0;
+  
+    inGain.connect(node);
+    node.connect(filt);
+    filt.connect(wet);
+    wet.connect(master);
+    node.connect(fb);
+    fb.connect(node);
+  
+    return { in: inGain, node, fb, filt, wet };
+  };
+  
+  const busN16  = mkDelayBus();
+  const busN8   = mkDelayBus();
+  const busN3_4 = mkDelayBus();
+  
+  delayBusesRef.current = { N16: busN16, N8: busN8, N3_4: busN3_4 };
+  
+  // initial tempo sync
   const spbInit = 60 / bpm;
-  delay.delayTime.value = 0.5 * spbInit;
+  busN16.node.delayTime.value  = spbInit / 4;       // 1/16
+  busN8.node.delayTime.value   = spbInit / 2;       // 1/8
+  busN3_4.node.delayTime.value = (3 * spbInit) / 4; // 3/4
+  
+   
+  
+    // ===== Reverb buses (S/M/L) =====
+    const convS = ctx.createConvolver();
+    const convM = ctx.createConvolver();
+    const convL = ctx.createConvolver();
+    const wetS  = ctx.createGain(); wetS.gain.value = 1.0;
+    const wetM  = ctx.createGain(); wetM.gain.value = 1.0;
+    const wetL  = ctx.createGain(); wetL.gain.value = 1.0;
+  
+    convS.connect(wetS); wetS.connect(master);
+    convM.connect(wetM); wetM.connect(master);
+    convL.connect(wetL); wetL.connect(master);
+  
+    reverbConvRef.current   = { S: convS, M: convM, L: convL };
+    reverbWetGainRef.current = { S: wetS, M: wetM, L: wetL };
+  
+    // Per-instrument sends to each bus (post-fader/post-mute)
+INSTRUMENTS.forEach((inst) => {
+    const post = muteGainsRef.current.get(inst.id);
+  
+    const sN16  = ctx.createGain();
+    const sN8   = ctx.createGain();
+    const sN3_4 = ctx.createGain();
+  
+    // start muted; updateDelaySends will set the active one
+    sN16.gain.value  = 0;
+    sN8.gain.value   = 0;
+    sN3_4.gain.value = 0;
+  
+    post.connect(sN16);  sN16.connect(busN16.in);
+    post.connect(sN8);   sN8.connect(busN8.in);
+    post.connect(sN3_4); sN3_4.connect(busN3_4.in);
+  
+    // store all three sends for this instrument
+    delaySendGainsRef.current.set(inst.id, { N16: sN16, N8: sN8, N3_4: sN3_4 });
+  
+    // apply current wet/mode immediately
+    updateDelaySends(inst.id);
 
-  delayInRef.current      = delayIn;
-  delayNodeRef.current    = delay;
-  delayFbRef.current      = fb;
-  delayFilterRef.current  = dlp;
-  delayWetGainRef.current = dWet;
-
-  // ===== Reverb: THREE buses (S/M/L) =====
-  const convS = ctx.createConvolver();
-  const convM = ctx.createConvolver();
-  const convL = ctx.createConvolver();
-  const wetS  = ctx.createGain(); wetS.gain.value = 1.0;
-  const wetM  = ctx.createGain(); wetM.gain.value = 1.0;
-  const wetL  = ctx.createGain(); wetL.gain.value = 1.0;
-
-  convS.connect(wetS); wetS.connect(master);
-  convM.connect(wetM); wetM.connect(master);
-  convL.connect(wetL); wetL.connect(master);
-
-  reverbConvRef.current = { S: convS, M: convM, L: convL };
-  reverbWetGainRef.current = { S: wetS, M: wetM, L: wetL };
-
-  // ===== Per-instrument sends =====
-  INSTRUMENTS.forEach((inst) => {
-    const postNode = muteGainsRef.current.get(inst.id);
-
-    // Delay send
-    const dSend = ctx.createGain();
-    dSend.gain.value = (instDelayWet[inst.id] ?? 0) / 100;
-    postNode.connect(dSend);
-    dSend.connect(delayIn);
-    delaySendGainsRef.current.set(inst.id, dSend);
-
-    // Reverb sends (S/M/L)
-    const rSendS = ctx.createGain();
-    const rSendM = ctx.createGain();
-    const rSendL = ctx.createGain();
-    // initial: only active mode gets wet
-    rSendS.gain.value = 0; rSendM.gain.value = 0; rSendL.gain.value = 0;
-    postNode.connect(rSendS); rSendS.connect(convS);
-    postNode.connect(rSendM); rSendM.connect(convM);
-    postNode.connect(rSendL); rSendL.connect(convL);
-
-    reverbSendGainsRef.current.set(inst.id, { S: rSendS, M: rSendM, L: rSendL });
-    // apply current wet/mode
-    updateReverbSends(inst.id);
-  });
-
-  // Metronome click buffers
-  metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
-  metClickRef.current.lo = createClickBuffer(ctx, 1200, 0.002);
-
-  // Unlock on first user gesture (iOS)
-  const resume = () => ctx.resume();
-  window.addEventListener("pointerdown", resume, { once: true });
-
-  // Load samples
-  (async () => {
-    await Promise.all(
-      INSTRUMENTS.map(async (inst) => {
-        const buf = await fetchAndDecode(ctx, inst.url).catch(() => null);
-        if (buf) buffersRef.current.set(inst.id, buf);
-      })
-    );
-  })();
-
-  return () => ctx.close();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
+  
+      // --- Reverb sends (S / M / L) ---
+      const rSendS = ctx.createGain();
+      const rSendM = ctx.createGain();
+      const rSendL = ctx.createGain();
+  
+      // start muted; the active one will be set by updateReverbSends()
+      rSendS.gain.value = 0;
+      rSendM.gain.value = 0;
+      rSendL.gain.value = 0;
+  
+      post.connect(rSendS); rSendS.connect(convS);
+      post.connect(rSendM); rSendM.connect(convM);
+      post.connect(rSendL); rSendL.connect(convL);
+  
+      reverbSendGainsRef.current.set(inst.id, { S: rSendS, M: rSendM, L: rSendL });
+  
+      // apply current reverb wet/mode immediately
+      updateReverbSends(inst.id);
+    });
+  
+    // Metronome click buffers
+    metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
+    metClickRef.current.lo = createClickBuffer(ctx, 1200, 0.002);
+  
+    // Unlock on first user gesture (iOS)
+    const resume = () => ctx.resume();
+    window.addEventListener("pointerdown", resume, { once: true });
+  
+    // Load samples
+    (async () => {
+      await Promise.all(
+        INSTRUMENTS.map(async (inst) => {
+          const buf = await fetchAndDecode(ctx, inst.url).catch(() => null);
+          if (buf) buffersRef.current.set(inst.id, buf);
+        })
+      );
+    })();
+  
+    return () => ctx.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
 
   // ===== Solo helpers =====
   function applyMutes(newMutes) {
@@ -367,16 +414,29 @@ useEffect(() => {
   }, [selected, soloActive]);
 
 
-  // Delay time follows BPM (1/8 note)
-useEffect(() => {
-    const ctx = audioCtxRef.current;
-    const d = delayNodeRef.current;
-    if (!ctx || !d) return;
-    const spb = 60 / bpm;
-    const target = 0.5 * spb;
-    d.delayTime.cancelScheduledValues(ctx.currentTime);
-    d.delayTime.linearRampToValueAtTime(target, ctx.currentTime + 0.01);
-  }, [bpm]);
+  // Delay times follow BPM for all three buses
+  useEffect(() => {
+  const ctx = audioCtxRef.current;
+  const buses = delayBusesRef.current;
+  if (!ctx || !buses) return;
+  const spb = 60 / bpm;
+
+  const targets = {
+    N16:  spb / 4,          // 1/16
+    N8:   spb / 2,          // 1/8
+    N3_4: (3 * spb) / 4,    // 3/4
+  };
+
+  Object.entries(targets).forEach(([k, t]) => {
+    const d = buses[k]?.node;
+    if (d) {
+      d.delayTime.cancelScheduledValues(ctx.currentTime);
+      d.delayTime.linearRampToValueAtTime(t, ctx.currentTime + 0.01);
+    }
+  });
+}, [bpm]);
+
+  
   
   // Rebuild three IRs to match BPM (S=4 steps, M=8, L=16)
   useEffect(() => {
@@ -906,24 +966,49 @@ INSTRUMENTS.forEach((i) => {
       {/* FX (Delay & Reverb) for selected instrument */}
 <div className="fx-row" style={{ marginTop: 16 }}>
   {/* DELAY */}
-  <div className="fx-block">
-    <div className="fx-label">DLY</div>
-    <input
-      className="slider slider-fx"
-      type="range"
-      min={0}
-      max={100}
-      step={1}
-      value={instDelayWet[selected]}
-      onChange={(e) => {
-        const pct = parseInt(e.target.value, 10);
-        setInstDelayWet(prev => ({ ...prev, [selected]: pct }));
-        const g = delaySendGainsRef.current.get(selected);
-        if (g) g.gain.value = pct / 100;
-      }}
-      title="Delay wet (%)"
-    />
-  </div>
+<div className="fx-block">
+  <div className="fx-label">DLY</div>
+  <input
+    className="slider slider-fx"
+    type="range"
+    min={0}
+    max={100}
+    step={1}
+    value={instDelayWet[selected]}
+    onChange={(e) => {
+      const pct = parseInt(e.target.value, 10);
+      setInstDelayWet(prev => ({ ...prev, [selected]: pct }));
+      updateDelaySends(selected, pct);
+    }}
+    title="Delay wet (%)"
+  />
+
+  {/* Delay mode: 1/16, 1/8, 3/4 (per instrument) */}
+<div className="revlen-wrap">
+  {[
+    { key: 'N16',  label: '1/16' },
+    { key: 'N8',   label: '1/8'  },
+    { key: 'N3_4', label: '3/4'  },
+  ].map(opt => {
+    const on = instDelayMode[selected] === opt.key;
+    return (
+      <button
+        key={opt.key}
+        type="button"
+        className={`revlen-btn ${on ? 'on' : ''}`}
+        onClick={() => {
+          setInstDelayMode(prev => ({ ...prev, [selected]: opt.key }));
+          updateDelaySends(selected);
+        }}
+        title={`Delay mode ${opt.label}`}
+      >
+        {opt.label}
+      </button>
+    );
+  })}
+</div>
+</div>
+
 
   {/* REVERB */}
   <div className="fx-block">

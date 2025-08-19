@@ -41,67 +41,8 @@ const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_TIME = 0.1;
 
 
-function SwingModePicker({ value, onChange }) {
-    const [open, setOpen] = React.useState(false);
-    const btnRef = React.useRef(null);
-    const menuRef = React.useRef(null);
-  
-    React.useEffect(() => {
-      function onDoc(e) {
-        if (!menuRef.current || !btnRef.current) return;
-        if (!menuRef.current.contains(e.target) && !btnRef.current.contains(e.target)) {
-          setOpen(false);
-        }
-      }
-      function onEsc(e) { if (e.key === "Escape") setOpen(false); }
-      document.addEventListener("mousedown", onDoc);
-      document.addEventListener("keydown", onEsc);
-      return () => {
-        document.removeEventListener("mousedown", onDoc);
-        document.removeEventListener("keydown", onEsc);
-      };
-    }, []);
-  
-    const label = value === "none" ? "SWING OFF" : value === "8" ? "SWING 8" : "SWING 16";
-    const opts = [
-      { value: "none", label: "Off" },
-      { value: "8", label: "8th" },
-      { value: "16", label: "16th" },
-    ];
-  
-    return (
-      <div className="swing-mode-wrap">
-        <button
-          ref={btnRef}
-          type="button"
-          className={`btn swing-mode ${value === "none" ? "off" : "on"}`}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          {label}
-          <span className={`chev ${open ? "up" : ""}`} aria-hidden />
-        </button>
-  
-        {open && (
-          <div ref={menuRef} className="swing-menu" role="menu">
-            {opts.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                role="menuitem"
-                className={`swing-menu-item ${value === o.value ? "active" : ""}`}
-                onClick={() => { onChange(o.value); setOpen(false); }}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-  
+
+
 
 export default function GrooveBox() {
   // ===== Audio graph refs =====
@@ -110,6 +51,29 @@ export default function GrooveBox() {
   const buffersRef = useRef(new Map()); // id -> AudioBuffer
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
+
+  // FX wet % per instrument (0..100)
+const [instDelayWet, setInstDelayWet] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
+  );
+  const [instReverbWet, setInstReverbWet] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
+  );
+
+  // ===== FX buses & per-instrument sends =====
+const delayInRef = useRef(null);
+const delayNodeRef = useRef(null);
+const delayFbRef = useRef(null);
+const delayFilterRef = useRef(null);
+const delayWetGainRef = useRef(null);
+
+const reverbConvolverRef = useRef(null);
+const reverbWetGainRef = useRef(null);
+
+// per-instrument send gains (post-fader, post-mute)
+const delaySendGainsRef = useRef(new Map());   // instId -> GainNode
+const reverbSendGainsRef = useRef(new Map());  // instId -> GainNode
+
 
   // Sequencer state
   const [bpm, setBpm] = useState(120);
@@ -233,31 +197,86 @@ const [rowExpanded, setRowExpanded] = useState(() =>
 
 
   // ===== Init Audio =====
-  useEffect(() => {
+useEffect(() => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioCtxRef.current = ctx;
-
+  
+    // Master
     const master = ctx.createGain();
     master.gain.value = 0.9;
     master.connect(ctx.destination);
     masterGainRef.current = master;
-
-    // per-instrument mute+volume gain nodes
+  
+    // Per-instrument post nodes (mute + volume)
     INSTRUMENTS.forEach((inst) => {
       const g = ctx.createGain();
       g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
       g.connect(master);
       muteGainsRef.current.set(inst.id, g);
     });
-
-    // metronome click buffers (tiny bleeps)
+  
+    // ===== FX Buses (shared) =====
+    // Delay bus (tempo-synced)
+    const delayIn = ctx.createGain();            delayIn.gain.value = 1.0;
+    const delay = ctx.createDelay(2.0);          // max 2s
+    const fb    = ctx.createGain();              fb.gain.value    = 0.35;     // feedback
+    const dlp   = ctx.createBiquadFilter();      dlp.type = "lowpass"; dlp.frequency.value = 5000;
+    const dWet  = ctx.createGain();              dWet.gain.value  = 1.0;      // bus wet level
+  
+    delayIn.connect(delay);
+    delay.connect(dlp);
+    dlp.connect(dWet);
+    dWet.connect(master);
+    delay.connect(fb);
+    fb.connect(delay);
+  
+    // initial tempo sync (1/8 note)
+    const spbInit = 60 / bpm;                    // bpm from state
+    delay.delayTime.value = 0.5 * spbInit;
+  
+    // Reverb bus (simple synthesized IR)
+    const convolver = ctx.createConvolver();
+    convolver.buffer = makeImpulseResponse(ctx, 2.4, 2.2);  // (duration, decay)
+    const rWet = ctx.createGain();              rWet.gain.value = 1.0;
+    convolver.connect(rWet);
+    rWet.connect(master);
+  
+    // Save bus refs
+    delayInRef.current       = delayIn;
+    delayNodeRef.current     = delay;
+    delayFbRef.current       = fb;
+    delayFilterRef.current   = dlp;
+    delayWetGainRef.current  = dWet;
+    reverbConvolverRef.current = convolver;
+    reverbWetGainRef.current   = rWet;
+  
+    // ===== Per-instrument sends (tap AFTER post gain; sends follow mutes & faders) =====
+    INSTRUMENTS.forEach((inst) => {
+      const postNode = muteGainsRef.current.get(inst.id);
+      const dSend = ctx.createGain();
+      dSend.gain.value = (instDelayWet[inst.id] ?? 0) / 100;
+      const rSend = ctx.createGain();
+      rSend.gain.value = (instReverbWet[inst.id] ?? 0) / 100;
+  
+      postNode.connect(dSend);
+      postNode.connect(rSend);
+  
+      dSend.connect(delayIn);
+      rSend.connect(convolver);
+  
+      delaySendGainsRef.current.set(inst.id, dSend);
+      reverbSendGainsRef.current.set(inst.id, rSend);
+    });
+  
+    
+    // Metronome click buffers
     metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
     metClickRef.current.lo = createClickBuffer(ctx, 1200, 0.002);
-
-    // unlock on first user gesture (iOS)
+  
+    // Unlock on first user gesture (iOS)
     const resume = () => ctx.resume();
     window.addEventListener("pointerdown", resume, { once: true });
-
+  
     // Load samples
     (async () => {
       await Promise.all(
@@ -267,10 +286,11 @@ const [rowExpanded, setRowExpanded] = useState(() =>
         })
       );
     })();
-
+  
     return () => ctx.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
 
   // ===== Solo helpers =====
   function applyMutes(newMutes) {
@@ -306,6 +326,19 @@ const [rowExpanded, setRowExpanded] = useState(() =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, soloActive]);
 
+
+  // ===== Keep delay time locked to BPM =====
+useEffect(() => {
+    const ctx = audioCtxRef.current;
+    const d = delayNodeRef.current;
+    if (!ctx || !d) return;
+    const spb = 60 / bpm;
+    const target = 0.5 * spb; // 1/8 note
+    d.delayTime.cancelScheduledValues(ctx.currentTime);
+    d.delayTime.linearRampToValueAtTime(target, ctx.currentTime + 0.01);
+  }, [bpm]);
+
+  
   // ===== Scheduling =====
   useEffect(() => {
     if (!isPlaying || !audioCtxRef.current) return;
@@ -614,6 +647,14 @@ if (mm === "beats") {
         recentWritesRef.current.delete(key);
       }
     }
+    // reset FX sends for selected
+setInstDelayWet(prev => ({ ...prev, [selected]: 0 }));
+setInstReverbWet(prev => ({ ...prev, [selected]: 0 }));
+const dSendSel = delaySendGainsRef.current.get(selected);
+if (dSendSel) dSendSel.gain.value = 0;
+const rSendSel = reverbSendGainsRef.current.get(selected);
+if (rSendSel) rSendSel.gain.value = 0;
+
   }
 
   function clearAllPatternsAndLevels() {
@@ -638,6 +679,15 @@ if (mm === "beats") {
     setInstSwingAmt(swingAmtZero);
     instSwingTypeRef.current = swingTypeNone;
     instSwingAmtRef.current = swingAmtZero;
+
+    // reset all FX sends
+const zeroWet = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
+setInstDelayWet(zeroWet);
+setInstReverbWet(zeroWet);
+INSTRUMENTS.forEach((i) => {
+  const dS = delaySendGainsRef.current.get(i.id); if (dS) dS.gain.value = 0;
+  const rS = reverbSendGainsRef.current.get(i.id); if (rS) rS.gain.value = 0;
+});
 
     // 4) Unmute everything
     const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
@@ -792,6 +842,52 @@ if (mm === "beats") {
 
       {/* Divider */}
       <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+
+      {/* FX (Delay & Reverb) for selected instrument */}
+<div className="fx-row" style={{ marginTop: 16 }}>
+  <div className="fx-block">
+    <div className="fx-label">DLY</div>
+    <input
+      className="slider slider-fx"
+      type="range"
+      min={0}
+      max={100}
+      step={1}
+      value={instDelayWet[selected]}
+      onChange={(e) => {
+        const pct = parseInt(e.target.value, 10);
+        setInstDelayWet(prev => ({ ...prev, [selected]: pct }));
+        const g = delaySendGainsRef.current.get(selected);
+        if (g) g.gain.value = pct / 100;
+      }}
+      title="Delay wet (%)"
+    />
+  </div>
+
+  <div className="fx-block">
+    <div className="fx-label">REV</div>
+    <input
+      className="slider slider-fx"
+      type="range"
+      min={0}
+      max={100}
+      step={1}
+      value={instReverbWet[selected]}
+      onChange={(e) => {
+        const pct = parseInt(e.target.value, 10);
+        setInstReverbWet(prev => ({ ...prev, [selected]: pct }));
+        const g = reverbSendGainsRef.current.get(selected);
+        if (g) g.gain.value = pct / 100;
+      }}
+      title="Reverb wet (%)"
+    />
+  </div>
+</div>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
 
       {/* SWING — full width */}
 <div style={{ marginTop: 16, width: "100%" }}>
@@ -1148,3 +1244,19 @@ function createClickBuffer(ctx, freq = 2000, dur = 0.003) {
   }
   return buffer;
 }
+
+function makeImpulseResponse(ctx, duration = 2.5, decay = 2.5) {
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(duration * rate));
+    const impulse = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        const env = Math.pow(1 - i / len, decay);
+        data[i] = (Math.random() * 2 - 1) * env; // noise tail with decay
+        // tiny early reflections
+        if (i > 200 && i < 1200) data[i] += 0.003 * (Math.random() * 2 - 1);
+      }
+    }
+    return impulse;
+  }

@@ -52,6 +52,11 @@ export default function GrooveBox() {
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
 
+  // Fold/unfold for sections
+const [showPads, setShowPads] = useState(true);
+const [showFX, setShowFX] = useState(true);
+const [showSwingUI, setShowSwingUI] = useState(true);
+
   // --- FX wet % per instrument (0..100) ---
 const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
@@ -879,261 +884,312 @@ INSTRUMENTS.forEach((i) => {
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-
-      {/* Pads + Volume Fader */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 88px",
-          gap: 16,
-          alignItems: "center",
-          maxWidth: 560,
-          marginTop: 16,
-          marginLeft: "auto",
-          marginRight: "auto",
-        }}
-      >
-        {/* 2x2 Pads */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "1fr 1fr",
-            gap: 16,
-            justifyItems: "center",
-            alignItems: "center",
-          }}
-        >
-          {[0, 1].map((r) =>
-            [0, 1].map((c) => (
-              <PadButton
-                key={`pad-${r}-${c}`}
-                label="PAD"
-                sub={`vel ${VELS[r][c].toFixed(2)}`}
-                onPress={() => onPadPress(r, c)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Fader column */}
-        <div className="vfader-wrap">
-          <div className="vfader-title">
-            {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
-          </div>
-
-          <div className="vfader-slot">
-            <input
-              className="vfader"
-              type="range"
-              min={-24}
-              max={+6}
-              step={0.1}
-              value={instGainsDb[selected]}
-              onChange={(e) => {
-                const db = parseFloat(e.target.value);
-                setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-                const g = muteGainsRef.current.get(selected);
-                if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
-              }}
-              title="Volume (selected instrument)"
-            />
-          </div>
-
-          <div className="vfader-readout">
-            {instGainsDb[selected] >= 0
-              ? `+${instGainsDb[selected].toFixed(1)} dB`
-              : `${instGainsDb[selected].toFixed(1)} dB`}
-          </div>
-
-          <button
-  className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
-  onClick={toggleSolo}
-  aria-pressed={soloActive}
-  title="Solo selected instrument (mute others)"
-  style={{ width: "100%" }}
->
-  Solo
-</button>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-
-
-      {/* FX (Delay & Reverb) for selected instrument */}
-<div className="fx-row" style={{ marginTop: 16 }}>
-  {/* DELAY */}
-<div className="fx-block">
-  <div className="fx-label">DLY</div>
-  <input
-    className="slider slider-fx"
-    type="range"
-    min={0}
-    max={100}
-    step={1}
-    value={instDelayWet[selected]}
-    onChange={(e) => {
-      const pct = parseInt(e.target.value, 10);
-      setInstDelayWet(prev => ({ ...prev, [selected]: pct }));
-      updateDelaySends(selected, pct);
-    }}
-    title="Delay wet (%)"
-  />
-
-  {/* Delay mode: 1/16, 1/8, 3/4 (per instrument) */}
-<div className="revlen-wrap">
-  {[
-    { key: 'N16',  label: '1/16' },
-    { key: 'N8',   label: '1/8'  },
-    { key: 'N3_4', label: '3/4'  },
-  ].map(opt => {
-    const on = instDelayMode[selected] === opt.key;
-    return (
-      <button
-        key={opt.key}
-        type="button"
-        className={`revlen-btn ${on ? 'on' : ''}`}
-        onClick={() => {
-          setInstDelayMode(prev => ({ ...prev, [selected]: opt.key }));
-          updateDelaySends(selected);
-        }}
-        title={`Delay mode ${opt.label}`}
-      >
-        {opt.label}
-      </button>
-    );
-  })}
-</div>
-</div>
-
-
-  {/* REVERB */}
-  <div className="fx-block">
-    <div className="fx-label">REV</div>
-    <input
-      className="slider slider-fx"
-      type="range"
-      min={0}
-      max={100}
-      step={1}
-      value={instReverbWet[selected]}
-      onChange={(e) => {
-        const pct = parseInt(e.target.value, 10);
-        setInstReverbWet(prev => ({ ...prev, [selected]: pct }));
-        updateReverbSends(selected, pct);
-      }}
-      title="Reverb wet (%)"
-    />
-
-    {/* Per-instrument reverb length mode: S / M / L */}
-    <div className="revlen-wrap">
-      {['S','M','L'].map((m) => {
-        const isOn = instRevMode[selected] === m;
-        return (
-          <button
-            key={m}
-            type="button"
-            className={`revlen-btn ${isOn ? 'on' : ''}`}
-            onClick={() => {
-              setInstRevMode(prev => ({ ...prev, [selected]: m }));
-              // ensure immediate send update for current instrument
-              updateReverbSends(selected);
-            }}
-            title={
-              m === 'S' ? 'Short (4 steps)' :
-              m === 'M' ? 'Medium (8 steps)' : 'Long (16 steps)'
-            }
-          >
-            {m}
-          </button>
-        );
-      })}
-    </div>
-  </div>
-</div>
-
-{/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
+{/* Pads + Volume Fader — fold header */}
+<div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 4 }}>
+  <button
+    onClick={() => setShowPads((s) => !s)}
+    aria-expanded={showPads}
+    title={showPads ? "Collapse pads" : "Expand pads"}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "rgba(255,255,255,.7)",
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1,
+      padding: "2px 4px",
+    }}
+  >
+    {showPads ? "▾" : "▸"}
+  </button>
+</div>
 
-
-      {/* SWING — full width */}
-<div style={{ marginTop: 16, width: "100%" }}>
-  <div className="swing-row">
-    {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
-    <div className="swing-grid-2x2">
-      {[
-        { val: "none", label: "Off" },
-        { val: "8",    label: "8"   },
-        { val: "16",   label: "16"  },
-        { val: "32",   label: "32"  },
-      ].map(opt => {
-        const active = instSwingType[selected] === opt.val;
-        return (
-          <button
-            key={opt.val}
-            type="button"
-            className={`sg2-btn ${active ? "on" : "off"}`}
-            aria-pressed={active}
-            onClick={() =>
-              setInstSwingType(prev => ({ ...prev, [selected]: opt.val }))
-            }
-            title={`Swing grid: ${opt.label}`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
+{showPads && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 88px",
+      gap: 16,
+      alignItems: "center",
+      maxWidth: 560,
+      marginTop: 8,
+      marginLeft: "auto",
+      marginRight: "auto",
+    }}
+  >
+    {/* 2x2 Pads */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+        gap: 16,
+        justifyItems: "center",
+        alignItems: "center",
+      }}
+    >
+      {[0, 1].map((r) =>
+        [0, 1].map((c) => (
+          <PadButton
+            key={`pad-${r}-${c}`}
+            label="PAD"
+            sub={`vel ${VELS[r][c].toFixed(2)}`}
+            onPress={() => onPadPress(r, c)}
+          />
+        ))
+      )}
     </div>
 
-    {/* per-instrument swing */}
-    <div className="swing-block">
+    {/* Fader column */}
+    <div className="vfader-wrap">
+      <div className="vfader-title">
+        {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
+      </div>
+
+      <div className="vfader-slot">
+        <input
+          className="vfader"
+          type="range"
+          min={-24}
+          max={+6}
+          step={0.1}
+          value={instGainsDb[selected]}
+          onChange={(e) => {
+            const db = parseFloat(e.target.value);
+            setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+            const g = muteGainsRef.current.get(selected);
+            if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+          }}
+          title="Volume (selected instrument)"
+        />
+      </div>
+
+      <div className="vfader-readout">
+        {instGainsDb[selected] >= 0
+          ? `+${instGainsDb[selected].toFixed(1)} dB`
+          : `${instGainsDb[selected].toFixed(1)} dB`}
+      </div>
+
+      <button
+        className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
+        onClick={toggleSolo}
+        aria-pressed={soloActive}
+        title="Solo selected instrument (mute others)"
+        style={{ width: "100%" }}
+      >
+        Solo
+      </button>
+    </div>
+  </div>
+)}
+
+
+      {/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+{/* FX fold header */}
+<div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 4 }}>
+  <button
+    onClick={() => setShowFX((s) => !s)}
+    aria-expanded={showFX}
+    title={showFX ? "Collapse FX" : "Expand FX"}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "rgba(255,255,255,.7)",
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1,
+      padding: "2px 4px",
+    }}
+  >
+    {showFX ? "▾" : "▸"}
+  </button>
+</div>
+
+{showFX && (
+  <div className="fx-row" style={{ marginTop: 8 }}>
+    {/* DELAY */}
+    <div className="fx-block">
+      <div className="fx-label">DLY</div>
       <input
-        className="slider slider-swing"
+        className="slider slider-fx"
         type="range"
         min={0}
         max={100}
         step={1}
-        value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
-        onChange={(e) =>
-          setInstSwingAmt(prev => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
-        }
-        disabled={instSwingType[selected] === "none"}
-        title="Swing amount (%)"
+        value={instDelayWet[selected]}
+        onChange={(e) => {
+          const pct = parseInt(e.target.value, 10);
+          setInstDelayWet((prev) => ({ ...prev, [selected]: pct }));
+          updateDelaySends(selected, pct);
+        }}
+        title="Delay wet (%)"
       />
-      {/* per-instrument swing readout */}
-<div className="swing-lcd">
-  <span className="lcd-label">SWING&nbsp;&nbsp;</span>
-  <span className="lcd-value">
-    {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
-  </span>
-</div>
-
+      {/* Delay mode: 1/16, 1/8, 3/4 */}
+      <div className="revlen-wrap">
+        {[
+          { key: "N16", label: "1/16" },
+          { key: "N8", label: "1/8" },
+          { key: "N3_4", label: "3/4" },
+        ].map((opt) => {
+          const on = instDelayMode[selected] === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              className={`revlen-btn ${on ? "on" : ""}`}
+              onClick={() => {
+                setInstDelayMode((prev) => ({ ...prev, [selected]: opt.key }));
+                updateDelaySends(selected);
+              }}
+              title={`Delay mode ${opt.label}`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
 
-    {/* global swing scaler */}
-    <div className="swing-global">
+    {/* REVERB */}
+    <div className="fx-block">
+      <div className="fx-label">REV</div>
       <input
-        className="slider slider-global"
+        className="slider slider-fx"
         type="range"
         min={0}
-        max={150}
+        max={100}
         step={1}
-        value={globalSwingPct}
-        onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
-        title={`Global swing: ${globalSwingPct}%`}
+        value={instReverbWet[selected]}
+        onChange={(e) => {
+          const pct = parseInt(e.target.value, 10);
+          setInstReverbWet((prev) => ({ ...prev, [selected]: pct }));
+          updateReverbSends(selected, pct);
+        }}
+        title="Reverb wet (%)"
       />
-      <div className="swing-lcd swing-lcd--global">
-  <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
-  <span className="lcd-value">{globalSwingPct}%</span>
-</div>
+
+      {/* Per-instrument reverb length: S / M / L */}
+      <div className="revlen-wrap">
+        {["S", "M", "L"].map((m) => {
+          const isOn = instRevMode[selected] === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              className={`revlen-btn ${isOn ? "on" : ""}`}
+              onClick={() => {
+                setInstRevMode((prev) => ({ ...prev, [selected]: m }));
+                updateReverbSends(selected); // immediate feedback
+              }}
+              title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
+            >
+              {m}
+            </button>
+          );
+        })}
+      </div>
     </div>
   </div>
+)}
+
+
+{/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+{/* Swing fold header */}
+<div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 4 }}>
+  <button
+    onClick={() => setShowSwingUI((s) => !s)}
+    aria-expanded={showSwingUI}
+    title={showSwingUI ? "Collapse swing" : "Expand swing"}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "rgba(255,255,255,.7)",
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1,
+      padding: "2px 4px",
+    }}
+  >
+    {showSwingUI ? "▾" : "▸"}
+  </button>
 </div>
 
+{showSwingUI && (
+  <div style={{ marginTop: 8, width: "100%" }}>
+    <div className="swing-row">
+      {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
+      <div className="swing-grid-2x2">
+        {[
+          { val: "none", label: "Off" },
+          { val: "8", label: "8" },
+          { val: "16", label: "16" },
+          { val: "32", label: "32" },
+        ].map((opt) => {
+          const active = instSwingType[selected] === opt.val;
+          return (
+            <button
+              key={opt.val}
+              type="button"
+              className={`sg2-btn ${active ? "on" : "off"}`}
+              aria-pressed={active}
+              onClick={() => setInstSwingType((prev) => ({ ...prev, [selected]: opt.val }))}
+              title={`Swing grid: ${opt.label}`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* per-instrument swing */}
+      <div className="swing-block">
+        <input
+          className="slider slider-swing"
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
+          onChange={(e) =>
+            setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
+          }
+          disabled={instSwingType[selected] === "none"}
+          title="Swing amount (%)"
+        />
+        <div className="swing-lcd">
+          <span className="lcd-label">SWING&nbsp;&nbsp;</span>
+          <span className="lcd-value">
+            {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+          </span>
+        </div>
+      </div>
+
+      {/* global swing scaler */}
+      <div className="swing-global">
+        <input
+          className="slider slider-global"
+          type="range"
+          min={0}
+          max={150}
+          step={1}
+          value={globalSwingPct}
+          onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
+          title={`Global swing: ${globalSwingPct}%`}
+        />
+        <div className="swing-lcd swing-lcd--global">
+          <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
+          <span className="lcd-value">{globalSwingPct}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
 
 
@@ -1185,7 +1241,6 @@ INSTRUMENTS.forEach((i) => {
   <span className="sym">Del All</span>
 </button>
 </div>
-
 
 
       {/* Step editor: oldschool — row button on left, chevron on right */}
@@ -1322,8 +1377,6 @@ INSTRUMENTS.forEach((i) => {
     </div>
   </div>
 </div>
-
-
 
     </div>
   );

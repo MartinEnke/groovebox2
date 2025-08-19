@@ -122,6 +122,57 @@
 
 
 
+
+:root{
+  /* Height of the folded placeholder; tweak to taste */
+  --fold-h: 72px; /* ~3/4 of a small block; change if you want more/less */
+}
+
+/* Header row: title left, arrow right */
+.fold-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin: 6px 0 4px;
+}
+.fold-title{
+  font-weight:800;
+  letter-spacing:.08em;
+  font-size:12px;
+  text-transform:uppercase;
+  opacity:.85;
+}
+
+/* Plain arrow button */
+.fold-arrow{
+  background:transparent;
+  border:none;
+  color:rgba(255,255,255,.7);
+  cursor:pointer;
+  font-size:16px;
+  line-height:1;
+  padding:2px 4px;
+}
+
+/* Compact “placeholder” slab when folded */
+.folded-bar{
+  height: var(--fold-h);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:6px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.22));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+  color:#cfd5d2;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
 /* slightly taller instrument buttons */
 .inst-btn{
   padding-top: 10px;   /* was ~8px via .btn */

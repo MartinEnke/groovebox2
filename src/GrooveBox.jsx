@@ -61,6 +61,22 @@ const [showSwingUI, setShowSwingUI] = useState(true);
 const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
   );
+
+  // ===== Sum bus (meter + comp/limiter) =====
+const sumNodesRef = useRef({ in:null, analyser:null, comp:null, limiter:null, makeup:null });
+const [sumGainDb, setSumGainDb] = useState(0);           // makeup/output gain
+const [limiterOn, setLimiterOn] = useState(true);        // limiter toggle
+const [sumMeterDb, setSumMeterDb] = useState(-Infinity); // peak dBFS readout
+
+// Simple compressor settings
+const [sumComp, setSumComp] = useState({
+  threshold: -12, // dB
+  ratio: 3,       // 1..20
+  attack: 0.003,  // seconds
+  release: 0.25,  // seconds
+  knee: 3         // dB
+});
+
   // Per-instrument delay mode: 'N16' (1/16), 'N8' (1/8), 'N3_4' (3/4)
 const [instDelayMode, setInstDelayMode] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 'N8']))
@@ -255,11 +271,39 @@ useEffect(() => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioCtxRef.current = ctx;
   
-    // Master
-    const master = ctx.createGain();
-    master.gain.value = 0.9;
-    master.connect(ctx.destination);
-    masterGainRef.current = master;
+    // Master (pre-sum)
+const master = ctx.createGain();
+master.gain.value = 0.9;
+masterGainRef.current = master;
+
+// ===== SUM BUS chain: master -> in -> analyser -> comp -> (limiter?) -> makeup -> destination
+const sumIn      = ctx.createGain();
+const analyser   = ctx.createAnalyser(); analyser.fftSize = 2048; // pass-through; we'll read peak
+const comp       = ctx.createDynamicsCompressor();
+comp.threshold.value = -12; comp.ratio.value = 3; comp.attack.value = 0.003; comp.release.value = 0.25; comp.knee.value = 3;
+
+const limiter    = ctx.createDynamicsCompressor();
+// quasi-limiter settings
+limiter.threshold.value = -1.0;
+limiter.knee.value = 0;
+limiter.ratio.value = 20;
+limiter.attack.value = 0.001;
+limiter.release.value = 0.05;
+
+const makeup     = ctx.createGain();          // sum output (makeup) gain
+makeup.gain.value = dbToGain(0);
+
+// Wire it
+master.connect(sumIn);
+sumIn.connect(analyser);
+analyser.connect(comp);
+comp.connect(limiter);
+limiter.connect(makeup);
+makeup.connect(ctx.destination);
+
+// keep for later control
+sumNodesRef.current = { in: sumIn, analyser, comp, limiter, makeup };
+
   
     // Per-instrument post nodes (mute + volume)
     INSTRUMENTS.forEach((inst) => {
@@ -269,7 +313,7 @@ useEffect(() => {
       muteGainsRef.current.set(inst.id, g);
     });
   
-    // ===== Delay buses (three: 1/16, 1/8, 3/8) =====
+    
     // ===== Delay buses (three: 1/16, 1/8, 3/4) =====
 const mkDelayBus = () => {
     const inGain = ctx.createGain();            inGain.gain.value = 1.0;
@@ -461,6 +505,62 @@ INSTRUMENTS.forEach((inst) => {
     convs.L.buffer = makeImpulseResponse(ctx, durL, 2.8);
   }, [bpm]);
   
+
+  // Update compressor params when sliders change
+useEffect(() => {
+    const n = sumNodesRef.current.comp;
+    if (!n) return;
+    n.threshold.value = sumComp.threshold;
+    n.ratio.value     = sumComp.ratio;
+    n.attack.value    = sumComp.attack;
+    n.release.value   = sumComp.release;
+    n.knee.value      = sumComp.knee;
+  }, [sumComp]);
+  
+  // Toggle limiter in/out of circuit
+  useEffect(() => {
+    const { comp, limiter, makeup } = sumNodesRef.current;
+    if (!comp || !limiter || !makeup) return;
+  
+    // Clean current connections after comp
+    try { comp.disconnect(); } catch {}
+    try { limiter.disconnect(); } catch {}
+  
+    if (limiterOn) {
+      comp.connect(limiter);
+      limiter.connect(makeup);
+    } else {
+      comp.connect(makeup);
+    }
+  }, [limiterOn]);
+  
+  // Makeup/output gain
+  useEffect(() => {
+    const n = sumNodesRef.current.makeup;
+    if (n) n.gain.value = dbToGain(sumGainDb);
+  }, [sumGainDb]);
+  
+  // Peak meter (dBFS)
+  useEffect(() => {
+    const analyser = sumNodesRef.current.analyser;
+    if (!analyser) return;
+  
+    const buf = new Float32Array(analyser.fftSize);
+    let rafId;
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = Math.abs(buf[i]);
+        if (v > peak) peak = v;
+      }
+      const db = 20 * Math.log10(peak || 1e-8); // avoid -Infinity
+      setSumMeterDb(db);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   
   // ===== Scheduling =====
@@ -858,636 +958,702 @@ INSTRUMENTS.forEach((i) => {
   
 // ===== Render =====
 return (
-    <div style={{ color: "white" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: 0.4 }}>DR7</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
-            
-            <button
-              className={`btn metro-btn mode-${metMode}`}
-              onClick={cycleMetronomeMode}
-              title={
-                metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
-                : metMode === "all" ? "Metronome: all 16th (click for off)"
-                : "Metronome: off (click for 4 downbeats)"
-              }
-            >
-              {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
-            </button>
-  
-          </label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>BPM</span>
-            <input
-              className="slider slider-bpm"
-              type="range"
-              min={60}
-              max={200}
-              value={bpm}
-              onChange={(e) => setBpm(parseInt(e.target.value, 10))}
-            />
-            <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
-          </div>
-        </div>
-      </div>
-  
-      {/* Instruments grid 2 x 5 with mutes */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-        {INSTRUMENTS.slice(0, 5).map(renderInstrumentButton)}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
-        {INSTRUMENTS.slice(0, 5).map(renderMuteButton)}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 16 }}>
-        {INSTRUMENTS.slice(5, 10).map(renderInstrumentButton)}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
-        {INSTRUMENTS.slice(5, 10).map(renderMuteButton)}
-      </div>
-  
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-  
-      {/* Pads + Volume Fader — fold header (CHANNEL) */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: 6,
-          marginBottom: 4,
-          position: "relative",
-        }}
-      >
-        {!showPads && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              top: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              pointerEvents: "none",
-              color: "rgba(255,255,255,.55)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-            }}
+  <div style={{ color: "white" }}>
+    {/* Header */}
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: 0.4 }}>DR7</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
+          
+          <button
+            className={`btn metro-btn mode-${metMode}`}
+            onClick={cycleMetronomeMode}
+            title={
+              metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
+              : metMode === "all" ? "Metronome: all 16th (click for off)"
+              : "Metronome: off (click for 4 downbeats)"
+            }
           >
-            Channel
-          </div>
-        )}
-        <button
-          onClick={() => setShowPads((s) => !s)}
-          aria-expanded={showPads}
-          title={showPads ? "Collapse pads" : "Expand pads"}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "rgba(255,255,255,.7)",
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1,
-            padding: "2px 4px",
-          }}
-        >
-          {showPads ? "▾" : "▸"}
-        </button>
-      </div>
-  
-      {showPads && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 88px",
-            gap: 16,
-            alignItems: "center",
-            maxWidth: 560,
-            marginTop: 8,
-            marginLeft: "auto",
-            marginRight: "auto",
-          }}
-        >
-          {/* 2x2 Pads */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gridTemplateRows: "1fr 1fr",
-              gap: 16,
-              justifyItems: "center",
-              alignItems: "center",
-            }}
-          >
-            {[0, 1].map((r) =>
-              [0, 1].map((c) => (
-                <PadButton
-                  key={`pad-${r}-${c}`}
-                  label="PAD"
-                  sub={`vel ${VELS[r][c].toFixed(2)}`}
-                  onPress={() => onPadPress(r, c)}
-                />
-              ))
-            )}
-          </div>
-  
-          {/* Fader column */}
-          <div className="vfader-wrap">
-            <div className="vfader-title">
-              {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
-            </div>
-  
-            <div className="vfader-slot">
-              <input
-                className="vfader"
-                type="range"
-                min={-24}
-                max={+6}
-                step={0.1}
-                value={instGainsDb[selected]}
-                onChange={(e) => {
-                  const db = parseFloat(e.target.value);
-                  setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-                  const g = muteGainsRef.current.get(selected);
-                  if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
-                }}
-                title="Volume (selected instrument)"
-              />
-            </div>
-  
-            <div className="vfader-readout">
-              {instGainsDb[selected] >= 0
-                ? `+${instGainsDb[selected].toFixed(1)} dB`
-                : `${instGainsDb[selected].toFixed(1)} dB`}
-            </div>
-  
-            <button
-              className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
-              onClick={toggleSolo}
-              aria-pressed={soloActive}
-              title="Solo selected instrument (mute others)"
-              style={{ width: "100%" }}
-            >
-              Solo
-            </button>
-          </div>
-        </div>
-      )}
-  
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-  
-      {/* FX fold header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: 6,
-          marginBottom: 4,
-          position: "relative",
-        }}
-      >
-        {!showFX && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              top: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              pointerEvents: "none",
-              color: "rgba(255,255,255,.55)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-            }}
-          >
-            FX
-          </div>
-        )}
-        <button
-          onClick={() => setShowFX((s) => !s)}
-          aria-expanded={showFX}
-          title={showFX ? "Collapse FX" : "Expand FX"}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "rgba(255,255,255,.7)",
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1,
-            padding: "2px 4px",
-          }}
-        >
-          {showFX ? "▾" : "▸"}
-        </button>
-      </div>
-  
-      {showFX && (
-        <div className="fx-row" style={{ marginTop: 8 }}>
-          {/* DELAY */}
-          <div className="fx-block">
-            <div className="fx-label">DLY</div>
-            <input
-              className="slider slider-fx"
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={instDelayWet[selected]}
-              onChange={(e) => {
-                const pct = parseInt(e.target.value, 10);
-                setInstDelayWet((prev) => ({ ...prev, [selected]: pct }));
-                updateDelaySends(selected, pct);
-              }}
-              title="Delay wet (%)"
-            />
-            {/* Delay mode: 1/16, 1/8, 3/4 */}
-            <div className="revlen-wrap">
-              {[
-                { key: "N16", label: "1/16" },
-                { key: "N8", label: "1/8" },
-                { key: "N3_4", label: "3/4" },
-              ].map((opt) => {
-                const on = instDelayMode[selected] === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    className={`revlen-btn ${on ? "on" : ""}`}
-                    onClick={() => {
-                      setInstDelayMode((prev) => ({ ...prev, [selected]: opt.key }));
-                      updateDelaySends(selected);
-                    }}
-                    title={`Delay mode ${opt.label}`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-  
-          {/* REVERB */}
-          <div className="fx-block">
-            <div className="fx-label">REV</div>
-            <input
-              className="slider slider-fx"
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={instReverbWet[selected]}
-              onChange={(e) => {
-                const pct = parseInt(e.target.value, 10);
-                setInstReverbWet((prev) => ({ ...prev, [selected]: pct }));
-                updateReverbSends(selected, pct);
-              }}
-              title="Reverb wet (%)"
-            />
-  
-            {/* Per-instrument reverb length: S / M / L */}
-            <div className="revlen-wrap">
-              {["S", "M", "L"].map((m) => {
-                const isOn = instRevMode[selected] === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    className={`revlen-btn ${isOn ? "on" : ""}`}
-                    onClick={() => {
-                      setInstRevMode((prev) => ({ ...prev, [selected]: m }));
-                      updateReverbSends(selected); // immediate feedback
-                    }}
-                    title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-  
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-  
-      {/* Swing fold header (GROOVE) */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: 6,
-          marginBottom: 4,
-          position: "relative",
-        }}
-      >
-        {!showSwingUI && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              top: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              pointerEvents: "none",
-              color: "rgba(255,255,255,.55)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-            }}
-          >
-            Groove
-          </div>
-        )}
-        <button
-          onClick={() => setShowSwingUI((s) => !s)}
-          aria-expanded={showSwingUI}
-          title={showSwingUI ? "Collapse swing" : "Expand swing"}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "rgba(255,255,255,.7)",
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1,
-            padding: "2px 4px",
-          }}
-        >
-          {showSwingUI ? "▾" : "▸"}
-        </button>
-      </div>
-  
-      {showSwingUI && (
-        <div style={{ marginTop: 8, width: "100%" }}>
-          <div className="swing-row">
-            {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
-            <div className="swing-grid-2x2">
-              {[
-                { val: "none", label: "Off" },
-                { val: "8", label: "8" },
-                { val: "16", label: "16" },
-                { val: "32", label: "32" },
-              ].map((opt) => {
-                const active = instSwingType[selected] === opt.val;
-                return (
-                  <button
-                    key={opt.val}
-                    type="button"
-                    className={`sg2-btn ${active ? "on" : "off"}`}
-                    aria-pressed={active}
-                    onClick={() => setInstSwingType((prev) => ({ ...prev, [selected]: opt.val }))}
-                    title={`Swing grid: ${opt.label}`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-  
-            {/* per-instrument swing */}
-            <div className="swing-block">
-              <input
-                className="slider slider-swing"
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
-                onChange={(e) =>
-                  setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
-                }
-                disabled={instSwingType[selected] === "none"}
-                title="Swing amount (%)"
-              />
-              <div className="swing-lcd">
-                <span className="lcd-label">SWING&nbsp;&nbsp;</span>
-                <span className="lcd-value">
-                  {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
-                </span>
-              </div>
-            </div>
-  
-            {/* global swing scaler */}
-            <div className="swing-global">
-              <input
-                className="slider slider-global"
-                type="range"
-                min={0}
-                max={150}
-                step={1}
-                value={globalSwingPct}
-                onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
-                title={`Global swing: ${globalSwingPct}%`}
-              />
-              <div className="swing-lcd swing-lcd--global">
-                <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
-                <span className="lcd-value">{globalSwingPct}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-  
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-  
-      {/* Transport */}
-      <div className="transport">
-        {/* Play / Stop (triangle / square) */}
-        <button
-          onClick={togglePlay}
-          className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
-          aria-pressed={isPlaying}
-          title={isPlaying ? "Stop" : "Play"}
-        >
-          <span className="tri" aria-hidden="true"></span>
-          <span className="sq" aria-hidden="true"></span>
-        </button>
-  
-        {/* Record (dot only) */}
-        <button
-          onClick={toggleRecord}
-          className={`btn press rec ${isRecording ? "on" : ""}`}
-          aria-pressed={isRecording}
-          title="Record"
-        >
-          <span className="rec-dot" aria-hidden="true"></span>
-        </button>
-  
-        {/* Digital step display */}
-        <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
-  
-        {/* Clear selected (Del Pat) */}
-        <button
-          onClick={clearSelectedPattern}
-          className="btn press clear-btn pat"
-          title="Clear selected instrument"
-        >
-          <span className="sym">Del Pat</span>
-        </button>
-  
-        {/* Clear all (Del All) */}
-        <button
-          onClick={clearAllPatternsAndLevels}
-          className="btn press clear-btn all"
-          title="Clear all"
-        >
-          <span className="sym">Del All</span>
-        </button>
-      </div>
-  
-      {/* Step editor: oldschool — row button on left, chevron on right */}
-      <div style={{ marginTop: 24, width: "100%", maxWidth: 760 }}>
-        {/* Row A */}
-        <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8 }}>
-          {/* Header line: A button (left) + chevron (right) */}
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <button
-              className="btn btn-ab"
-              onClick={() => toggleRowActiveUI(selected, "A")}
-              title={`Row A ${rowActive[selected]?.A ? "On" : "Off"}`}
-              aria-pressed={rowActive[selected]?.A}
-              style={{
-                background: rowActive[selected]?.A ? "#059669" : "#333",
-                fontWeight: 800,
-              }}
-            >
-              A
-            </button>
-  
-            <div style={{ flex: 1 }} />
-  
-            <button
-              className={`btn btn-ab-chevron ${rowExpanded[selected]?.A ? "open" : ""}`}
-              onClick={() => toggleRowExpanded(selected, "A")}
-              aria-expanded={rowExpanded[selected]?.A}
-              title={rowExpanded[selected]?.A ? "Collapse (1×16)" : "Expand (2×8 large)"}
-            >
-              ▾
-            </button>
-          </div>
-  
-          {/* Steps: 1×16 or 2×8 (larger) */}
-          <div
-            className="row-steps"
-            style={{
-              display: "grid",
-              gridTemplateColumns: rowExpanded[selected]?.A ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
-              gap: rowExpanded[selected]?.A ? 10 : 8,
-              alignItems: "center",
-            }}
-          >
-            {patterns[selected].A.map((v, i) => {
-              const isActive = v > 0;
-              const accent = i === step && (uiLatchedRow[selected] || "A") === "A";
-              const fill = isActive
-                ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
-                : "rgba(255,255,255,.15)";
-              return (
-                <button
-                  key={`A-${i}`}
-                  onClick={() => cycleStepRow("A", i)}
-                  title={`Row A • Step ${i + 1}`}
-                  style={{
-                    height: rowExpanded[selected]?.A ? 44 : 20,
-                    width: "100%",
-                    borderRadius: rowExpanded[selected]?.A ? 6 : 3,
-                    background: fill,
-                    outline: accent ? "2px solid #34d399" : "none",
-                    border: "1px solid rgba(255,255,255,.12)",
-                    padding: 0,
-                    cursor: "pointer",
-                  }}
-                />
-              );
-            })}
-          </div>
-        </div>
-  
-        {/* Row B */}
-        <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8, marginTop: 14 }}>
-          {/* Header line: B button (left) + chevron (right) */}
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <button
-              className="btn btn-ab"
-              onClick={() => toggleRowActiveUI(selected, "B")}
-              title={`Row B ${rowActive[selected]?.B ? "On" : "Off"}`}
-              aria-pressed={rowActive[selected]?.B}
-              style={{
-                background: rowActive[selected]?.B ? "#059669" : "#333",
-                fontWeight: 800,
-              }}
-            >
-              B
-            </button>
-  
-            <div style={{ flex: 1 }} />
-  
-            <button
-              className={`btn btn-ab-chevron ${rowExpanded[selected]?.B ? "open" : ""}`}
-              onClick={() => toggleRowExpanded(selected, "B")}
-              aria-expanded={rowExpanded[selected]?.B}
-              title={rowExpanded[selected]?.B ? "Collapse (1×16)" : "Expand (2×8 large)"}
-            >
-              ▾
-            </button>
-          </div>
-  
-          {/* Steps */}
-          <div
-            className="row-steps"
-            style={{
-              display: "grid",
-              gridTemplateColumns: rowExpanded[selected]?.B ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
-              gap: rowExpanded[selected]?.B ? 10 : 8,
-              alignItems: "center",
-            }}
-          >
-            {patterns[selected].B.map((v, i) => {
-              const isActive = v > 0;
-              const accent = i === step && (uiLatchedRow[selected] || "A") === "B";
-              const fill = isActive
-                ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
-                : "rgba(255,255,255,.15)";
-              return (
-                <button
-                  key={`B-${i}`}
-                  onClick={() => cycleStepRow("B", i)}
-                  title={`Row B • Step ${i + 1}`}
-                  style={{
-                    height: rowExpanded[selected]?.B ? 44 : 20,
-                    width: "100%",
-                    borderRadius: rowExpanded[selected]?.B ? 6 : 3,
-                    background: fill,
-                    outline: accent ? "2px solid #34d399" : "none",
-                    border: "1px solid rgba(255,255,255,.12)",
-                    padding: 0,
-                    cursor: "pointer",
-                  }}
-                />
-              );
-            })}
-          </div>
+            {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
+          </button>
+
+        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>BPM</span>
+          <input
+            className="slider slider-bpm"
+            type="range"
+            min={60}
+            max={200}
+            value={bpm}
+            onChange={(e) => setBpm(parseInt(e.target.value, 10))}
+          />
+          <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
         </div>
       </div>
     </div>
-  );
-  
+
+    {/* Instruments grid 2 x 5 with mutes */}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+      {INSTRUMENTS.slice(0, 5).map(renderInstrumentButton)}
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
+      {INSTRUMENTS.slice(0, 5).map(renderMuteButton)}
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 16 }}>
+      {INSTRUMENTS.slice(5, 10).map(renderInstrumentButton)}
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
+      {INSTRUMENTS.slice(5, 10).map(renderMuteButton)}
+    </div>
+
+    {/* Divider */}
+    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+    {/* Pads + Volume Fader — fold header (CHANNEL) */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        marginTop: 6,
+        marginBottom: 4,
+        position: "relative",
+      }}
+    >
+      {!showPads && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            top: 0,
+            bottom: 0,
+            display: "flex",
+            alignItems: "center",
+            pointerEvents: "none",
+            color: "rgba(255,255,255,.55)",
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: 1.2,
+            textTransform: "uppercase",
+          }}
+        >
+          Channel
+        </div>
+      )}
+      <button
+        onClick={() => setShowPads((s) => !s)}
+        aria-expanded={showPads}
+        title={showPads ? "Collapse pads" : "Expand pads"}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,.7)",
+          cursor: "pointer",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: "2px 4px",
+        }}
+      >
+        {showPads ? "▾" : "▸"}
+      </button>
+    </div>
+
+    {showPads && (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 88px",
+          gap: 16,
+          alignItems: "center",
+          maxWidth: 560,
+          marginTop: 8,
+          marginLeft: "auto",
+          marginRight: "auto",
+        }}
+      >
+        {/* 2x2 Pads */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "1fr 1fr",
+            gap: 16,
+            justifyItems: "center",
+            alignItems: "center",
+          }}
+        >
+          {[0, 1].map((r) =>
+            [0, 1].map((c) => (
+              <PadButton
+                key={`pad-${r}-${c}`}
+                label="PAD"
+                sub={`vel ${VELS[r][c].toFixed(2)}`}
+                onPress={() => onPadPress(r, c)}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Fader column */}
+        <div className="vfader-wrap">
+          <div className="vfader-title">
+            {INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected}
+          </div>
+
+          <div className="vfader-slot">
+            <input
+              className="vfader"
+              type="range"
+              min={-24}
+              max={+6}
+              step={0.1}
+              value={instGainsDb[selected]}
+              onChange={(e) => {
+                const db = parseFloat(e.target.value);
+                setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
+                const g = muteGainsRef.current.get(selected);
+                if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+              }}
+              title="Volume (selected instrument)"
+            />
+          </div>
+
+          <div className="vfader-readout">
+            {instGainsDb[selected] >= 0
+              ? `+${instGainsDb[selected].toFixed(1)} dB`
+              : `${instGainsDb[selected].toFixed(1)} dB`}
+          </div>
+
+          <button
+            className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
+            onClick={toggleSolo}
+            aria-pressed={soloActive}
+            title="Solo selected instrument (mute others)"
+            style={{ width: "100%" }}
+          >
+            Solo
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Divider */}
+    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+    {/* FX fold header */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        marginTop: 6,
+        marginBottom: 4,
+        position: "relative",
+      }}
+    >
+      {!showFX && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            top: 0,
+            bottom: 0,
+            display: "flex",
+            alignItems: "center",
+            pointerEvents: "none",
+            color: "rgba(255,255,255,.55)",
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: 1.2,
+            textTransform: "uppercase",
+          }}
+        >
+          FX
+        </div>
+      )}
+      <button
+        onClick={() => setShowFX((s) => !s)}
+        aria-expanded={showFX}
+        title={showFX ? "Collapse FX" : "Expand FX"}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,.7)",
+          cursor: "pointer",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: "2px 4px",
+        }}
+      >
+        {showFX ? "▾" : "▸"}
+      </button>
+    </div>
+
+    {showFX && (
+      <div className="fx-row" style={{ marginTop: 8 }}>
+        {/* DELAY */}
+        <div className="fx-block">
+          <div className="fx-label">DLY</div>
+          <input
+            className="slider slider-fx"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={instDelayWet[selected]}
+            onChange={(e) => {
+              const pct = parseInt(e.target.value, 10);
+              setInstDelayWet((prev) => ({ ...prev, [selected]: pct }));
+              updateDelaySends(selected, pct);
+            }}
+            title="Delay wet (%)"
+          />
+          {/* Delay mode: 1/16, 1/8, 3/4 */}
+          <div className="revlen-wrap">
+            {[
+              { key: "N16", label: "1/16" },
+              { key: "N8", label: "1/8" },
+              { key: "N3_4", label: "3/4" },
+            ].map((opt) => {
+              const on = instDelayMode[selected] === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  className={`revlen-btn ${on ? "on" : ""}`}
+                  onClick={() => {
+                    setInstDelayMode((prev) => ({ ...prev, [selected]: opt.key }));
+                    updateDelaySends(selected);
+                  }}
+                  title={`Delay mode ${opt.label}`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* REVERB */}
+        <div className="fx-block">
+          <div className="fx-label">REV</div>
+          <input
+            className="slider slider-fx"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={instReverbWet[selected]}
+            onChange={(e) => {
+              const pct = parseInt(e.target.value, 10);
+              setInstReverbWet((prev) => ({ ...prev, [selected]: pct }));
+              updateReverbSends(selected, pct);
+            }}
+            title="Reverb wet (%)"
+          />
+
+          {/* Per-instrument reverb length: S / M / L */}
+          <div className="revlen-wrap">
+            {["S", "M", "L"].map((m) => {
+              const isOn = instRevMode[selected] === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  className={`revlen-btn ${isOn ? "on" : ""}`}
+                  onClick={() => {
+                    setInstRevMode((prev) => ({ ...prev, [selected]: m }));
+                    updateReverbSends(selected); // immediate feedback
+                  }}
+                  title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Divider */}
+    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+    {/* Swing fold header (GROOVE) */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        marginTop: 6,
+        marginBottom: 4,
+        position: "relative",
+      }}
+    >
+      {!showSwingUI && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            top: 0,
+            bottom: 0,
+            display: "flex",
+            alignItems: "center",
+            pointerEvents: "none",
+            color: "rgba(255,255,255,.55)",
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: 1.2,
+            textTransform: "uppercase",
+          }}
+        >
+          Groove
+        </div>
+      )}
+      <button
+        onClick={() => setShowSwingUI((s) => !s)}
+        aria-expanded={showSwingUI}
+        title={showSwingUI ? "Collapse swing" : "Expand swing"}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,.7)",
+          cursor: "pointer",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: "2px 4px",
+        }}
+      >
+        {showSwingUI ? "▾" : "▸"}
+      </button>
+    </div>
+
+    {showSwingUI && (
+      <div style={{ marginTop: 8, width: "100%" }}>
+        <div className="swing-row">
+          {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
+          <div className="swing-grid-2x2">
+            {[
+              { val: "none", label: "Off" },
+              { val: "8", label: "8" },
+              { val: "16", label: "16" },
+              { val: "32", label: "32" },
+            ].map((opt) => {
+              const active = instSwingType[selected] === opt.val;
+              return (
+                <button
+                  key={opt.val}
+                  type="button"
+                  className={`sg2-btn ${active ? "on" : "off"}`}
+                  aria-pressed={active}
+                  onClick={() => setInstSwingType((prev) => ({ ...prev, [selected]: opt.val }))}
+                  title={`Swing grid: ${opt.label}`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* per-instrument swing */}
+          <div className="swing-block">
+            <input
+              className="slider slider-swing"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
+              onChange={(e) =>
+                setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
+              }
+              disabled={instSwingType[selected] === "none"}
+              title="Swing amount (%)"
+            />
+            <div className="swing-lcd">
+              <span className="lcd-label">SWING&nbsp;&nbsp;</span>
+              <span className="lcd-value">
+                {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+              </span>
+            </div>
+          </div>
+
+          {/* global swing scaler */}
+          <div className="swing-global">
+            <input
+              className="slider slider-global"
+              type="range"
+              min={0}
+              max={150}
+              step={1}
+              value={globalSwingPct}
+              onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
+              title={`Global swing: ${globalSwingPct}%`}
+            />
+            <div className="swing-lcd swing-lcd--global">
+              <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
+              <span className="lcd-value">{globalSwingPct}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Divider */}
+    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+
+{/* SUM BUS */}
+<div style={{
+  marginTop: 4, padding: 12, borderRadius: 10,
+  background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)"
+}}>
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", opacity: .9 }}>Sum Bus</div>
+    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, opacity: .9 }}>
+      <input type="checkbox" checked={limiterOn} onChange={(e)=>setLimiterOn(e.target.checked)} />
+      Limiter
+    </label>
+  </div>
+
+  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: 16, marginTop: 12 }}>
+    {/* Meter */}
+    <div>
+      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Peak Meter</div>
+      <div style={{ height: 12, background: "rgba(255,255,255,.08)", borderRadius: 6, overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          width: `${Math.max(0, Math.min(1, (sumMeterDb + 60) / 60)) * 100}%`,
+          background: sumMeterDb > -1 ? "#b91c1c" : sumMeterDb > -6 ? "#d97706" : "#10b981",
+          transition: "width 50ms linear"
+        }} />
+      </div>
+      <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+        {Number.isFinite(sumMeterDb) ? `${sumMeterDb.toFixed(1)} dBFS` : "—"}
+      </div>
+    </div>
+
+    {/* Compressor */}
+    <div>
+      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Compressor</div>
+      <div style={{ display: "grid", gap: 6 }}>
+        <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
+          <span style={{ opacity: .75 }}>Thresh</span>
+          <input type="range" min={-60} max={0} step={1}
+            value={sumComp.threshold}
+            onChange={(e)=>setSumComp(s=>({...s, threshold: parseFloat(e.target.value)}))}/>
+        </label>
+        <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
+          <span style={{ opacity: .75 }}>Ratio</span>
+          <input type="range" min={1} max={20} step={0.1}
+            value={sumComp.ratio}
+            onChange={(e)=>setSumComp(s=>({...s, ratio: parseFloat(e.target.value)}))}/>
+        </label>
+      </div>
+    </div>
+
+    {/* Makeup gain */}
+    <div>
+      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Makeup</div>
+      <input type="range" min={-24} max={+12} step={0.1}
+        value={sumGainDb}
+        onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}/>
+      <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+        {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
+      </div>
+    </div>
+  </div>
+</div>
+
+    {/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+    {/* Transport */}
+    <div className="transport">
+      {/* Play / Stop (triangle / square) */}
+      <button
+        onClick={togglePlay}
+        className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
+        aria-pressed={isPlaying}
+        title={isPlaying ? "Stop" : "Play"}
+      >
+        <span className="tri" aria-hidden="true"></span>
+        <span className="sq" aria-hidden="true"></span>
+      </button>
+
+      {/* Record (dot only) */}
+      <button
+        onClick={toggleRecord}
+        className={`btn press rec ${isRecording ? "on" : ""}`}
+        aria-pressed={isRecording}
+        title="Record"
+      >
+        <span className="rec-dot" aria-hidden="true"></span>
+      </button>
+
+      {/* Digital step display */}
+      <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
+
+      {/* Clear selected (Del Pat) */}
+      <button
+        onClick={clearSelectedPattern}
+        className="btn press clear-btn pat"
+        title="Clear selected instrument"
+      >
+        <span className="sym">Del Pat</span>
+      </button>
+
+      {/* Clear all (Del All) */}
+      <button
+        onClick={clearAllPatternsAndLevels}
+        className="btn press clear-btn all"
+        title="Clear all"
+      >
+        <span className="sym">Del All</span>
+      </button>
+    </div>
+
+    {/* Step editor: oldschool — row button on left, chevron on right */}
+    <div style={{ marginTop: 24, width: "100%", maxWidth: 760 }}>
+      {/* Row A */}
+      <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8 }}>
+        {/* Header line: A button (left) + chevron (right) */}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            className="btn btn-ab"
+            onClick={() => toggleRowActiveUI(selected, "A")}
+            title={`Row A ${rowActive[selected]?.A ? "On" : "Off"}`}
+            aria-pressed={rowActive[selected]?.A}
+            style={{
+              background: rowActive[selected]?.A ? "#059669" : "#333",
+              fontWeight: 800,
+            }}
+          >
+            A
+          </button>
+
+          <div style={{ flex: 1 }} />
+
+          <button
+            className={`btn btn-ab-chevron ${rowExpanded[selected]?.A ? "open" : ""}`}
+            onClick={() => toggleRowExpanded(selected, "A")}
+            aria-expanded={rowExpanded[selected]?.A}
+            title={rowExpanded[selected]?.A ? "Collapse (1×16)" : "Expand (2×8 large)"}
+          >
+            ▾
+          </button>
+        </div>
+
+        {/* Steps: 1×16 or 2×8 (larger) */}
+        <div
+          className="row-steps"
+          style={{
+            display: "grid",
+            gridTemplateColumns: rowExpanded[selected]?.A ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
+            gap: rowExpanded[selected]?.A ? 10 : 8,
+            alignItems: "center",
+          }}
+        >
+          {patterns[selected].A.map((v, i) => {
+            const isActive = v > 0;
+            const accent = i === step && (uiLatchedRow[selected] || "A") === "A";
+            const fill = isActive
+              ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
+              : "rgba(255,255,255,.15)";
+            return (
+              <button
+                key={`A-${i}`}
+                onClick={() => cycleStepRow("A", i)}
+                title={`Row A • Step ${i + 1}`}
+                style={{
+                  height: rowExpanded[selected]?.A ? 44 : 20,
+                  width: "100%",
+                  borderRadius: rowExpanded[selected]?.A ? 6 : 3,
+                  background: fill,
+                  outline: accent ? "2px solid #34d399" : "none",
+                  border: "1px solid rgba(255,255,255,.12)",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Row B */}
+      <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8, marginTop: 14 }}>
+        {/* Header line: B button (left) + chevron (right) */}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            className="btn btn-ab"
+            onClick={() => toggleRowActiveUI(selected, "B")}
+            title={`Row B ${rowActive[selected]?.B ? "On" : "Off"}`}
+            aria-pressed={rowActive[selected]?.B}
+            style={{
+              background: rowActive[selected]?.B ? "#059669" : "#333",
+              fontWeight: 800,
+            }}
+          >
+            B
+          </button>
+
+          <div style={{ flex: 1 }} />
+
+          <button
+            className={`btn btn-ab-chevron ${rowExpanded[selected]?.B ? "open" : ""}`}
+            onClick={() => toggleRowExpanded(selected, "B")}
+            aria-expanded={rowExpanded[selected]?.B}
+            title={rowExpanded[selected]?.B ? "Collapse (1×16)" : "Expand (2×8 large)"}
+          >
+            ▾
+          </button>
+        </div>
+
+        {/* Steps */}
+        <div
+          className="row-steps"
+          style={{
+            display: "grid",
+            gridTemplateColumns: rowExpanded[selected]?.B ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
+            gap: rowExpanded[selected]?.B ? 10 : 8,
+            alignItems: "center",
+          }}
+        >
+          {patterns[selected].B.map((v, i) => {
+            const isActive = v > 0;
+            const accent = i === step && (uiLatchedRow[selected] || "A") === "B";
+            const fill = isActive
+              ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
+              : "rgba(255,255,255,.15)";
+            return (
+              <button
+                key={`B-${i}`}
+                onClick={() => cycleStepRow("B", i)}
+                title={`Row B • Step ${i + 1}`}
+                style={{
+                  height: rowExpanded[selected]?.B ? 44 : 20,
+                  width: "100%",
+                  borderRadius: rowExpanded[selected]?.B ? 6 : 3,
+                  background: fill,
+                  outline: accent ? "2px solid #34d399" : "none",
+                  border: "1px solid rgba(255,255,255,.12)",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 
   // ===== sub components =====
   function renderInstrumentButton(inst) {

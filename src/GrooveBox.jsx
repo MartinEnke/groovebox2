@@ -40,6 +40,69 @@ const STEPS_PER_BAR = 16;
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_TIME = 0.1;
 
+
+function SwingModePicker({ value, onChange }) {
+    const [open, setOpen] = React.useState(false);
+    const btnRef = React.useRef(null);
+    const menuRef = React.useRef(null);
+  
+    React.useEffect(() => {
+      function onDoc(e) {
+        if (!menuRef.current || !btnRef.current) return;
+        if (!menuRef.current.contains(e.target) && !btnRef.current.contains(e.target)) {
+          setOpen(false);
+        }
+      }
+      function onEsc(e) { if (e.key === "Escape") setOpen(false); }
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", onEsc);
+      return () => {
+        document.removeEventListener("mousedown", onDoc);
+        document.removeEventListener("keydown", onEsc);
+      };
+    }, []);
+  
+    const label = value === "none" ? "SWING OFF" : value === "8" ? "SWING 8" : "SWING 16";
+    const opts = [
+      { value: "none", label: "Off" },
+      { value: "8", label: "8th" },
+      { value: "16", label: "16th" },
+    ];
+  
+    return (
+      <div className="swing-mode-wrap">
+        <button
+          ref={btnRef}
+          type="button"
+          className={`btn swing-mode ${value === "none" ? "off" : "on"}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {label}
+          <span className={`chev ${open ? "up" : ""}`} aria-hidden />
+        </button>
+  
+        {open && (
+          <div ref={menuRef} className="swing-menu" role="menu">
+            {opts.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="menuitem"
+                className={`swing-menu-item ${value === o.value ? "active" : ""}`}
+                onClick={() => { onChange(o.value); setOpen(false); }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+
 export default function GrooveBox() {
   // ===== Audio graph refs =====
   const audioCtxRef = useRef(null);
@@ -263,27 +326,38 @@ const [rowExpanded, setRowExpanded] = useState(() =>
     return () => clearInterval(timerIdRef.current);
   }, [isPlaying, bpm]);
 
+
+  
   function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
     const type = instSwingTypeRef.current?.[instId] ?? "none";
     const amtLocal = (instSwingAmtRef.current?.[instId] ?? 0) / 100;
     const amtGlobal = (globalSwingPctRef.current ?? 100) / 100; // 1.0 = 100%
-    const amt = amtLocal * amtGlobal; // up to 1.5 (150%)
-
+    const amt = amtLocal * amtGlobal; // allow up to 1.5 (150%)
+  
     if (type === "none" || amt <= 0) return 0;
-
+  
     const withinBeat = stepIndex % 4;
-
+  
     if (type === "8") {
       // delay the off-beat 8th (index 2 within each beat)
       return withinBeat === 2 ? amt * (secondsPerBeat / 6) : 0;
     }
+  
     if (type === "16") {
       // delay off 16ths (indices 1 and 3)
-      const isOff16 = withinBeat % 2 === 1;
+      const isOff16 = (withinBeat % 2 === 1);
       return isOff16 ? amt * ((secondsPerBeat / 4) / 3) : 0;
     }
+  
+    if (type === "32") {
+      // micro-swing: smaller delay on off-16ths (approx 32nd feel)
+      const isOff16 = (withinBeat % 2 === 1);
+      return isOff16 ? amt * ((secondsPerBeat / 8) / 3) : 0;
+    }
+  
     return 0;
   }
+  
 
   function schedule() {
     const ctx = audioCtxRef.current;
@@ -609,12 +683,13 @@ if (mm === "beats") {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span>BPM</span>
             <input
-              type="range"
-              min={60}
-              max={200}
-              value={bpm}
-              onChange={(e) => setBpm(parseInt(e.target.value, 10))}
-            />
+  className="slider slider-bpm"
+  type="range"
+  min={60}
+  max={200}
+  value={bpm}
+  onChange={(e) => setBpm(parseInt(e.target.value, 10))}
+/>
             <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
           </div>
         </div>
@@ -718,62 +793,82 @@ if (mm === "beats") {
       {/* Divider */}
       <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-      {/* SWING — full width below */}
-      <div style={{ marginTop: 16, width: "100%" }}>
-        <div className="swing-row">
-          {/* short grid selector (8th/16th/off) */}
-          <select
-            className="swing-select"
-            value={instSwingType[selected]}
-            onChange={(e) =>
-              setInstSwingType((prev) => ({ ...prev, [selected]: e.target.value }))
+      {/* SWING — full width */}
+<div style={{ marginTop: 16, width: "100%" }}>
+  <div className="swing-row">
+    {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
+    <div className="swing-grid-2x2">
+      {[
+        { val: "none", label: "Off" },
+        { val: "8",    label: "8"   },
+        { val: "16",   label: "16"  },
+        { val: "32",   label: "32"  },
+      ].map(opt => {
+        const active = instSwingType[selected] === opt.val;
+        return (
+          <button
+            key={opt.val}
+            type="button"
+            className={`sg2-btn ${active ? "on" : "off"}`}
+            aria-pressed={active}
+            onClick={() =>
+              setInstSwingType(prev => ({ ...prev, [selected]: opt.val }))
             }
-            title="Swing grid"
+            title={`Swing grid: ${opt.label}`}
           >
-            <option value="none">Off</option>
-            <option value="8">8th</option>
-            <option value="16">16th</option>
-          </select>
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
 
-          {/* per-instrument swing block (slider + caption below) */}
-          <div className="swing-block">
-            <input
-              className="swing-slider"
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={instSwingAmt[selected]}
-              onChange={(e) =>
-                setInstSwingAmt((prev) => ({
-                  ...prev,
-                  [selected]: parseInt(e.target.value, 10),
-                }))
-              }
-              disabled={instSwingType[selected] === "none"}
-              title="Swing amount (%)"
-            />
-            <div className="swing-caption">
-              Swing {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
-            </div>
-          </div>
+    {/* per-instrument swing */}
+    <div className="swing-block">
+      <input
+        className="slider slider-swing"
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
+        onChange={(e) =>
+          setInstSwingAmt(prev => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
+        }
+        disabled={instSwingType[selected] === "none"}
+        title="Swing amount (%)"
+      />
+      {/* per-instrument swing readout */}
+<div className="swing-lcd">
+  <span className="lcd-label">SWING&nbsp;&nbsp;</span>
+  <span className="lcd-value">
+    {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
+  </span>
+</div>
 
-          {/* global swing block (slider + caption below, right side) */}
-          <div className="swing-global">
-            <input
-              className="swing-gslider"
-              type="range"
-              min={0}
-              max={150}
-              step={1}
-              value={globalSwingPct}
-              onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
-              title={`Global swing: ${globalSwingPct}%`}
-            />
-            <div className="swing-caption">Global {globalSwingPct}%</div>
-          </div>
-        </div>
-      </div>
+    </div>
+
+    {/* global swing scaler */}
+    <div className="swing-global">
+      <input
+        className="slider slider-global"
+        type="range"
+        min={0}
+        max={150}
+        step={1}
+        value={globalSwingPct}
+        onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
+        title={`Global swing: ${globalSwingPct}%`}
+      />
+      <div className="swing-lcd swing-lcd--global">
+  <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
+  <span className="lcd-value">{globalSwingPct}%</span>
+</div>
+    </div>
+  </div>
+</div>
+
+
+
 
 
       {/* Divider */}

@@ -46,7 +46,7 @@
 /* 3-state metronome button */
 .metro-btn{
   min-width: 96px;
-  border-radius: 8px;
+  border-radius: 2px;
   font-weight: 800;
   letter-spacing: .04em;
   transition: background .15s ease, box-shadow .2s ease, color .15s ease, transform .05s ease;
@@ -68,6 +68,56 @@
   background: linear-gradient(180deg, #2c2c2f 0%, #1f1f22 100%);
   color:#aaa;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+
+/* Sleek BPM fader (uses your base .slider) */
+.slider-bpm{
+  height: 44px;                 /* matches other controls */
+}
+
+/* thicker, polished track */
+.slider-bpm::-webkit-slider-runnable-track{
+  height: 8px;
+  background: linear-gradient(180deg, #3b3b3b, #2b2b2b);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
+}
+.slider-bpm::-moz-range-track{
+  height: 8px;
+  background: linear-gradient(180deg, #3b3b3b, #2b2b2b);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
+}
+
+/* grabber-style cap with subtle notch + active glow */
+.slider-bpm::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  width: 14px; height: 28px;
+  margin-top: -10px;            /* centers on 8px track */
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.6);
+  background:
+    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
+    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%);
+  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+  transition: box-shadow .2s, transform .05s, filter .15s;
+}
+.slider-bpm::-webkit-slider-thumb:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 1px 0 rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.55),
+    0 0 10px rgba(37,99,235,.35); /* blue glow while dragging */
+}
+.slider-bpm::-moz-range-thumb{
+  width: 14px; height: 28px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.6);
+  background:
+    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
+    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%);
+  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
 }
 
 
@@ -225,6 +275,261 @@
 }
 .solo-btn.solo-on:hover { background: #fbbf24; }
 .solo-btn.solo-on:active { transform: scale(0.985); }
+
+
+
+/* --- Swing row layout --- */
+/* Layout: buttons | per-instrument slider | global slider */
+
+:root{
+  /* sizes for the 2×2 swing buttons */
+  --sbtn-size: 38px;       /* square side */
+  --sbtn-gap: 8px;
+
+  /* column widths: [buttons] [swing] [global] */
+  --col-left: calc(var(--sbtn-size) * 2 + var(--sbtn-gap));
+  --col-swing: 1.50fr;     /* was 1.25fr → longer */
+  --col-global: 0.40fr;    /* was 0.75fr → ~13% shorter (close to your 10%) */
+
+  /* gaps */
+  --gap-mid: 4px;          /* between Swing & Global (tighter) */
+        /* extra gap to the left of Swing */
+}
+
+/* Layout: [2×2 buttons] | [Swing slider] | [Global slider] */
+.swing-row{
+  display: grid;
+  grid-template-columns: var(--col-left) var(--col-swing) var(--col-global);
+  column-gap: var(--gap-mid);    /* DO NOT also set "gap" elsewhere */
+  align-items: center;
+}
+
+/* 2×2 square buttons that never stretch */
+.swing-grid-2x2{
+  display: grid;
+  grid-template-columns: repeat(2, var(--sbtn-size));
+  grid-auto-rows: var(--sbtn-size);
+  gap: var(--sbtn-gap);
+  justify-content: start;
+}
+
+/* small edgy buttons (works with your existing .sg2-btn styles) */
+.sg2-btn{
+  box-sizing: border-box;
+  width: var(--sbtn-size);
+  height: var(--sbtn-size);
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.6);
+  background: #e5e5e5;
+  color: #111;
+  font: 800 12px/1 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  display: grid; place-items: center;
+  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+  transition: background .15s, box-shadow .2s, filter .15s, transform .05s, color .15s;
+}
+.sg2-btn.on{
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  color: #0f1a16;
+  box-shadow: 0 2px 0 rgba(12,61,48,.7), 0 0 10px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.sg2-btn:hover{ filter: brightness(1.05); }
+.sg2-btn:active{ transform: translateY(1px); }
+
+/* Keep the vertical column layout for the sliders… */
+.swing-block,
+.swing-global{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* …and add just a bit of extra gap between buttons and the Swing slider */
+.swing-block{ margin-left: var(--gap-left); }
+
+@media (max-width: 820px){
+  .swing-row{
+    grid-template-columns: 1fr;
+    column-gap: 12px;
+  }
+  .swing-block{ margin-left: 0; }
+}
+
+
+/* --- Button-like dropdown wrapper (edgy) --- */
+.swing-select-wrap{
+  position: relative;
+  height: 44px;                          /* match transport height */
+  border: 1px solid rgba(0,0,0,.6);
+  border-radius: 4px;                     /* edgy corners */
+  background: #e5e5e5;                    /* OFF default grey */
+  box-shadow:
+    0 3px 0 rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.7);
+  transition: filter .15s ease, box-shadow .2s ease, background .15s ease;
+  display: grid; place-items: center;
+}
+.swing-select-wrap.on{
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%); /* green */
+  color: #0f1a16;
+  box-shadow:
+    0 3px 0 rgba(12, 61, 48, .7),
+    0 0 12px rgba(16,185,129,.35),
+    inset 0 1px 0 rgba(255,255,255,.25);
+}
+.swing-select-wrap:hover{ filter: brightness(1.05); }
+
+/* caret */
+.swing-select-wrap::after{
+  content: "▾";
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-weight: 800; opacity: .8; pointer-events: none;
+  color: currentColor;
+}
+
+/* actual select made invisible-looking but accessible */
+.swing-select{
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: 800;
+  letter-spacing: .04em;
+  width: 100%;
+  height: 100%;
+  padding: 0 28px 0 14px;   /* space for caret */
+  cursor: pointer;
+}
+
+/* --- Sliders: minimal polished with grabber cap --- */
+.slider{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;                           /* same control height, cap centered */
+  background: transparent;
+  cursor: pointer;
+}
+
+/* track */
+.slider::-webkit-slider-runnable-track{
+  height: 6px;
+  background: linear-gradient(180deg, #3a3a3a, #2d2d2d);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
+}
+.slider::-moz-range-track{
+  height: 6px;
+  background: linear-gradient(180deg, #3a3a3a, #2d2d2d);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
+}
+
+/* thumb (grabber cap) */
+.slider::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 24px;
+  margin-top: -9px;                        /* vertically center over 6px track */
+  border-radius: 3px;                      /* edgy but a bit softened */
+  border: 1px solid rgba(0,0,0,.6);
+  background:
+    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
+    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%); /* center notch */
+  box-shadow:
+    0 2px 0 rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.7);
+  transition: filter .15s ease, box-shadow .2s ease, transform .05s ease;
+}
+.slider::-webkit-slider-thumb:active{
+  transform: translateY(1px);
+  box-shadow:
+    0 1px 0 rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.55);
+}
+.slider::-moz-range-thumb{
+  width: 14px; height: 24px; border: 1px solid rgba(0,0,0,.6);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
+    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%);
+  box-shadow:
+    0 2px 0 rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* disabled state */
+.slider:disabled::-webkit-slider-thumb{
+  filter: grayscale(.5) opacity(.7);
+}
+.slider:disabled::-moz-range-thumb{
+  filter: grayscale(.5) opacity(.7);
+}
+
+
+
+
+/* Mini LCD readouts under sliders */
+.swing-lcd{
+  margin-top: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 4px;                         /* edgy */
+  border: 1px solid rgba(0,0,0,.7);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18)),
+    #0d1410;                                  /* dark greenish black */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    0 2px 8px rgba(0,0,0,.28);
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle scanlines/grid for digital vibe */
+.swing-lcd::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,.02) 0px,
+      rgba(255,255,255,.02) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+  pointer-events:none;
+}
+
+/* label (left) */
+.lcd-label{
+  font-size: 11px;
+  letter-spacing: .10em;
+  color: #b9c8c0;
+  font-weight: 800;
+}
+
+/* value (right) */
+.lcd-value{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: .06em;
+  color: #9fffb9;                              /* mint green */
+  text-shadow: 0 0 6px rgba(159,255,185,.35);
+}
+
+/* variant for "Global" (cool cyan) */
+.swing-lcd--global .lcd-value{
+  color: #88e9ff;
+  text-shadow: 0 0 6px rgba(136,233,255,.35);
+}
+
 
 
 

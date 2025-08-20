@@ -77,6 +77,14 @@ const [sumComp, setSumComp] = useState({
   knee: 3         // dB
 });
 
+
+// Hi-hat choke map: when a key plays, these targets get choked
+const CHOKE_GROUPS = {
+    hihat: ["openhihat"],   // closed HH cuts open HH
+    // add more if you like: e.g. "rim": ["clap"]
+  };
+
+
   // Per-instrument delay mode: 'N16' (1/16), 'N8' (1/8), 'N3_4' (3/4)
 const [instDelayMode, setInstDelayMode] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 'N8']))
@@ -241,6 +249,10 @@ const [rowExpanded, setRowExpanded] = useState(() =>
   const timerIdRef = useRef(null);
   const recentWritesRef = useRef(new Map()); // keys like "kick-A-3"
   const loopStartRef = useRef(0);
+
+  // Active voices per instrument so we can choke (fade/stop) them
+const activeVoicesRef = useRef(new Map()); // instId -> Set<{src, gain}>
+
 
   // Mirrors of state in refs
   const patternsRef = useRef(patterns);
@@ -665,31 +677,39 @@ if (mm === "beats") {
 } // mm === "off" → no clicks
 
   
-      // 3) Schedule notes for this exact step
-      INSTRUMENTS.forEach((inst) => {
-        const row = latchedRowRef.current[inst.id] || "A";
-        const patt = patternsRef.current?.[inst.id]?.[row];
-        const vel = (patt?.[stepIndex]) || 0;
+      
+      // 3) Schedule notes for this exact step (with HH→OHH choke)
+INSTRUMENTS.forEach((inst) => {
+    const row  = latchedRowRef.current[inst.id] || "A";
+    const patt = patternsRef.current?.[inst.id]?.[row];
+    const vel  = (patt?.[stepIndex]) || 0;
   
-        if (vel > 0 && !mutesRef.current?.[inst.id]) {
-          const key = `${inst.id}-${row}-${stepIndex}`;
-          if (recentWritesRef.current.has(key)) {
-            recentWritesRef.current.delete(key);
-          } else {
-            const buf = buffersRef.current.get(inst.id);
-            const when =
-              nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
-            if (buf) playSample(inst.id, vel, when);
-          }
-        }
-      });
+    if (vel > 0 && !mutesRef.current?.[inst.id]) {
+      const key = `${inst.id}-${row}-${stepIndex}`;
+      if (recentWritesRef.current.has(key)) {
+        // Skip once if we just wrote this step in the current bar
+        recentWritesRef.current.delete(key);
+      } else {
+        const when =
+          nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
   
-      // 4) Update the UI step to THIS step index (precise, not relative)
-      setStep(stepIndex);
+        // If this instrument belongs to a choke group (e.g., hihat), choke its targets (e.g., openhihat)
+        const targets = (CHOKE_GROUPS && CHOKE_GROUPS[inst.id]) ? CHOKE_GROUPS[inst.id] : [];
+        targets.forEach(tid => chokeVoices(tid, when));
   
-      // 5) Advance scheduler
-      nextNoteTimeRef.current += secondsPerStep;
-      currentStepRef.current = (currentStepRef.current + 1) % STEPS_PER_BAR;
+        const buf = buffersRef.current.get(inst.id);
+        if (buf) playSample(inst.id, vel, when);
+      }
+    }
+  });
+  
+  // 4) Update the UI step to THIS step index (precise, not relative)
+  setStep(stepIndex);
+  
+  // 5) Advance scheduler
+  nextNoteTimeRef.current += secondsPerStep;
+  currentStepRef.current = (currentStepRef.current + 1) % STEPS_PER_BAR;
+  
     }
   }
   
@@ -726,14 +746,59 @@ if (mm === "beats") {
   function playSample(instId, velocity = 1.0, when = 0) {
     const ctx = audioCtxRef.current;
     const buf = buffersRef.current.get(instId);
-    if (!ctx || !buf) return;
+    const post = muteGainsRef.current.get(instId);
+    if (!ctx || !buf || !post) return;
+  
     const src = ctx.createBufferSource();
     src.buffer = buf;
+  
     const g = ctx.createGain();
     g.gain.value = clamp(velocity, 0, 1);
-    src.connect(g).connect(muteGainsRef.current.get(instId));
-    src.start(when > 0 ? when : 0);
+  
+    // voice chain: src -> voice gain -> per-instrument post node (feeds master + FX sends)
+    src.connect(g).connect(post);
+  
+    // start
+    const tStart = when > 0 ? when : 0;
+    src.start(tStart);
+  
+    // register active voice
+    if (!activeVoicesRef.current.has(instId)) {
+      activeVoicesRef.current.set(instId, new Set());
+    }
+    const voice = { src, gain: g };
+    activeVoicesRef.current.get(instId).add(voice);
+  
+    // clean up when done
+    src.onended = () => {
+      const set = activeVoicesRef.current.get(instId);
+      if (set) set.delete(voice);
+    };
   }
+  
+
+  function chokeVoices(targetInstId, when = 0) {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+  
+    const set = activeVoicesRef.current.get(targetInstId);
+    if (!set || set.size === 0) return;
+  
+    const t = Math.max(when, ctx.currentTime);
+    // fast fade and stop shortly after
+    const RELEASE = 0.02; // 20ms
+    set.forEach(({ src, gain }) => {
+      try {
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(0.0001, t + RELEASE);
+        src.stop(t + RELEASE + 0.005);
+      } catch (_) {
+        /* ignore nodes already stopped */
+      }
+    });
+  }
+  
 
   // ===== UI handlers =====
   function togglePlay() {
@@ -769,7 +834,13 @@ if (mm === "beats") {
     const vel = VELS[r][c];
 
     // Monitor immediately
-    if (!mutes[selected]) playSample(selected, vel, 0);
+    if (!mutes[selected]) {
+        // if this pad is the closed HH, choke the open HH right now
+        const targets = CHOKE_GROUPS[selected] || [];
+        const now = audioCtxRef.current?.currentTime || 0;
+        targets.forEach(tid => chokeVoices(tid, now));
+        playSample(selected, vel, 0);
+      }
 
     if (isRecording && isPlaying) {
       const idx = getRecordingStepIndex();

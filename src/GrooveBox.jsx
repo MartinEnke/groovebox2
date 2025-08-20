@@ -64,6 +64,8 @@ const duckGainsRef = useRef(new Map());        // targetId -> Map<triggerId, Gai
 const [showPads, setShowPads] = useState(true);
 const [showFX, setShowFX] = useState(true);
 const [showSwingUI, setShowSwingUI] = useState(true);
+const [showSC, setShowSC] = useState(true);   // Sidechain
+const [showSum, setShowSum] = useState(true); // Sum Bus
 
   // --- FX wet % per instrument (0..100) ---
 const [instDelayWet, setInstDelayWet] = useState(
@@ -1303,77 +1305,132 @@ return (
     )}
 
     {/* Divider */}
-    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-    {/* SIDECHAIN (selected instrument as TARGET) */}
-<div className="fx-block">
-  <div className="fx-label">SC</div>
-
-  {/* Trigger matrix row (buttons for triggers) */}
-  <div style={{ display: "grid", gridTemplateColumns: "repeat(5,auto)", gap: 6, marginBottom: 8 }}>
-    {INSTRUMENTS.map(tr => {
-      if (tr.id === selected) return null; // no self trigger
-      const on = !!scMatrix[selected][tr.id];
-      return (
-        <button
-          key={`sc-${selected}-${tr.id}`}
-          type="button"
-          className={`revlen-btn ${on ? "on" : ""}`}
-          onClick={() => {
-            // Enforce MAX_SC_LINKS = 4
-            const total = Object.values(scMatrix).reduce((acc, row) =>
-              acc + Object.values(row).filter(Boolean).length, 0);
-            const nextOn = !on;
-            if (nextOn && total >= MAX_SC_LINKS) return; // silently block if over limit
-
-            setScMatrix(prev => ({
-              ...prev,
-              [selected]: { ...prev[selected], [tr.id]: nextOn }
-            }));
-          }}
-          title={`Duck ${INSTRUMENTS.find(i => i.id === selected)?.label} when ${tr.label} hits`}
-        >
-          {tr.label}
-        </button>
-      );
-    })}
+{/* Sidechain fold header */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: 6,
+    marginBottom: 4,
+    position: "relative",
+  }}
+>
+  {/* Always show the centered label for Sidechain (open or closed) */}
+  <div
+    aria-hidden
+    style={{
+      position: "absolute",
+      left: "50%",
+      transform: "translateX(-50%)",
+      top: 0,
+      bottom: 0,
+      display: "flex",
+      alignItems: "center",
+      pointerEvents: "none",
+      color: "rgba(255,255,255,.55)",
+      fontSize: 13,
+      fontWeight: 600,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    }}
+  >
+    Sidechain
   </div>
 
-  {/* Amount / Attack / Release (per TARGET = selected) */}
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-    <div>
-      <div className="fx-sublabel">AMT</div>
-      <input
-        className="slider slider-fx"
-        type="range" min={0} max={24} step={0.5}
-        value={scAmtDb[selected]}
-        onChange={(e)=> setScAmtDb(prev => ({ ...prev, [selected]: parseFloat(e.target.value) }))}
-        title="Duck amount (dB)"
-      />
-    </div>
-    <div>
-      <div className="fx-sublabel">ATK</div>
-      <input
-        className="slider slider-fx"
-        type="range" min={0} max={60} step={1}
-        value={scAtkMs[selected]}
-        onChange={(e)=> setScAtkMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
-        title="Attack (ms)"
-      />
-    </div>
-    <div>
-      <div className="fx-sublabel">REL</div>
-      <input
-        className="slider slider-fx"
-        type="range" min={20} max={600} step={5}
-        value={scRelMs[selected]}
-        onChange={(e)=> setScRelMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
-        title="Release (ms)"
-      />
-    </div>
-  </div>
+  <button
+    onClick={() => setShowSC((s) => !s)}
+    aria-expanded={showSC}
+    title={showSC ? "Collapse sidechain" : "Expand sidechain"}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "rgba(255,255,255,.7)",
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1,
+      padding: "2px 4px",
+    }}
+  >
+    {showSC ? "▾" : "▸"}
+  </button>
 </div>
 
+{showSC && (
+  <div className="fx-block" style={{ marginTop: 8 }}>
+    <div className="fx-label"></div>
+
+    {/* Trigger matrix row (buttons for triggers) */}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,auto)", gap: 6, marginBottom: 8 }}>
+      {INSTRUMENTS.map(tr => {
+        if (tr.id === selected) return null; // no self trigger
+        const on = !!scMatrix[selected][tr.id];
+        return (
+          <button
+            key={`sc-${selected}-${tr.id}`}
+            type="button"
+            className={`revlen-btn ${on ? "on" : ""}`}
+            onClick={() => {
+              // Enforce MAX_SC_LINKS = 4 across whole matrix
+              const total = Object.values(scMatrix).reduce(
+                (acc, row) => acc + Object.values(row).filter(Boolean).length,
+                0
+              );
+              const nextOn = !on;
+              if (nextOn && total >= MAX_SC_LINKS) return;
+
+              setScMatrix(prev => ({
+                ...prev,
+                [selected]: { ...prev[selected], [tr.id]: nextOn }
+              }));
+            }}
+            title={`Duck ${INSTRUMENTS.find(i => i.id === selected)?.label} when ${tr.label} hits`}
+          >
+            {tr.label}
+          </button>
+        );
+      })}
+    </div>
+
+    {/* Amount / Attack / Release (per TARGET = selected) */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+      <div>
+        <div className="fx-sublabel">AMT</div>
+        <input
+          className="slider slider-fx"
+          type="range" min={0} max={24} step={0.5}
+          value={scAmtDb[selected]}
+          onChange={(e)=> setScAmtDb(prev => ({ ...prev, [selected]: parseFloat(e.target.value) }))}
+          title="Duck amount (dB)"
+        />
+      </div>
+      <div>
+        <div className="fx-sublabel">ATK</div>
+        <input
+          className="slider slider-fx"
+          type="range" min={0} max={60} step={1}
+          value={scAtkMs[selected]}
+          onChange={(e)=> setScAtkMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
+          title="Attack (ms)"
+        />
+      </div>
+      <div>
+        <div className="fx-sublabel">REL</div>
+        <input
+          className="slider slider-fx"
+          type="range" min={20} max={600} step={5}
+          value={scRelMs[selected]}
+          onChange={(e)=> setScRelMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
+          title="Release (ms)"
+        />
+      </div>
+    </div>
+  </div>
+)}
+
+    {/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
     {/* FX fold header */}
     <div
@@ -1637,70 +1694,123 @@ return (
     )}
 
     {/* Divider */}
-    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-
-{/* SUM BUS */}
-<div style={{
-  marginTop: 4, padding: 12, borderRadius: 10,
-  background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)"
-}}>
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-    <div style={{ fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", opacity: .9 }}>Sum Bus</div>
-    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, opacity: .9 }}>
-      <input type="checkbox" checked={limiterOn} onChange={(e)=>setLimiterOn(e.target.checked)} />
-      Limiter
-    </label>
-  </div>
-
-  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: 16, marginTop: 12 }}>
-    {/* Meter */}
-    <div>
-      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Peak Meter</div>
-      <div style={{ height: 12, background: "rgba(255,255,255,.08)", borderRadius: 6, overflow: "hidden" }}>
-        <div style={{
-          height: "100%",
-          width: `${Math.max(0, Math.min(1, (sumMeterDb + 60) / 60)) * 100}%`,
-          background: sumMeterDb > -1 ? "#b91c1c" : sumMeterDb > -6 ? "#d97706" : "#10b981",
-          transition: "width 50ms linear"
-        }} />
-      </div>
-      <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
-        {Number.isFinite(sumMeterDb) ? `${sumMeterDb.toFixed(1)} dBFS` : "—"}
-      </div>
+{/* Sum Bus fold header */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    marginTop: 6,
+    marginBottom: 4,
+    position: "relative",
+  }}
+>
+  {/* Show label only when folded (matches your other sections) */}
+  {!showSum && (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        left: "50%",
+        transform: "translateX(-50%)",
+        top: 0,
+        bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        pointerEvents: "none",
+        color: "rgba(255,255,255,.55)",
+        fontSize: 13,
+        fontWeight: 600,
+        letterSpacing: 1.2,
+        textTransform: "uppercase",
+      }}
+    >
+      Sum Bus
     </div>
+  )}
 
-    {/* Compressor */}
-    <div>
-      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Compressor</div>
-      <div style={{ display: "grid", gap: 6 }}>
-        <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
-          <span style={{ opacity: .75 }}>Thresh</span>
-          <input type="range" min={-60} max={0} step={1}
-            value={sumComp.threshold}
-            onChange={(e)=>setSumComp(s=>({...s, threshold: parseFloat(e.target.value)}))}/>
-        </label>
-        <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
-          <span style={{ opacity: .75 }}>Ratio</span>
-          <input type="range" min={1} max={20} step={0.1}
-            value={sumComp.ratio}
-            onChange={(e)=>setSumComp(s=>({...s, ratio: parseFloat(e.target.value)}))}/>
-        </label>
-      </div>
-    </div>
-
-    {/* Makeup gain */}
-    <div>
-      <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Makeup</div>
-      <input type="range" min={-24} max={+12} step={0.1}
-        value={sumGainDb}
-        onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}/>
-      <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
-        {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
-      </div>
-    </div>
-  </div>
+  <button
+    onClick={() => setShowSum((s) => !s)}
+    aria-expanded={showSum}
+    title={showSum ? "Collapse Sum Bus" : "Expand Sum Bus"}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "rgba(255,255,255,.7)",
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1,
+      padding: "2px 4px",
+    }}
+  >
+    {showSum ? "▾" : "▸"}
+  </button>
 </div>
+
+{showSum && (
+  <div style={{
+    marginTop: 4, padding: 12, borderRadius: 10,
+    background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)"
+  }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", opacity: .9 }}>Sum Bus</div>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, opacity: .9 }}>
+        <input type="checkbox" checked={limiterOn} onChange={(e)=>setLimiterOn(e.target.checked)} />
+        Limiter
+      </label>
+    </div>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: 16, marginTop: 12 }}>
+      {/* Meter */}
+      <div>
+        <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Peak Meter</div>
+        <div style={{ height: 12, background: "rgba(255,255,255,.08)", borderRadius: 6, overflow: "hidden" }}>
+          <div style={{
+            height: "100%",
+            width: `${Math.max(0, Math.min(1, (sumMeterDb + 60) / 60)) * 100}%`,
+            background: sumMeterDb > -1 ? "#b91c1c" : sumMeterDb > -6 ? "#d97706" : "#10b981",
+            transition: "width 50ms linear"
+          }} />
+        </div>
+        <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+          {Number.isFinite(sumMeterDb) ? `${sumMeterDb.toFixed(1)} dBFS` : "—"}
+        </div>
+      </div>
+
+      {/* Compressor */}
+      <div>
+        <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Compressor</div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
+            <span style={{ opacity: .75 }}>Thresh</span>
+            <input type="range" min={-60} max={0} step={1}
+              value={sumComp.threshold}
+              onChange={(e)=>setSumComp(s=>({...s, threshold: parseFloat(e.target.value)}))}/>
+          </label>
+          <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
+            <span style={{ opacity: .75 }}>Ratio</span>
+            <input type="range" min={1} max={20} step={0.1}
+              value={sumComp.ratio}
+              onChange={(e)=>setSumComp(s=>({...s, ratio: parseFloat(e.target.value)}))}/>
+          </label>
+        </div>
+      </div>
+
+      {/* Makeup gain */}
+      <div>
+        <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Makeup</div>
+        <input type="range" min={-24} max={+12} step={0.1}
+          value={sumGainDb}
+          onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}/>
+        <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+          {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
 
     {/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />

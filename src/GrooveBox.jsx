@@ -10,6 +10,9 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
 const dbToGain = (db) => Math.pow(10, db / 20);
 
+// Max number of active sidechain links (target×trigger pairs)
+const MAX_SC_LINKS = 4;
+
 // ===== Instruments (2 x 5) =====
 const INSTRUMENTS = [
   { id: "kick", label: "BD", url: "/samples/BD.wav" },
@@ -52,6 +55,11 @@ export default function GrooveBox() {
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
 
+  // Per-instrument sum ("mix") before ducking, then a chain of duck gains -> post volume/mute
+const mixGainsRef  = useRef(new Map());        // instId -> GainNode (sum of all note voices)
+const duckGainsRef = useRef(new Map());        // targetId -> Map<triggerId, GainNode> (series chain)
+
+
   // Fold/unfold for sections
 const [showPads, setShowPads] = useState(true);
 const [showFX, setShowFX] = useState(true);
@@ -61,6 +69,31 @@ const [showSwingUI, setShowSwingUI] = useState(true);
 const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
   );
+
+  // Sidechain matrix: target -> trigger -> boolean
+const [scMatrix, setScMatrix] = useState(
+    Object.fromEntries(
+      INSTRUMENTS.map(t => [
+        t.id,
+        Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))
+      ])
+    )
+  );
+  // Per-target duck depth/attack/release
+  const [scAmtDb, setScAmtDb] = useState(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));    // dB
+  const [scAtkMs, setScAtkMs] = useState(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));   // ms
+  const [scRelMs, setScRelMs] = useState(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));  // ms
+  
+  // Refs for scheduler
+  const scMatrixRef = useRef(scMatrix);
+  const scAmtDbRef  = useRef(scAmtDb);
+  const scAtkMsRef  = useRef(scAtkMs);
+  const scRelMsRef  = useRef(scRelMs);
+  useEffect(() => { scMatrixRef.current = scMatrix; }, [scMatrix]);
+  useEffect(() => { scAmtDbRef.current  = scAmtDb;  }, [scAmtDb]);
+  useEffect(() => { scAtkMsRef.current  = scAtkMs;  }, [scAtkMs]);
+  useEffect(() => { scRelMsRef.current  = scRelMs;  }, [scRelMs]);
+  
 
   // ===== Sum bus (meter + comp/limiter) =====
 const sumNodesRef = useRef({ in:null, analyser:null, comp:null, limiter:null, makeup:null });
@@ -435,6 +468,35 @@ INSTRUMENTS.forEach((inst) => {
       );
     })();
   
+    // Per-instrument pre-duck mix + duck chain: voices -> mix -> [duck gains...] -> post
+INSTRUMENTS.forEach((inst) => {
+    const post = muteGainsRef.current.get(inst.id);
+    if (!post) return;
+  
+    // Sum of all voices for this instrument
+    const mix = audioCtxRef.current.createGain();
+    mix.gain.value = 1.0;
+  
+    // One duck gain per possible trigger (default 1.0), chained in series
+    const gMap = new Map();
+    let last = mix;
+    INSTRUMENTS.forEach((trig) => {
+      const dg = audioCtxRef.current.createGain();
+      dg.gain.value = 1.0;            // no ducking by default
+      last.connect(dg);
+      last = dg;
+      gMap.set(trig.id, dg);
+    });
+  
+    // Out of duck chain into the instrument's post node (which feeds master + FX sends)
+    last.connect(post);
+  
+    // Stash refs
+    mixGainsRef.current.set(inst.id, mix);
+    duckGainsRef.current.set(inst.id, gMap);
+  });
+
+  
     return () => ctx.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -574,6 +636,32 @@ useEffect(() => {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
+  function scheduleDuckEnvelopes(triggerId, when) {
+    const matrix = scMatrixRef.current;
+    const amtDb  = scAmtDbRef.current;
+    const atkMs  = scAtkMsRef.current;
+    const relMs  = scRelMsRef.current;
+  
+    // For every TARGET that has this trigger toggled on, dip its specific duck gain
+    INSTRUMENTS.forEach(target => {
+      if (!matrix?.[target.id]?.[triggerId]) return;
+  
+      const dg = duckGainsRef.current.get(target.id)?.get(triggerId);
+      if (!dg) return;
+  
+      const g   = dg.gain;
+      const dip = Math.max(0.0001, dbToGain(- (amtDb[target.id] ?? 6)));
+      const atk = Math.max(0.001, (atkMs[target.id] ?? 12)  / 1000);
+      const rel = Math.max(0.001, (relMs[target.id] ?? 180) / 1000);
+  
+      const t0 = when;
+      g.cancelScheduledValues(t0);
+      g.setValueAtTime(1.0, t0);
+      // exponential ramps sound smoother for ducking
+      g.exponentialRampToValueAtTime(dip, t0 + atk);
+      g.exponentialRampToValueAtTime(1.0, t0 + atk + rel);
+    });
+  }
   
   // ===== Scheduling =====
   useEffect(() => {
@@ -678,7 +766,7 @@ if (mm === "beats") {
 
   
       
-      // 3) Schedule notes for this exact step (with HH→OHH choke)
+      // 3) Schedule notes for this exact step (with HH→OHH choke + sidechain)
 INSTRUMENTS.forEach((inst) => {
     const row  = latchedRowRef.current[inst.id] || "A";
     const patt = patternsRef.current?.[inst.id]?.[row];
@@ -689,17 +777,22 @@ INSTRUMENTS.forEach((inst) => {
       if (recentWritesRef.current.has(key)) {
         // Skip once if we just wrote this step in the current bar
         recentWritesRef.current.delete(key);
-      } else {
-        const when =
-          nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
-  
-        // If this instrument belongs to a choke group (e.g., hihat), choke its targets (e.g., openhihat)
-        const targets = (CHOKE_GROUPS && CHOKE_GROUPS[inst.id]) ? CHOKE_GROUPS[inst.id] : [];
-        targets.forEach(tid => chokeVoices(tid, when));
-  
-        const buf = buffersRef.current.get(inst.id);
-        if (buf) playSample(inst.id, vel, when);
+        return;
       }
+  
+      const when =
+        nextNoteTimeRef.current + getSwingOffsetSec(inst.id, stepIndex, secondsPerBeat);
+  
+      // Choke group (e.g., closed HH chokes open HH)
+      const targets = (CHOKE_GROUPS && CHOKE_GROUPS[inst.id]) ? CHOKE_GROUPS[inst.id] : [];
+      targets.forEach(tid => chokeVoices(tid, when));
+  
+      // Fire sidechain envelopes for any targets listening to this trigger
+      scheduleDuckEnvelopes(inst.id, when);
+  
+      // Finally play the note
+      const buf = buffersRef.current.get(inst.id);
+      if (buf) playSample(inst.id, vel, when);
     }
   });
   
@@ -746,8 +839,8 @@ INSTRUMENTS.forEach((inst) => {
   function playSample(instId, velocity = 1.0, when = 0) {
     const ctx = audioCtxRef.current;
     const buf = buffersRef.current.get(instId);
-    const post = muteGainsRef.current.get(instId);
-    if (!ctx || !buf || !post) return;
+    const mix = mixGainsRef.current.get(instId);   // <-- must exist now
+    if (!ctx || !buf || !mix) return;
   
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -755,26 +848,25 @@ INSTRUMENTS.forEach((inst) => {
     const g = ctx.createGain();
     g.gain.value = clamp(velocity, 0, 1);
   
-    // voice chain: src -> voice gain -> per-instrument post node (feeds master + FX sends)
-    src.connect(g).connect(post);
+    // voice chain: src -> voice gain -> per-instrument mix (then duck chain -> post -> master/FX)
+    src.connect(g).connect(mix);
   
-    // start
     const tStart = when > 0 ? when : 0;
     src.start(tStart);
   
-    // register active voice
+    // track active voices (for chokes)
     if (!activeVoicesRef.current.has(instId)) {
       activeVoicesRef.current.set(instId, new Set());
     }
     const voice = { src, gain: g };
     activeVoicesRef.current.get(instId).add(voice);
   
-    // clean up when done
     src.onended = () => {
       const set = activeVoicesRef.current.get(instId);
       if (set) set.delete(voice);
     };
   }
+  
   
 
   function chokeVoices(targetInstId, when = 0) {
@@ -1212,6 +1304,76 @@ return (
 
     {/* Divider */}
     <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+    {/* SIDECHAIN (selected instrument as TARGET) */}
+<div className="fx-block">
+  <div className="fx-label">SC</div>
+
+  {/* Trigger matrix row (buttons for triggers) */}
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(5,auto)", gap: 6, marginBottom: 8 }}>
+    {INSTRUMENTS.map(tr => {
+      if (tr.id === selected) return null; // no self trigger
+      const on = !!scMatrix[selected][tr.id];
+      return (
+        <button
+          key={`sc-${selected}-${tr.id}`}
+          type="button"
+          className={`revlen-btn ${on ? "on" : ""}`}
+          onClick={() => {
+            // Enforce MAX_SC_LINKS = 4
+            const total = Object.values(scMatrix).reduce((acc, row) =>
+              acc + Object.values(row).filter(Boolean).length, 0);
+            const nextOn = !on;
+            if (nextOn && total >= MAX_SC_LINKS) return; // silently block if over limit
+
+            setScMatrix(prev => ({
+              ...prev,
+              [selected]: { ...prev[selected], [tr.id]: nextOn }
+            }));
+          }}
+          title={`Duck ${INSTRUMENTS.find(i => i.id === selected)?.label} when ${tr.label} hits`}
+        >
+          {tr.label}
+        </button>
+      );
+    })}
+  </div>
+
+  {/* Amount / Attack / Release (per TARGET = selected) */}
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+    <div>
+      <div className="fx-sublabel">AMT</div>
+      <input
+        className="slider slider-fx"
+        type="range" min={0} max={24} step={0.5}
+        value={scAmtDb[selected]}
+        onChange={(e)=> setScAmtDb(prev => ({ ...prev, [selected]: parseFloat(e.target.value) }))}
+        title="Duck amount (dB)"
+      />
+    </div>
+    <div>
+      <div className="fx-sublabel">ATK</div>
+      <input
+        className="slider slider-fx"
+        type="range" min={0} max={60} step={1}
+        value={scAtkMs[selected]}
+        onChange={(e)=> setScAtkMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
+        title="Attack (ms)"
+      />
+    </div>
+    <div>
+      <div className="fx-sublabel">REL</div>
+      <input
+        className="slider slider-fx"
+        type="range" min={20} max={600} step={5}
+        value={scRelMs[selected]}
+        onChange={(e)=> setScRelMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
+        title="Release (ms)"
+      />
+    </div>
+  </div>
+</div>
+
 
     {/* FX fold header */}
     <div

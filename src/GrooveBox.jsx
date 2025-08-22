@@ -64,11 +64,12 @@ useEffect(() => {
   const duckGainsRef = useRef(new Map()); // targetId -> Map<triggerId, GainNode> (series chain)
 
   // Fold/unfold for sections
-  const [showSC, setShowSC] = useState(true);
-  const [showFX, setShowFX] = useState(true);
-  const [showSwingUI, setShowSwingUI] = useState(true);
-  const [showSum, setShowSum] = useState(true);
-  const [showPads, setShowPads] = useState(true);
+// Fold/unfold for sections (defaults: Channel open, others closed)
+const [showPads,    setShowPads]    = useState(true);
+const [showSC,      setShowSC]      = useState(false);
+const [showFX,      setShowFX]      = useState(false);
+const [showSwingUI, setShowSwingUI] = useState(false);
+const [showSum,     setShowSum]     = useState(false);
 
   // --- FX wet % per instrument (0..100) ---
   const [instDelayWet, setInstDelayWet] = useState(
@@ -1616,6 +1617,12 @@ return (
       setLimiterOn(true);
       setCurrentSessionName("");
       try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+      // Reset folds: Channel open, others closed
+    setShowPads(true);
+    setShowSC(false);
+    setShowFX(false);
+    setShowSwingUI(false);
+    setShowSum(false);
     }}
   >
     New

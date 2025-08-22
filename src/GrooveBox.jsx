@@ -16,6 +16,7 @@ import FXPanel from "./components/panels/FXPanel";
 import SwingPanel from "./components/panels/SwingPanel";
 import SumBusPanel from "./components/panels/SumBusPanel";
 import TransportBar from "./components/TransportBar";
+import StepEditor from "./components/StepEditor";
 
 
 
@@ -1757,140 +1758,19 @@ return (
     </div>
 
     {/* Step editor: oldschool — row button on left, chevron on right */}
-    <div style={{ marginTop: 24, width: "100%", maxWidth: 760 }}>
-      {/* Row A */}
-      <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8 }}>
-        {/* Header line: A button (left) + chevron (right) */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <button
-            className="btn btn-ab"
-            onClick={() => toggleRowActiveUI(selected, "A")}
-            title={`Row A ${rowActive[selected]?.A ? "On" : "Off"}`}
-            aria-pressed={rowActive[selected]?.A}
-            style={{
-              background: rowActive[selected]?.A ? "#059669" : "#333",
-              fontWeight: 800,
-            }}
-          >
-            A
-          </button>
+   
+<StepEditor
+  patterns={patterns}
+  selected={selected}
+  rowActive={rowActive}
+  toggleRowActiveUI={toggleRowActiveUI}
+  rowExpanded={rowExpanded}
+  toggleRowExpanded={toggleRowExpanded}
+  uiLatchedRow={uiLatchedRow}
+  step={step}
+  cycleStepRow={cycleStepRow}
+/>
 
-          <div style={{ flex: 1 }} />
-
-          <button
-            className={`btn btn-ab-chevron ${rowExpanded[selected]?.A ? "open" : ""}`}
-            onClick={() => toggleRowExpanded(selected, "A")}
-            aria-expanded={rowExpanded[selected]?.A}
-            title={rowExpanded[selected]?.A ? "Collapse (1×16)" : "Expand (2×8 large)"}
-          >
-            ▾
-          </button>
-        </div>
-
-        {/* Steps: 1×16 or 2×8 (larger) */}
-        <div
-          className="row-steps"
-          style={{
-            display: "grid",
-            gridTemplateColumns: rowExpanded[selected]?.A ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
-            gap: rowExpanded[selected]?.A ? 10 : 8,
-            alignItems: "center",
-          }}
-        >
-          {patterns[selected].A.map((v, i) => {
-            const isActive = v > 0;
-            const accent = i === step && (uiLatchedRow[selected] || "A") === "A";
-            const fill = isActive
-              ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
-              : "rgba(255,255,255,.15)";
-            return (
-              <button
-                key={`A-${i}`}
-                onClick={() => cycleStepRow("A", i)}
-                title={`Row A • Step ${i + 1}`}
-                style={{
-                  height: rowExpanded[selected]?.A ? 44 : 20,
-                  width: "100%",
-                  borderRadius: rowExpanded[selected]?.A ? 6 : 3,
-                  background: fill,
-                  outline: accent ? "2px solid #34d399" : "none",
-                  border: "1px solid rgba(255,255,255,.12)",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Row B */}
-      <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8, marginTop: 14 }}>
-        {/* Header line: B button (left) + chevron (right) */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <button
-            className="btn btn-ab"
-            onClick={() => toggleRowActiveUI(selected, "B")}
-            title={`Row B ${rowActive[selected]?.B ? "On" : "Off"}`}
-            aria-pressed={rowActive[selected]?.B}
-            style={{
-              background: rowActive[selected]?.B ? "#059669" : "#333",
-              fontWeight: 800,
-            }}
-          >
-            B
-          </button>
-
-          <div style={{ flex: 1 }} />
-
-          <button
-            className={`btn btn-ab-chevron ${rowExpanded[selected]?.B ? "open" : ""}`}
-            onClick={() => toggleRowExpanded(selected, "B")}
-            aria-expanded={rowExpanded[selected]?.B}
-            title={rowExpanded[selected]?.B ? "Collapse (1×16)" : "Expand (2×8 large)"}
-          >
-            ▾
-          </button>
-        </div>
-
-        {/* Steps */}
-        <div
-          className="row-steps"
-          style={{
-            display: "grid",
-            gridTemplateColumns: rowExpanded[selected]?.B ? "repeat(8, 1fr)" : "repeat(16, 1fr)",
-            gap: rowExpanded[selected]?.B ? 10 : 8,
-            alignItems: "center",
-          }}
-        >
-          {patterns[selected].B.map((v, i) => {
-            const isActive = v > 0;
-            const accent = i === step && (uiLatchedRow[selected] || "A") === "B";
-            const fill = isActive
-              ? `rgba(52, 211, 153, ${0.35 + 0.65 * Math.max(0, Math.min(1, v))})`
-              : "rgba(255,255,255,.15)";
-            return (
-              <button
-                key={`B-${i}`}
-                onClick={() => cycleStepRow("B", i)}
-                title={`Row B • Step ${i + 1}`}
-                style={{
-                  height: rowExpanded[selected]?.B ? 44 : 20,
-                  width: "100%",
-                  borderRadius: rowExpanded[selected]?.B ? 6 : 3,
-                  background: fill,
-                  outline: accent ? "2px solid #34d399" : "none",
-                  border: "1px solid rgba(255,255,255,.12)",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  </div>
+</div>  
 );
-}
-
+}  

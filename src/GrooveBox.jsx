@@ -12,6 +12,7 @@ import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/
 import { InstrumentGrid } from "./components/InstrumentGrid";
 import Channel from "./components/Channel";
 import SidechainPanel from "./components/panels/SidechainPanel";
+import FXPanel from "./components/panels/FXPanel";
 
 
 
@@ -1665,141 +1666,17 @@ return (
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
     {/* FX fold header */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: 6,
-        marginBottom: 4,
-        position: "relative",
-      }}
-    >
-      {!showFX && (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-            top: 0,
-            bottom: 0,
-            display: "flex",
-            alignItems: "center",
-            pointerEvents: "none",
-            color: "rgba(255,255,255,.55)",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: 1.2,
-            textTransform: "uppercase",
-          }}
-        >
-          FX
-        </div>
-      )}
-      <button
-        onClick={() => setShowFX((s) => !s)}
-        aria-expanded={showFX}
-        title={showFX ? "Collapse FX" : "Expand FX"}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "rgba(255,255,255,.7)",
-          cursor: "pointer",
-          fontSize: 16,
-          lineHeight: 1,
-          padding: "2px 4px",
-        }}
-      >
-        {showFX ? "▾" : "▸"}
-      </button>
-    </div>
-
     {showFX && (
-      <div className="fx-row" style={{ marginTop: 8 }}>
-        {/* DELAY */}
-        <div className="fx-block">
-          <div className="fx-label">DLY</div>
-          <input
-            className="slider slider-fx"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={instDelayWet[selected]}
-            onChange={(e) => {
-              const pct = parseInt(e.target.value, 10);
-              setInstDelayWet((prev) => ({ ...prev, [selected]: pct }));
-              updateDelaySends(selected, pct);
-            }}
-            title="Delay wet (%)"
-          />
-          {/* Delay mode: 1/16, 1/8, 3/4 */}
-          <div className="revlen-wrap">
-            {[
-              { key: "N16", label: "1/16" },
-              { key: "N8", label: "1/8" },
-              { key: "N3_4", label: "3/4" },
-            ].map((opt) => {
-              const on = instDelayMode[selected] === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  className={`revlen-btn ${on ? "on" : ""}`}
-                  onClick={() => {
-                    setInstDelayMode((prev) => ({ ...prev, [selected]: opt.key }));
-                    updateDelaySends(selected);
-                  }}
-                  title={`Delay mode ${opt.label}`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* REVERB */}
-        <div className="fx-block">
-          <div className="fx-label">REV</div>
-          <input
-            className="slider slider-fx"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={instReverbWet[selected]}
-            onChange={(e) => {
-              const pct = parseInt(e.target.value, 10);
-              setInstReverbWet((prev) => ({ ...prev, [selected]: pct }));
-              updateReverbSends(selected, pct);
-            }}
-            title="Reverb wet (%)"
-          />
-
-          {/* Per-instrument reverb length: S / M / L */}
-          <div className="revlen-wrap">
-            {["S", "M", "L"].map((m) => {
-              const isOn = instRevMode[selected] === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  className={`revlen-btn ${isOn ? "on" : ""}`}
-                  onClick={() => {
-                    setInstRevMode((prev) => ({ ...prev, [selected]: m }));
-                    updateReverbSends(selected); // immediate feedback
-                  }}
-                  title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
-                >
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    )}
+  <FXPanel
+    selected={selected}
+    instDelayWet={instDelayWet} setInstDelayWet={setInstDelayWet}
+    instDelayMode={instDelayMode} setInstDelayMode={setInstDelayMode}
+    updateDelaySends={updateDelaySends}
+    instReverbWet={instReverbWet} setInstReverbWet={setInstReverbWet}
+    instRevMode={instRevMode} setInstRevMode={setInstRevMode}
+    updateReverbSends={updateReverbSends}
+  />
+)}
 
     {/* Divider */}
     <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />

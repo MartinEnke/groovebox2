@@ -4,17 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { SAMPLE_PACKS, PACK_IDS } from "./constants/packs";
 import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
 import { VELS, STEP_CYCLE_ORDER, PPQ, STEPS_PER_BAR, LOOKAHEAD_MS, SCHEDULE_AHEAD_TIME } from "./constants/sequencer";
-
-
+import { SESSIONS_KEY, CURRENT_SESSION_KEY, SESSION_VERSION, SESSION_KEY } from "./constants/session";
 
 import { clamp, pad, dbToGain, coerce16, deepClone } from "./utils/misc";
 import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/audio";
 
+import { InstrumentGrid } from "./components/InstrumentGrid";
 
-
-
-const SESSIONS_KEY = "groovebox.sessions.v1";
-const CURRENT_SESSION_KEY = "groovebox.sessions.currentName";
 
 
 export default function GrooveBox() {
@@ -26,9 +22,6 @@ export default function GrooveBox() {
   const metClickRef = useRef({ hi: null, lo: null });
 
 
-  // --- Session constants
-const SESSION_VERSION = 1;
-const SESSION_KEY = "groovebox.session.v1";
 
 
 const [sessions, setSessions] = useState({});     // { [name]: sessionObj }
@@ -1623,19 +1616,13 @@ return (
 
   
 
-    {/* Instruments grid 2 x 5 with mutes */}
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-      {INSTRUMENTS.slice(0, 5).map(renderInstrumentButton)}
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
-      {INSTRUMENTS.slice(0, 5).map(renderMuteButton)}
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 16 }}>
-      {INSTRUMENTS.slice(5, 10).map(renderInstrumentButton)}
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 8 }}>
-      {INSTRUMENTS.slice(5, 10).map(renderMuteButton)}
-    </div>
+    {/* Instruments + Mutes */}
+<InstrumentGrid
+  selected={selected}
+  selectInstrument={selectInstrument}
+  mutes={mutes}
+  toggleMute={toggleMute}
+/>
 
     {/* Divider */}
     <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
@@ -2461,39 +2448,6 @@ return (
     </div>
   </div>
 );
-
-
-  // ===== sub components =====
-  function renderInstrumentButton(inst) {
-    const isSel = selected === inst.id;
-    return (
-      <button
-        key={inst.id}
-        onClick={() => selectInstrument(inst.id)}
-        className="btn inst-btn"               
-        title={`Select ${inst.label}`}
-        style={{ background: isSel ? "#059669" : "#333" }}
-      >
-        <div style={{ fontWeight: 600 }}>{inst.label}</div>
-      </button>
-    );
-  }
-  
-
-  function renderMuteButton(inst) {
-    const muted = mutes[inst.id];
-    return (
-      <button
-        key={`${inst.id}-mute`}
-        onClick={() => toggleMute(inst.id)}
-        className="btn"
-        title={`Mute ${inst.label}`}
-        style={{ background: muted ? "#b91c1c" : "#444" }}
-      >
-        {muted ? "Mute" : "Mute"}
-      </button>
-    );
-  }
 }
 
 function PadButton({ label, sub, onPress }) {

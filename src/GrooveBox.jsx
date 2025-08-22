@@ -15,6 +15,7 @@ import SidechainPanel from "./components/panels/SidechainPanel";
 import FXPanel from "./components/panels/FXPanel";
 import SwingPanel from "./components/panels/SwingPanel";
 import SumBusPanel from "./components/panels/SumBusPanel";
+import TransportBar from "./components/TransportBar";
 
 
 

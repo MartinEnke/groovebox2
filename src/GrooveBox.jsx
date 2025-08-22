@@ -76,6 +76,11 @@ const INSTRUMENTS = [
   { id: "ride", label: "RIDE" },
 ];
 
+
+const SESSIONS_KEY = "groovebox.sessions.v1";
+const CURRENT_SESSION_KEY = "groovebox.sessions.currentName";
+
+
 // Pads velocity matrix
 const VELS = [
   [1.0, 0.6],
@@ -98,6 +103,43 @@ export default function GrooveBox() {
   const buffersRef = useRef(new Map()); // id -> AudioBuffer
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
+
+
+  // --- Session constants
+const SESSION_VERSION = 1;
+const SESSION_KEY = "groovebox.session.v1";
+
+
+const [sessions, setSessions] = useState({});     // { [name]: sessionObj }
+const [currentSessionName, setCurrentSessionName] = useState("");
+
+useEffect(() => {
+  // Load saved sessions dictionary
+  let dict = {};
+  try { dict = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch {}
+  setSessions(dict);
+
+  // Optional: auto-load last selected named session
+  const last = localStorage.getItem(CURRENT_SESSION_KEY);
+  if (last && dict[last]) {
+    setCurrentSessionName(last);
+    // apply AFTER audio/graph exist; slight deferral helps:
+    queueMicrotask(() => applySession(dict[last]));
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+
+// Ensure arrays are length 16
+const coerce16 = (arr) => {
+  const a = Array.isArray(arr) ? arr.slice(0, 16) : [];
+  while (a.length < 16) a.push(0);
+  return a;
+};
+
+// Deep copy util to avoid mutating state inputs
+const deepClone = (x) => JSON.parse(JSON.stringify(x));
+
 
   // Sample-pack selection
   const [selectedPack, setSelectedPack] = useState(PACK_IDS[0]);
@@ -786,6 +828,230 @@ function getBufferForCurrentPack(instId) {
   return packMap?.get(instId) ?? null;
 }
 
+
+
+function persistSessions(next) {
+    setSessions(next);
+    try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(next)); } catch {}
+  }
+  
+  function saveNamedSession(name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
+    const payload = { ...buildSession(), updatedAt: Date.now() };
+  
+    const next = { ...sessions, [trimmed]: payload };
+    persistSessions(next);
+  
+    setCurrentSessionName(trimmed);
+    try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
+  }
+  
+  function deleteNamedSession(name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed || !sessions[trimmed]) return;
+    const { [trimmed]: _, ...rest } = sessions;
+    persistSessions(rest);
+  
+    if (currentSessionName === trimmed) {
+      setCurrentSessionName("");
+      try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+    }
+  }
+  
+  function loadNamedSession(name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed || !sessions[trimmed]) return;
+    setCurrentSessionName(trimmed);
+    try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
+    applySession(sessions[trimmed]);
+  }
+  
+
+
+function buildSession() {
+    // Capture everything you'd expect to restore
+    return {
+      v: SESSION_VERSION,
+      selectedPack,
+  
+      // transport & grid
+      bpm,
+      metMode,
+  
+      // per-instrument stuff
+      patterns,            // {instId: {A:[16], B:[16]}}
+      rowActive,           // {instId: {A:bool, B:bool}}
+      instGainsDb,         // {instId: dB}
+      mutes,               // {instId: bool}
+      soloActive,
+  
+      // swing
+      instSwingType,       // {instId: 'none'|'8'|'16'|'32'}
+      instSwingAmt,        // {instId: 0..100}
+      globalSwingPct,
+  
+      // FX
+      instDelayWet,        // {instId: 0..100}
+      instDelayMode,       // {instId: 'N16'|'N8'|'N3_4'}
+      instReverbWet,       // {instId: 0..100}
+      instRevMode,         // {instId: 'S'|'M'|'L'}
+  
+      // sidechain
+      scMatrix,            // target->trigger->bool
+      scAmtDb,             // {targetId: dB}
+      scAtkMs,             // {targetId: ms}
+      scRelMs,             // {targetId: ms}
+  
+      // sum bus
+      sumComp,             // {threshold, ratio, attack, release, knee}
+      sumGainDb,
+      limiterOn,
+  
+      // (Optional UI niceties you may want to remember)
+      rowExpanded,         // {instId:{A:bool,B:bool}}
+      selected,            // selected instrument id
+    };
+  }
+  
+  // Apply a session safely (merges + node updates)
+  async function applySession(raw) {
+    if (!raw || typeof raw !== "object") return;
+    const s = deepClone(raw);
+  
+    // version gate (simple for now)
+    if (!("v" in s) || s.v > SESSION_VERSION) {
+      console.warn("Session version is newer than this app. Attempting to load anyway.");
+    }
+  
+    // Validate pack id
+    const packId = PACK_IDS.includes(s.selectedPack) ? s.selectedPack : PACK_IDS[0];
+  
+    // Coerce patterns length & ensure all instruments exist
+    const nextPatterns = {};
+    INSTRUMENTS.forEach((i) => {
+      const p = s.patterns?.[i.id];
+      nextPatterns[i.id] = {
+        A: coerce16(p?.A),
+        B: coerce16(p?.B),
+      };
+    });
+  
+    // Shallow fallbacks for maps that must include all instruments
+    const fallbackBoolRows = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: true, B: false }]));
+    const fallbackDbMap    = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    const fallbackZeroMap  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    const fallbackModeDly  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "N8"]));
+    const fallbackModeRev  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]));
+    const fallbackSwingT   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
+    const fallbackSwingA   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+  
+    const safeMap = (src, fb) =>
+      Object.fromEntries(INSTRUMENTS.map((i) => [i.id, (src && src[i.id] !== undefined) ? src[i.id] : fb[i.id]]));
+  
+    // === Set pack first so audio can load during/after state application ===
+    setSelectedPack(packId);
+  
+    // === Core transport / grid
+    setBpm(Number.isFinite(s.bpm) ? s.bpm : 120);
+    setMetMode(["beats", "all", "off"].includes(s.metMode) ? s.metMode : "beats");
+    setPatterns(nextPatterns);
+    setRowActive(s.rowActive ? { ...fallbackBoolRows, ...s.rowActive } : fallbackBoolRows);
+  
+    // === Per-instrument volumes/mutes/solo
+    setInstGainsDb(safeMap(s.instGainsDb, fallbackDbMap));
+    // Apply mutes through helper so GainNodes update:
+    applyMutes(s.mutes ? safeMap(s.mutes, Object.fromEntries(INSTRUMENTS.map(i => [i.id, false]))) :
+      Object.fromEntries(INSTRUMENTS.map(i => [i.id, false])));
+    setSoloActive(!!s.soloActive);
+  
+    // === Swing
+    setInstSwingType(safeMap(s.instSwingType, fallbackSwingT));
+    setInstSwingAmt(safeMap(s.instSwingAmt,  fallbackSwingA));
+    setGlobalSwingPct(Number.isFinite(s.globalSwingPct) ? s.globalSwingPct : 100);
+  
+    // === FX
+    setInstDelayWet(safeMap(s.instDelayWet, fallbackZeroMap));
+    setInstDelayMode(safeMap(s.instDelayMode, fallbackModeDly));
+    setInstReverbWet(safeMap(s.instReverbWet, fallbackZeroMap));
+    setInstRevMode(safeMap(s.instRevMode, fallbackModeRev));
+  
+    // After state lands, update FX sends on nodes (tick next microtask)
+    queueMicrotask(() => {
+      INSTRUMENTS.forEach((i) => {
+        updateDelaySends(i.id);
+        updateReverbSends(i.id);
+      });
+    });
+  
+    // === Sidechain
+    // Matrix: fill all target->trigger pairs with false by default
+    const emptyRow = Object.fromEntries(INSTRUMENTS.map((s) => [s.id, false]));
+    const nextScMatrix = Object.fromEntries(
+      INSTRUMENTS.map((t) => [t.id, { ...emptyRow, ...(s.scMatrix?.[t.id] || {}) }])
+    );
+    setScMatrix(nextScMatrix);
+  
+    setScAmtDb(safeMap(s.scAmtDb, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6]))));
+    setScAtkMs(safeMap(s.scAtkMs, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12]))));
+    setScRelMs(safeMap(s.scRelMs, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180]))));
+  
+    // === Sum bus
+    setSumComp({
+      threshold: Number.isFinite(s.sumComp?.threshold) ? s.sumComp.threshold : -12,
+      ratio:     Number.isFinite(s.sumComp?.ratio)     ? s.sumComp.ratio     : 3,
+      attack:    Number.isFinite(s.sumComp?.attack)    ? s.sumComp.attack    : 0.003,
+      release:   Number.isFinite(s.sumComp?.release)   ? s.sumComp.release   : 0.25,
+      knee:      Number.isFinite(s.sumComp?.knee)      ? s.sumComp.knee      : 3,
+    });
+    setSumGainDb(Number.isFinite(s.sumGainDb) ? s.sumGainDb : 0);
+    setLimiterOn(!!s.limiterOn);
+  
+    // === Optional UI niceties ===
+    if (s.rowExpanded) setRowExpanded(s.rowExpanded);
+    if (s.selected && INSTRUMENTS.some(i => i.id === s.selected)) setSelected(s.selected);
+  
+    // Pack switching: loadPack will run automatically via your `[selectedPack]` effect.
+  }
+
+
+  // Load once on mount (after audio nodes exist)
+useEffect(() => {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    try {
+      const sess = JSON.parse(raw);
+      applySession(sess);
+    } catch (e) {
+      console.warn("Failed to parse saved session:", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Auto-save whenever relevant state changes
+  useEffect(() => {
+    const session = buildSession();
+    // simple throttle: write on next tick to batch multiple setStates
+    const id = setTimeout(() => {
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+    }, 0);
+    return () => clearTimeout(id);
+    // Add anything you want persisted here:
+  }, [
+    selectedPack,
+    bpm, metMode,
+    patterns, rowActive,
+    instGainsDb, mutes, soloActive,
+    instSwingType, instSwingAmt, globalSwingPct,
+    instDelayWet, instDelayMode,
+    instReverbWet, instRevMode,
+    scMatrix, scAmtDb, scAtkMs, scRelMs,
+    sumComp, sumGainDb, limiterOn,
+    rowExpanded, selected
+  ]);
+  
+  
+
 // ===== Scheduling =====
 useEffect(() => {
   if (!isPlaying || !audioCtxRef.current) return;
@@ -1010,6 +1276,39 @@ function chokeVoices(targetInstId, when = 0) {
   });
 }
 
+function exportSessionToFile() {
+    const data = buildSession();
+    const name =
+      currentSessionName ||
+      `session-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  
+  function importSessionFromFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result || "")); // basic parse
+        applySession(obj);
+        const suggested = (file.name || "Imported").replace(/\.json$/i, "");
+        const name = prompt("Save imported session as:", suggested);
+        if (name) saveNamedSession(name);
+      } catch (e) {
+        console.error(e);
+        alert("Invalid session file.");
+      }
+    };
+    reader.readAsText(file);
+  }
   
 
   // ===== UI handlers =====
@@ -1242,15 +1541,76 @@ INSTRUMENTS.forEach((i) => {
 // ===== Render =====
 return (
   <div style={{ color: "white" }}>
-    {/* Header */}
-    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+    {/* Header (2 rows) */}
+<div style={{ display: "grid", rowGap: 8, marginBottom: 16 }}>
+
+{/* ROW 1: Pack + Metronome + BPM */}
+<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+  {/* Pack picker */}
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <label style={{ fontSize: 12, opacity: 0.85 }}>Pack</label>
+    <select
+      value={selectedPack}
+      onChange={(e) => setSelectedPack(e.target.value)}
+      disabled={packLoading}
+      title="Choose sample pack"
+      style={{
+        background: "rgba(255,255,255,.08)",
+        border: "1px solid rgba(255,255,255,.2)",
+        color: "white",
+        padding: "6px 10px",
+        borderRadius: 8,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        minWidth: 160,
+      }}
+    >
+      {PACK_IDS.map((pid) => (
+        <option key={pid} value={pid}>
+          {SAMPLE_PACKS[pid].label ?? pid}
+        </option>
+      ))}
+    </select>
+    {packLoading && <span style={{ fontSize: 12, opacity: 0.7 }}>loading…</span>}
+  </div>
+
+  {/* Metronome + BPM */}
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <button
+      className={`btn metro-btn mode-${metMode}`}
+      onClick={cycleMetronomeMode}
+      title={
+        metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
+        : metMode === "all" ? "Metronome: all 16th (click for off)"
+        : "Metronome: off (click for 4 downbeats)"
+      }
+    >
+      {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
+    </button>
+
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        
+      <span>BPM</span>
+      <input
+        className="slider slider-bpm"
+        type="range"
+        min={60}
+        max={200}
+        value={bpm}
+        onChange={(e) => setBpm(parseInt(e.target.value, 10))}
+      />
+      <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
+    </div>
+  </div>
+</div>
+
+{/* ROW 2: Sessions */}
+<div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+  <span style={{ opacity: .85, fontSize: 12 }}>Session</span>
+
   <select
-    value={selectedPack}
-    onChange={(e) => setSelectedPack(e.target.value)}
-    disabled={packLoading}
-    title="Choose sample pack"
+    value={currentSessionName}
+    onChange={(e) => loadNamedSession(e.target.value)}
+    title="Select session"
     style={{
       background: "rgba(255,255,255,.08)",
       border: "1px solid rgba(255,255,255,.2)",
@@ -1258,51 +1618,103 @@ return (
       padding: "6px 10px",
       borderRadius: 8,
       fontWeight: 600,
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
+      minWidth: 180,
     }}
   >
-    {PACK_IDS.map((pid) => (
-      <option key={pid} value={pid}>
-        {SAMPLE_PACKS[pid].label ?? pid}
-      </option>
-    ))}
+    <option value="">— choose —</option>
+    {Object
+      .entries(sessions)
+      .sort((a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0))
+      .map(([name]) => (
+        <option key={name} value={name}>{name}</option>
+      ))}
   </select>
 
-  {packLoading && (
-    <span style={{ fontSize: 12, opacity: 0.7 }}>loading…</span>
-  )}
+  <button
+    className="btn"
+    title={currentSessionName ? `Save "${currentSessionName}"` : "Save (asks for a name)"}
+    onClick={() => {
+      if (currentSessionName) {
+        saveNamedSession(currentSessionName);
+      } else {
+        const name = prompt("Session name:", "My Beat");
+        if (name) saveNamedSession(name);
+      }
+    }}
+  >
+    Save
+  </button>
+
+  <button
+    className="btn"
+    title="Save As…"
+    onClick={() => {
+      const name = prompt("Save As (new session name):", currentSessionName || "My Beat");
+      if (!name) return;
+      if (sessions[name] && !confirm(`"${name}" exists. Overwrite?`)) return;
+      saveNamedSession(name);
+    }}
+  >
+    Save As
+  </button>
+
+  <button
+    className="btn"
+    title="Delete selected session"
+    onClick={() => {
+      if (!currentSessionName) return;
+      if (confirm(`Delete session "${currentSessionName}"?`)) {
+        deleteNamedSession(currentSessionName);
+      }
+    }}
+    disabled={!currentSessionName}
+    style={{ opacity: currentSessionName ? 1 : 0.6 }}
+  >
+    Delete
+  </button>
+
+  <button className="btn" onClick={exportSessionToFile} title="Export session to file">Export</button>
+
+  <label className="btn" title="Import session from file" style={{ cursor: "pointer" }}>
+    Import
+    <input
+      type="file"
+      accept="application/json"
+      onChange={(e) => importSessionFromFile(e.target.files?.[0])}
+      style={{ display: "none" }}
+    />
+  </label>
+
+  <button
+    className="btn"
+    title="Clear current session (keeps BPM 120 and pack)"
+    onClick={() => {
+      clearAllPatternsAndLevels();
+      setGlobalSwingPct(100);
+      setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
+      setInstRevMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "M"])));
+      setScMatrix(Object.fromEntries(INSTRUMENTS.map(t => [t.id, Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))])));
+      setScAmtDb(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));
+      setScAtkMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));
+      setScRelMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));
+      setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
+      setSumGainDb(0);
+      setLimiterOn(true);
+      setCurrentSessionName("");
+      try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+    }}
+  >
+    New
+  </button>
+</div>
 </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.9 }}>
-          
-          <button
-            className={`btn metro-btn mode-${metMode}`}
-            onClick={cycleMetronomeMode}
-            title={
-              metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
-              : metMode === "all" ? "Metronome: all 16th (click for off)"
-              : "Metronome: off (click for 4 downbeats)"
-            }
-          >
-            {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
-          </button>
 
-        </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>BPM</span>
-          <input
-            className="slider slider-bpm"
-            type="range"
-            min={60}
-            max={200}
-            value={bpm}
-            onChange={(e) => setBpm(parseInt(e.target.value, 10))}
-          />
-          <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
-        </div>
-      </div>
-    </div>
+  {/* Divider */}
+  <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+  
 
     {/* Instruments grid 2 x 5 with mutes */}
     <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>

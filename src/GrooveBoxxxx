@@ -1,14 +1,18 @@
 // src/GrooveBox.jsx
 import React, { useEffect, useRef, useState } from "react";
 
-import { SAMPLE_PACKS, PACK_IDS } from "./constants/packs";
-import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
 import { SESSIONS_KEY, CURRENT_SESSION_KEY, SESSION_VERSION, SESSION_KEY } from "./constants/session";
 import { VELS, STEP_CYCLE_ORDER, PPQ, STEPS_PER_BAR, LOOKAHEAD_MS, SCHEDULE_AHEAD_TIME } from "./constants/sequencer";
 
-import { clamp, pad, dbToGain, coerce16, deepClone } from "./utils/misc";
-import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/audio";
 
+import PadButton from "./components/Channel";
+import { InstrumentGrid } from "./components/InstrumentGrid";
+import SidechainPanel from "./components/panels/SidechainPanel";
+import FXPanel from "./components/panels/FXPanel";
+import SwingPanel from "./components/panels/SwingPanel";
+import SumBusPanel from "./components/panels/SumBusPanel";
+import TransportBar from "./components/TransportBar";
+import StepEditor from "./components/StepEditor";
 
 export default function GrooveBox() {
   // ===== Audio graph refs =====

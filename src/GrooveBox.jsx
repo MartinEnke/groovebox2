@@ -11,6 +11,7 @@ import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/
 
 import { InstrumentGrid } from "./components/InstrumentGrid";
 import Channel from "./components/Channel";
+import SidechainPanel from "./components/panels/SidechainPanel";
 
 
 
@@ -1650,125 +1651,14 @@ return (
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
 {/* Sidechain fold header */}
-<div
-  style={{
-    display: "flex",
-    justifyContent: "flex-end",
-    marginTop: 6,
-    marginBottom: 4,
-    position: "relative",
-  }}
->
-  {/* Always show the centered label for Sidechain (open or closed) */}
-  <div
-    aria-hidden
-    style={{
-      position: "absolute",
-      left: "50%",
-      transform: "translateX(-50%)",
-      top: 0,
-      bottom: 0,
-      display: "flex",
-      alignItems: "center",
-      pointerEvents: "none",
-      color: "rgba(255,255,255,.55)",
-      fontSize: 13,
-      fontWeight: 600,
-      letterSpacing: 1.2,
-      textTransform: "uppercase",
-    }}
-  >
-    Sidechain
-  </div>
-
-  <button
-    onClick={() => setShowSC((s) => !s)}
-    aria-expanded={showSC}
-    title={showSC ? "Collapse sidechain" : "Expand sidechain"}
-    style={{
-      background: "transparent",
-      border: "none",
-      color: "rgba(255,255,255,.7)",
-      cursor: "pointer",
-      fontSize: 16,
-      lineHeight: 1,
-      padding: "2px 4px",
-    }}
-  >
-    {showSC ? "▾" : "▸"}
-  </button>
-</div>
-
 {showSC && (
-  <div className="fx-block" style={{ marginTop: 8 }}>
-    <div className="fx-label"></div>
-
-    {/* Trigger matrix row (buttons for triggers) */}
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,auto)", gap: 6, marginBottom: 8 }}>
-      {INSTRUMENTS.map(tr => {
-        if (tr.id === selected) return null; // no self trigger
-        const on = !!scMatrix[selected][tr.id];
-        return (
-          <button
-            key={`sc-${selected}-${tr.id}`}
-            type="button"
-            className={`revlen-btn ${on ? "on" : ""}`}
-            onClick={() => {
-              // Enforce MAX_SC_LINKS = 4 across whole matrix
-              const total = Object.values(scMatrix).reduce(
-                (acc, row) => acc + Object.values(row).filter(Boolean).length,
-                0
-              );
-              const nextOn = !on;
-              if (nextOn && total >= MAX_SC_LINKS) return;
-
-              setScMatrix(prev => ({
-                ...prev,
-                [selected]: { ...prev[selected], [tr.id]: nextOn }
-              }));
-            }}
-            title={`Duck ${INSTRUMENTS.find(i => i.id === selected)?.label} when ${tr.label} hits`}
-          >
-            {tr.label}
-          </button>
-        );
-      })}
-    </div>
-
-    {/* Amount / Attack / Release (per TARGET = selected) */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-      <div>
-        <div className="fx-sublabel">AMT</div>
-        <input
-          className="slider slider-fx"
-          type="range" min={0} max={24} step={0.5}
-          value={scAmtDb[selected]}
-          onChange={(e)=> setScAmtDb(prev => ({ ...prev, [selected]: parseFloat(e.target.value) }))}
-          title="Duck amount (dB)"
-        />
-      </div>
-      <div>
-        <div className="fx-sublabel">ATK</div>
-        <input
-          className="slider slider-fx"
-          type="range" min={0} max={60} step={1}
-          value={scAtkMs[selected]}
-          onChange={(e)=> setScAtkMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
-          title="Attack (ms)"
-        />
-      </div>
-      <div>
-        <div className="fx-sublabel">REL</div>
-        <input
-          className="slider slider-fx"
-          type="range" min={20} max={600} step={5}
-          value={scRelMs[selected]}
-          onChange={(e)=> setScRelMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
-          title="Release (ms)"
-        />
-      </div>
-    </div>
-  </div>
+  <SidechainPanel
+    selected={selected}
+    scMatrix={scMatrix} setScMatrix={setScMatrix}
+    scAmtDb={scAmtDb} setScAmtDb={setScAmtDb}
+    scAtkMs={scAtkMs} setScAtkMs={setScAtkMs}
+    scRelMs={scRelMs} setScRelMs={setScRelMs}
+  />
 )}
 
     {/* Divider */}
@@ -2340,37 +2230,3 @@ return (
 );
 }
 
-function PadButton({ label, sub, onPress }) {
-  return (
-    <button
-      onPointerDown={onPress}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        onPress();
-      }}
-      style={{
-        height: 144,
-        width: 144,
-        borderRadius: 16,
-        background: "#2a2a2a",
-        boxShadow: "inset 0 0 0 1px rgba(255,255,255,.1)",
-      }}
-    >
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          gap: 4,
-          userSelect: "none",
-        }}
-      >
-        <span style={{ fontSize: 18, fontWeight: 700 }}>{label}</span>
-        <span style={{ fontSize: 12, opacity: 0.7 }}>{sub}</span>
-      </div>
-    </button>
-  );
-}

@@ -18,6 +18,9 @@ import SumBusPanel from "./components/panels/SumBusPanel";
 import TransportBar from "./components/TransportBar";
 import StepEditor from "./components/StepEditor";
 
+import PackBar from "./components/header/PackBar";
+import SessionBar from "./components/header/SessionBar";
+
 
 
 export default function GrooveBox() {
@@ -1456,154 +1459,32 @@ INSTRUMENTS.forEach((i) => {
 return (
   <div style={{ color: "white" }}>
     {/* Header (2 rows) */}
-<div style={{ display: "grid", rowGap: 8, marginBottom: 16 }}>
+
 
 {/* ROW 1: Pack + Metronome + BPM */}
-<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-  {/* Pack picker */}
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    <label style={{ fontSize: 12, opacity: 0.85 }}>Pack</label>
-    <select
-      value={selectedPack}
-      onChange={(e) => setSelectedPack(e.target.value)}
-      disabled={packLoading}
-      title="Choose sample pack"
-      style={{
-        background: "rgba(255,255,255,.08)",
-        border: "1px solid rgba(255,255,255,.2)",
-        color: "white",
-        padding: "6px 10px",
-        borderRadius: 8,
-        fontWeight: 600,
-        letterSpacing: 0.4,
-        minWidth: 160,
-      }}
-    >
-      {PACK_IDS.map((pid) => (
-        <option key={pid} value={pid}>
-          {SAMPLE_PACKS[pid].label ?? pid}
-        </option>
-      ))}
-    </select>
-    {packLoading && <span style={{ fontSize: 12, opacity: 0.7 }}>loading…</span>}
-  </div>
+<div style={{ display: "grid", rowGap: 8, marginBottom: 16 }}>
+  <PackBar
+    selectedPack={selectedPack}
+    setSelectedPack={setSelectedPack}
+    packLoading={packLoading}
+    packIds={PACK_IDS}
+    samplePacks={SAMPLE_PACKS}
+    metMode={metMode}
+    cycleMetronomeMode={cycleMetronomeMode}
+    bpm={bpm}
+    setBpm={setBpm}
+  />
 
-  {/* Metronome + BPM */}
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-    <button
-      className={`btn metro-btn mode-${metMode}`}
-      onClick={cycleMetronomeMode}
-      title={
-        metMode === "beats" ? "Metronome: 4 downbeats (click for 16th)"
-        : metMode === "all" ? "Metronome: all 16th (click for off)"
-        : "Metronome: off (click for 4 downbeats)"
-      }
-    >
-      {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
-    </button>
-
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span>BPM</span>
-      <input
-        className="slider slider-bpm"
-        type="range"
-        min={60}
-        max={200}
-        value={bpm}
-        onChange={(e) => setBpm(parseInt(e.target.value, 10))}
-      />
-      <span style={{ width: 32, textAlign: "right" }}>{bpm}</span>
-    </div>
-  </div>
-</div>
-
-{/* ROW 2: Sessions */}
-<div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-  <span style={{ opacity: .85, fontSize: 12 }}>Session</span>
-
-  <select
-    value={currentSessionName}
-    onChange={(e) => loadNamedSession(e.target.value)}
-    title="Select session"
-    style={{
-      background: "rgba(255,255,255,.08)",
-      border: "1px solid rgba(255,255,255,.2)",
-      color: "white",
-      padding: "6px 10px",
-      borderRadius: 8,
-      fontWeight: 600,
-      letterSpacing: 0.3,
-      minWidth: 180,
-    }}
-  >
-    <option value="">— choose —</option>
-    {Object
-      .entries(sessions)
-      .sort((a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0))
-      .map(([name]) => (
-        <option key={name} value={name}>{name}</option>
-      ))}
-  </select>
-
-  <button
-    className="btn"
-    title={currentSessionName ? `Save "${currentSessionName}"` : "Save (asks for a name)"}
-    onClick={() => {
-      if (currentSessionName) {
-        saveNamedSession(currentSessionName);
-      } else {
-        const name = prompt("Session name:", "My Beat");
-        if (name) saveNamedSession(name);
-      }
-    }}
-  >
-    Save
-  </button>
-
-  <button
-    className="btn"
-    title="Save As…"
-    onClick={() => {
-      const name = prompt("Save As (new session name):", currentSessionName || "My Beat");
-      if (!name) return;
-      if (sessions[name] && !confirm(`"${name}" exists. Overwrite?`)) return;
-      saveNamedSession(name);
-    }}
-  >
-    Save As
-  </button>
-
-  <button
-    className="btn"
-    title="Delete selected session"
-    onClick={() => {
-      if (!currentSessionName) return;
-      if (confirm(`Delete session "${currentSessionName}"?`)) {
-        deleteNamedSession(currentSessionName);
-      }
-    }}
-    disabled={!currentSessionName}
-    style={{ opacity: currentSessionName ? 1 : 0.6 }}
-  >
-    Delete
-  </button>
-
-  <button className="btn" onClick={exportSessionToFile} title="Export session to file">Export</button>
-
-  <label className="btn" title="Import session from file" style={{ cursor: "pointer" }}>
-    Import
-    <input
-      type="file"
-      accept="application/json"
-      onChange={(e) => importSessionFromFile(e.target.files?.[0])}
-      style={{ display: "none" }}
-    />
-  </label>
-
-  <button
-    className="btn"
-    title="Clear current session (keeps BPM 120 and pack)"
-    onClick={() => {
+  <SessionBar
+    sessions={sessions}
+    currentSessionName={currentSessionName}
+    loadNamedSession={loadNamedSession}
+    saveNamedSession={saveNamedSession}
+    deleteNamedSession={deleteNamedSession}
+    exportSessionToFile={exportSessionToFile}
+    importSessionFromFile={importSessionFromFile}
+    onNewSession={() => {
+      // your existing "New" logic:
       clearAllPatternsAndLevels();
       setGlobalSwingPct(100);
       setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
@@ -1617,17 +1498,15 @@ return (
       setLimiterOn(true);
       setCurrentSessionName("");
       try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
-      // Reset folds: Channel open, others closed
-    setShowPads(true);
-    setShowSC(false);
-    setShowFX(false);
-    setShowSwingUI(false);
-    setShowSum(false);
+
+      // reset folds (Channel open, others closed)
+      setShowPads(true);
+      setShowSC(false);
+      setShowFX(false);
+      setShowSwingUI(false);
+      setShowSum(false);
     }}
-  >
-    New
-  </button>
-</div>
+  />
 </div>
 
 

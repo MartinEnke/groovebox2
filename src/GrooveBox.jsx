@@ -13,6 +13,7 @@ import { InstrumentGrid } from "./components/InstrumentGrid";
 import Channel from "./components/Channel";
 import SidechainPanel from "./components/panels/SidechainPanel";
 import FXPanel from "./components/panels/FXPanel";
+import SwingPanel from "./components/panels/SwingPanel";
 
 
 
@@ -1682,125 +1683,14 @@ return (
     <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
     {/* Swing fold header (GROOVE) */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: 6,
-        marginBottom: 4,
-        position: "relative",
-      }}
-    >
-      {!showSwingUI && (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-            top: 0,
-            bottom: 0,
-            display: "flex",
-            alignItems: "center",
-            pointerEvents: "none",
-            color: "rgba(255,255,255,.55)",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: 1.2,
-            textTransform: "uppercase",
-          }}
-        >
-          Groove
-        </div>
-      )}
-      <button
-        onClick={() => setShowSwingUI((s) => !s)}
-        aria-expanded={showSwingUI}
-        title={showSwingUI ? "Collapse swing" : "Expand swing"}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "rgba(255,255,255,.7)",
-          cursor: "pointer",
-          fontSize: 16,
-          lineHeight: 1,
-          padding: "2px 4px",
-        }}
-      >
-        {showSwingUI ? "▾" : "▸"}
-      </button>
-    </div>
-
     {showSwingUI && (
-      <div style={{ marginTop: 8, width: "100%" }}>
-        <div className="swing-row">
-          {/* 2×2 compact buttons: Off / 8 / 16 / 32 */}
-          <div className="swing-grid-2x2">
-            {[
-              { val: "none", label: "Off" },
-              { val: "8", label: "8" },
-              { val: "16", label: "16" },
-              { val: "32", label: "32" },
-            ].map((opt) => {
-              const active = instSwingType[selected] === opt.val;
-              return (
-                <button
-                  key={opt.val}
-                  type="button"
-                  className={`sg2-btn ${active ? "on" : "off"}`}
-                  aria-pressed={active}
-                  onClick={() => setInstSwingType((prev) => ({ ...prev, [selected]: opt.val }))}
-                  title={`Swing grid: ${opt.label}`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* per-instrument swing */}
-          <div className="swing-block">
-            <input
-              className="slider slider-swing"
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}
-              onChange={(e) =>
-                setInstSwingAmt((prev) => ({ ...prev, [selected]: parseInt(e.target.value, 10) }))
-              }
-              disabled={instSwingType[selected] === "none"}
-              title="Swing amount (%)"
-            />
-            <div className="swing-lcd">
-              <span className="lcd-label">SWING&nbsp;&nbsp;</span>
-              <span className="lcd-value">
-                {instSwingType[selected] === "none" ? 0 : instSwingAmt[selected]}%
-              </span>
-            </div>
-          </div>
-
-          {/* global swing scaler */}
-          <div className="swing-global">
-            <input
-              className="slider slider-global"
-              type="range"
-              min={0}
-              max={150}
-              step={1}
-              value={globalSwingPct}
-              onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
-              title={`Global swing: ${globalSwingPct}%`}
-            />
-            <div className="swing-lcd swing-lcd--global">
-              <span className="lcd-label">GLOBAL&nbsp;&nbsp;</span>
-              <span className="lcd-value">{globalSwingPct}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+  <SwingPanel
+    selected={selected}
+    instSwingType={instSwingType} setInstSwingType={setInstSwingType}
+    instSwingAmt={instSwingAmt}   setInstSwingAmt={setInstSwingAmt}
+    globalSwingPct={globalSwingPct} setGlobalSwingPct={setGlobalSwingPct}
+  />
+)}
 
     {/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />

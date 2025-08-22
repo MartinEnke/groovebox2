@@ -64,11 +64,11 @@ useEffect(() => {
   const duckGainsRef = useRef(new Map()); // targetId -> Map<triggerId, GainNode> (series chain)
 
   // Fold/unfold for sections
-  const [showPads, setShowPads] = useState(true);
+  const [showSC, setShowSC] = useState(true);
   const [showFX, setShowFX] = useState(true);
   const [showSwingUI, setShowSwingUI] = useState(true);
-  const [showSC, setShowSC] = useState(true); // Sidechain
-  const [showSum, setShowSum] = useState(true); // Sum Bus
+  const [showSum, setShowSum] = useState(true);
+  const [showPads, setShowPads] = useState(true);
 
   // --- FX wet % per instrument (0..100) ---
   const [instDelayWet, setInstDelayWet] = useState(
@@ -1629,7 +1629,7 @@ return (
 
   
 
-    {/* Instruments + Mutes */}
+{/* Instruments + Mutes */}
 <InstrumentGrid
   selected={selected}
   selectInstrument={selectInstrument}
@@ -1637,13 +1637,13 @@ return (
   toggleMute={toggleMute}
 />
 
-    {/* Divider */}
-    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+{/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-    {/* Pads + Volume Fader — fold header (CHANNEL) */}
-    <Channel
+{/* Channel (pads + fader + solo) */}
+<Channel
   show={showPads}
-  onToggle={() => setShowPads((s) => !s)}
+  onToggle={() => setShowPads(s => !s)}
   selected={selected}
   volumeDb={instGainsDb[selected]}
   onVolumeChange={handleSelectedVolumeChange}
@@ -1652,61 +1652,62 @@ return (
   onPadPress={onPadPress}
 />
 
-    {/* Divider */}
+{/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-{/* Sidechain fold header */}
-{showSC && (
-  <SidechainPanel
-    selected={selected}
-    scMatrix={scMatrix} setScMatrix={setScMatrix}
-    scAmtDb={scAmtDb} setScAmtDb={setScAmtDb}
-    scAtkMs={scAtkMs} setScAtkMs={setScAtkMs}
-    scRelMs={scRelMs} setScRelMs={setScRelMs}
-  />
-)}
+{/* Sidechain */}
+<SidechainPanel
+  show={showSC}
+  onToggle={() => setShowSC(s => !s)}
+  selected={selected}
+  scMatrix={scMatrix} setScMatrix={setScMatrix}
+  scAmtDb={scAmtDb} setScAmtDb={setScAmtDb}
+  scAtkMs={scAtkMs} setScAtkMs={setScAtkMs}
+  scRelMs={scRelMs} setScRelMs={setScRelMs}
+/>
 
-    {/* Divider */}
+{/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-    {/* FX fold header */}
-    {showFX && (
-  <FXPanel
-    selected={selected}
-    instDelayWet={instDelayWet} setInstDelayWet={setInstDelayWet}
-    instDelayMode={instDelayMode} setInstDelayMode={setInstDelayMode}
-    updateDelaySends={updateDelaySends}
-    instReverbWet={instReverbWet} setInstReverbWet={setInstReverbWet}
-    instRevMode={instRevMode} setInstRevMode={setInstRevMode}
-    updateReverbSends={updateReverbSends}
-  />
-)}
+{/* FX */}
+<FXPanel
+  show={showFX}
+  onToggle={() => setShowFX(s => !s)}
+  selected={selected}
+  instDelayWet={instDelayWet} setInstDelayWet={setInstDelayWet}
+  instDelayMode={instDelayMode} setInstDelayMode={setInstDelayMode}
+  updateDelaySends={updateDelaySends}
+  instReverbWet={instReverbWet} setInstReverbWet={setInstReverbWet}
+  instRevMode={instRevMode} setInstRevMode={setInstRevMode}
+  updateReverbSends={updateReverbSends}
+/>
 
-    {/* Divider */}
-    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
-
-    {/* Swing fold header (GROOVE) */}
-    {showSwingUI && (
-  <SwingPanel
-    selected={selected}
-    instSwingType={instSwingType} setInstSwingType={setInstSwingType}
-    instSwingAmt={instSwingAmt}   setInstSwingAmt={setInstSwingAmt}
-    globalSwingPct={globalSwingPct} setGlobalSwingPct={setGlobalSwingPct}
-  />
-)}
-
-    {/* Divider */}
+{/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-{/* Sum Bus fold header */}
-{showSum && (
-  <SumBusPanel
-    limiterOn={limiterOn} setLimiterOn={setLimiterOn}
-    sumComp={sumComp} setSumComp={setSumComp}
-    sumGainDb={sumGainDb} setSumGainDb={setSumGainDb}
-    sumMeterDb={sumMeterDb}
-  />
-)}
+{/* Swing / Groove */}
+<SwingPanel
+  show={showSwingUI}
+  onToggle={() => setShowSwingUI(s => !s)}
+  selected={selected}
+  instSwingType={instSwingType} setInstSwingType={setInstSwingType}
+  instSwingAmt={instSwingAmt}   setInstSwingAmt={setInstSwingAmt}
+  globalSwingPct={globalSwingPct} setGlobalSwingPct={setGlobalSwingPct}
+/>
+
+{/* Divider */}
+<div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+
+{/* Sum Bus */}
+<SumBusPanel
+  show={showSum}
+  onToggle={() => setShowSum(s => !s)}
+  limiterOn={limiterOn} setLimiterOn={setLimiterOn}
+  sumComp={sumComp} setSumComp={setSumComp}
+  sumGainDb={sumGainDb} setSumGainDb={setSumGainDb}
+  sumMeterDb={sumMeterDb}
+/>
+
 
 
     {/* Divider */}

@@ -3,18 +3,11 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { SAMPLE_PACKS, PACK_IDS } from "./constants/packs";
 import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
+import { SESSIONS_KEY, CURRENT_SESSION_KEY, SESSION_VERSION, SESSION_KEY } from "./constants/session";
 import { VELS, STEP_CYCLE_ORDER, PPQ, STEPS_PER_BAR, LOOKAHEAD_MS, SCHEDULE_AHEAD_TIME } from "./constants/sequencer";
-
-
 
 import { clamp, pad, dbToGain, coerce16, deepClone } from "./utils/misc";
 import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/audio";
-
-
-
-
-const SESSIONS_KEY = "groovebox.sessions.v1";
-const CURRENT_SESSION_KEY = "groovebox.sessions.currentName";
 
 
 export default function GrooveBox() {
@@ -25,10 +18,6 @@ export default function GrooveBox() {
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
 
-
-  // --- Session constants
-const SESSION_VERSION = 1;
-const SESSION_KEY = "groovebox.session.v1";
 
 
 const [sessions, setSessions] = useState({});     // { [name]: sessionObj }
@@ -49,7 +38,6 @@ useEffect(() => {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
-
 
 
   // Sample-pack selection
@@ -127,8 +115,6 @@ useEffect(() => {
     release: 0.25, // seconds
     knee: 3, // dB
   });
-
-
 
   // Per-instrument delay mode: 'N16' (1/16), 'N8' (1/8), 'N3_4' (3/4)
   const [instDelayMode, setInstDelayMode] = useState(
@@ -2530,3 +2516,4 @@ function PadButton({ label, sub, onPress }) {
     </button>
   );
 }
+

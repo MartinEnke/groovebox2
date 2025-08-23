@@ -6,8 +6,7 @@ import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
 import { VELS, STEP_CYCLE_ORDER, PPQ, STEPS_PER_BAR, LOOKAHEAD_MS, SCHEDULE_AHEAD_TIME } from "./constants/sequencer";
 import { SESSIONS_KEY, CURRENT_SESSION_KEY, SESSION_VERSION, SESSION_KEY } from "./constants/session";
 
-import { clamp, pad, dbToGain, coerce16, deepClone } from "./utils/misc";
-import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "./utils/audio";
+import { pad, coerce16, deepClone } from "./utils/misc";
 
 import { InstrumentGrid } from "./components/InstrumentGrid";
 import Channel from "./components/Channel";
@@ -23,79 +22,135 @@ import SessionBar from "./components/header/SessionBar";
 
 import { useSessionStore } from "./state/useSessionStore";
 
+import useAudioEngine from "./engine/useAudioEngine";
+
 
 
 
 
 export default function GrooveBox() {
+  // --- central store ---
   const { state, actions } = useSessionStore();
 
-  const bpm        = state.transport.bpm;
-  const isPlaying  = state.transport.isPlaying;
-  const isRecording= state.transport.isRecording;
-  const step       = state.transport.step;
-  const metMode    = state.transport.metMode;
+  const bpm         = state.transport.bpm;
+  const isPlaying   = state.transport.isPlaying;
+  const isRecording = state.transport.isRecording;
+  const step        = state.transport.step;
+  const metMode     = state.transport.metMode;
 
-  const selected   = state.instrumentMix.selected;
+  const selected    = state.instrumentMix.selected;
 
-  // ===== Audio graph refs =====
-  const audioCtxRef = useRef(null);
-  const masterGainRef = useRef(null);
-  const buffersRef = useRef(new Map()); // id -> AudioBuffer
-  const muteGainsRef = useRef(new Map()); // id -> GainNode
-  const metClickRef = useRef({ hi: null, lo: null });
+  // --- audio engine (WebAudio graph) ---
+  const engine = useAudioEngine();
 
+  // ===== Sessions (named) =====
+  const [sessions, setSessions] = useState({}); // { [name]: sessionObj }
+  const [currentSessionName, setCurrentSessionName] = useState("");
 
+  useEffect(() => {
+    // Load saved sessions dictionary
+    let dict = {};
+    try { dict = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch {}
+    setSessions(dict);
 
+    // Optional: auto-load last selected named session
+    const last = localStorage.getItem(CURRENT_SESSION_KEY);
+    if (last && dict[last]) {
+      setCurrentSessionName(last);
+      // apply AFTER audio/graph exist; slight deferral helps:
+      queueMicrotask(() => applySession(dict[last]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  useEffect(() => {
+    if (engine.getCtx()) {
+      applyAllFxSends();
+      return;
+    }
+    // poll briefly until the engine is ready, then apply once
+    let id = setInterval(() => {
+      if (engine.getCtx()) {
+        clearInterval(id);
+        applyAllFxSends();
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [engine]);
 
-
-const [sessions, setSessions] = useState({});     // { [name]: sessionObj }
-const [currentSessionName, setCurrentSessionName] = useState("");
-
-useEffect(() => {
-  // Load saved sessions dictionary
-  let dict = {};
-  try { dict = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch {}
-  setSessions(dict);
-
-  // Optional: auto-load last selected named session
-  const last = localStorage.getItem(CURRENT_SESSION_KEY);
-  if (last && dict[last]) {
-    setCurrentSessionName(last);
-    // apply AFTER audio/graph exist; slight deferral helps:
-    queueMicrotask(() => applySession(dict[last]));
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
-
-
-  // Sample-pack selection
+  // ===== Sample-packs =====
   const [selectedPack, setSelectedPack] = useState(PACK_IDS[0]);
   const [packLoading, setPackLoading] = useState(false);
-  // Cache decoded buffers per pack to avoid re-decoding when switching back
-  // Map<packId, Map<instId, AudioBuffer>>
-  const bufferCacheRef = useRef(new Map());
 
-  // Per-instrument sum ("mix") before ducking, then chain of duck gains -> post volume/mute
-  const mixGainsRef = useRef(new Map()); // instId -> GainNode (sum of all note voices)
-  const duckGainsRef = useRef(new Map()); // targetId -> Map<triggerId, GainNode> (series chain)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setPackLoading(true);
+      try {
+        await engine.selectPack(selectedPack, SAMPLE_PACKS);
+        if (!cancelled && engine.getCtx()) {
+          applyAllFxSends();            // ← ensure returns reflect current sliders
+        }
+      } finally {
+        if (!cancelled) setPackLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [engine, selectedPack]);
 
-  // Fold/unfold for sections
-// Fold/unfold for sections (defaults: Channel open, others closed)
-const [showPads,    setShowPads]    = useState(true);
-const [showSC,      setShowSC]      = useState(false);
-const [showFX,      setShowFX]      = useState(false);
-const [showSwingUI, setShowSwingUI] = useState(false);
-const [showSum,     setShowSum]     = useState(false);
+  // ===== Folds (UI sections) =====
+  const [showPads,    setShowPads]    = useState(true);
+  const [showSC,      setShowSC]      = useState(false);
+  const [showFX,      setShowFX]      = useState(false);
+  const [showSwingUI, setShowSwingUI] = useState(false);
+  const [showSum,     setShowSum]     = useState(false);
 
-  // --- FX wet % per instrument (0..100) ---
+  // ===== FX (state only; nodes updated via engine helpers) =====
   const [instDelayWet, setInstDelayWet] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
   );
+  const [instDelayMode, setInstDelayMode] = useState(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "N8"]))
+  );
 
-  // Sidechain matrix: target -> trigger -> boolean
+  const [instReverbWet, setInstReverbWet] = useState(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
+  );
+  const [instRevMode, setInstRevMode] = useState(
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]))
+  );
+
+  // keep engine sends in sync when mode/wet changes
+  function updateDelaySends(instId, pctOverride) {
+    const pct  = pctOverride ?? instDelayWet[instId] ?? 0;
+    const mode = instDelayMode[instId] ?? "N8";
+    engine.setDelayWet(instId, pct, mode);
+  }
+  useEffect(() => {
+    INSTRUMENTS.forEach((i) => updateDelaySends(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instDelayMode, instDelayWet]);
+
+  function updateReverbSends(instId, pctOverride) {
+    const pct  = pctOverride ?? instReverbWet[instId] ?? 0;
+    const mode = instRevMode[instId] ?? "M";
+    engine.setReverbWet(instId, pct, mode);
+  }
+  useEffect(() => {
+    INSTRUMENTS.forEach((i) => updateReverbSends(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instRevMode, instReverbWet]);
+
+
+  function applyAllFxSends() {
+    INSTRUMENTS.forEach((i) => {
+      engine.setDelayWet(i.id, instDelayWet[i.id] ?? 0, instDelayMode[i.id] ?? "N8");
+      engine.setReverbWet(i.id, instReverbWet[i.id] ?? 0, instRevMode[i.id] ?? "M");
+    });
+  }
+
+  
+  // ===== Sidechain =====
   const [scMatrix, setScMatrix] = useState(
     Object.fromEntries(
       INSTRUMENTS.map((t) => [
@@ -104,7 +159,6 @@ const [showSum,     setShowSum]     = useState(false);
       ])
     )
   );
-  // Per-target duck depth/attack/release
   const [scAmtDb, setScAmtDb] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 6]))
   ); // dB
@@ -115,68 +169,49 @@ const [showSum,     setShowSum]     = useState(false);
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 180]))
   ); // ms
 
-  // Refs for scheduler
+  // Refs for scheduler (so schedule() can read latest)
   const scMatrixRef = useRef(scMatrix);
-  const scAmtDbRef = useRef(scAmtDb);
-  const scAtkMsRef = useRef(scAtkMs);
-  const scRelMsRef = useRef(scRelMs);
-  useEffect(() => {
-    scMatrixRef.current = scMatrix;
-  }, [scMatrix]);
-  useEffect(() => {
-    scAmtDbRef.current = scAmtDb;
-  }, [scAmtDb]);
-  useEffect(() => {
-    scAtkMsRef.current = scAtkMs;
-  }, [scAtkMs]);
-  useEffect(() => {
-    scRelMsRef.current = scRelMs;
-  }, [scRelMs]);
+  const scAmtDbRef  = useRef(scAmtDb);
+  const scAtkMsRef  = useRef(scAtkMs);
+  const scRelMsRef  = useRef(scRelMs);
+  useEffect(() => { scMatrixRef.current = scMatrix; }, [scMatrix]);
+  useEffect(() => { scAmtDbRef.current  = scAmtDb;  }, [scAmtDb]);
+  useEffect(() => { scAtkMsRef.current  = scAtkMs;  }, [scAtkMs]);
+  useEffect(() => { scRelMsRef.current  = scRelMs;  }, [scRelMs]);
 
-  // ===== Sum bus (meter + comp/limiter) =====
-  const sumNodesRef = useRef({ in: null, analyser: null, comp: null, limiter: null, makeup: null });
+  // ===== Sum bus (state only; nodes via engine) =====
   const [sumGainDb, setSumGainDb] = useState(0); // makeup/output gain
   const [limiterOn, setLimiterOn] = useState(true); // limiter toggle
   const [sumMeterDb, setSumMeterDb] = useState(-Infinity); // peak dBFS readout
 
-  // Simple compressor settings
   const [sumComp, setSumComp] = useState({
-    threshold: -12, // dB
-    ratio: 3, // 1..20
-    attack: 0.003, // seconds
-    release: 0.25, // seconds
-    knee: 3, // dB
+    threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3,
   });
 
+  // Route sum-bus state to engine
+  useEffect(() => { engine.setSumComp(sumComp); }, [engine, sumComp]);
+  useEffect(() => { engine.setLimiterOn(limiterOn); }, [engine, limiterOn]);
+  useEffect(() => { engine.setSumGainDb(sumGainDb); }, [engine, sumGainDb]);
 
+  // Meter (dBFS peak)
+  useEffect(() => {
+    const analyser = engine.getAnalyser();
+    if (!analyser) return;
+    const buf = new Float32Array(analyser.fftSize);
+    let rafId;
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+      const db = 20 * Math.log10(peak || 1e-8); // avoid -Infinity
+      setSumMeterDb(db);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(rafId);
+  }, [engine]);
 
-  // Per-instrument delay mode: 'N16' (1/16), 'N8' (1/8), 'N3_4' (3/4)
-  const [instDelayMode, setInstDelayMode] = useState(
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "N8"]))
-  );
-
-  const [instReverbWet, setInstReverbWet] = useState(
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
-  );
-  // Per-instrument REVERB length mode: 'S' (4 steps), 'M' (8), 'L' (16)
-  const [instRevMode, setInstRevMode] = useState(
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]))
-  );
-
-  // ===== FX buses & per-instrument sends =====
-  const delayBusesRef = useRef({ N16: null, N8: null, N3_4: null });
-  // per-instrument delay sends: instId -> { N16: GainNode, N8: GainNode, N3_4: GainNode }
-  const delaySendGainsRef = useRef(new Map());
-
-  // Reverb: three global buses (S/M/L)
-  const reverbConvRef = useRef({ S: null, M: null, L: null });
-  const reverbWetGainRef = useRef({ S: null, M: null, L: null });
-  // per-instrument reverb sends: instId -> { S: GainNode, M: GainNode, L: GainNode }
-  const reverbSendGainsRef = useRef(new Map());
-
-
-  // Metronome mode: "beats" (4), "all" (16), "off"
-  
+  // ===== Metronome mode =====
   const metModeRef = useRef(metMode);
   useEffect(() => { metModeRef.current = state.transport.metMode; }, [state.transport.metMode]);
 
@@ -188,12 +223,11 @@ const [showSum,     setShowSum]     = useState(false);
     actions.transport.setMetMode(next);
   }
 
-  // Which row (A/B) is active *for UI* this bar
+  // ===== UI row latching / expansion =====
   const [uiLatchedRow, setUiLatchedRow] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "A"]))
   );
 
-  // per-instrument per-row unfold state (false = 1x16, true = 2x8 large)
   const [rowExpanded, setRowExpanded] = useState(() =>
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: false, B: false }]))
   );
@@ -205,139 +239,38 @@ const [showSum,     setShowSum]     = useState(false);
     }));
   }
 
-  function getPackUrl(instId, packId) {
-    return SAMPLE_PACKS[packId]?.files?.[instId] ?? null;
-  }
-
-  async function loadPack(packId) {
-    const ctx = audioCtxRef.current;
-    if (!ctx) return;
-
-    setPackLoading(true);
-
-    // Gently stop any ringing voices so the swap is clean
-    const now = ctx.currentTime;
-    activeVoicesRef.current.forEach((voices, instId) => {
-      try {
-        chokeVoices(instId, now);
-      } catch {}
-    });
-
-    // Use / build cache for this pack
-    let packMap = bufferCacheRef.current.get(packId);
-    if (!packMap) {
-      packMap = new Map();
-      bufferCacheRef.current.set(packId, packMap);
-    }
-
-    // Load (or reuse from cache) all instrument buffers for this pack
-    await Promise.all(
-      INSTRUMENTS.map(async (inst) => {
-        const url = getPackUrl(inst.id, packId);
-        if (!url) {
-          console.warn(`[Pack ${packId}] Missing file for instrument: ${inst.id}`);
-          return;
-        }
-
-        if (packMap.has(inst.id)) {
-          buffersRef.current.set(inst.id, packMap.get(inst.id));
-          return;
-        }
-
-        const buf = await fetchAndDecode(ctx, url).catch(() => null);
-        if (buf) {
-          packMap.set(inst.id, buf);
-          buffersRef.current.set(inst.id, buf);
-        } else {
-          console.warn(`Failed to load ${url}`);
-        }
-      })
-    );
-
-    setPackLoading(false);
-  }
-
-  // Load/reload pack when the user switches in the dropdown
+  // ===== Tempo → engine =====
   useEffect(() => {
-    if (audioCtxRef.current) loadPack(selectedPack);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPack]);
+    engine.updateTempo(bpm);
+  }, [engine, bpm]);
 
-  function updateDelaySends(instId, pctOverride) {
-    const sends = delaySendGainsRef.current.get(instId);
-    if (!sends) return;
-
-    const pct = pctOverride ?? instDelayWet[instId] ?? 0;
-    const mode = instDelayMode[instId] ?? "N8";
-    const v = pct / 100;
-
-    sends.N16.gain.value = mode === "N16" ? v : 0;
-    sends.N8.gain.value = mode === "N8" ? v : 0;
-    sends.N3_4.gain.value = mode === "N3_4" ? v : 0;
-  }
-
-  useEffect(() => {
-    INSTRUMENTS.forEach((i) => updateDelaySends(i.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instDelayMode, instDelayWet]);
-
-  function updateReverbSends(instId, pctOverride) {
-    const sends = reverbSendGainsRef.current.get(instId);
-    if (!sends) return;
-    const pct = pctOverride ?? instReverbWet[instId] ?? 0;
-    const mode = instRevMode[instId] ?? "M";
-    const v = pct / 100;
-
-    // set only the active bus, others to 0
-    sends.S.gain.value = mode === "S" ? v : 0;
-    sends.M.gain.value = mode === "M" ? v : 0;
-    sends.L.gain.value = mode === "L" ? v : 0;
-  }
-
-  useEffect(() => {
-    INSTRUMENTS.forEach((i) => updateReverbSends(i.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instRevMode, instReverbWet]);
-
-  // Selected instrument & mutes
-  const [mutes, setMutes] = useState(() =>
+  // ===== Musical state (mutes/volumes/swing/patterns/rows) =====
+  const [mutes, setMutes] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]))
   );
-
-  // Per-instrument volume (dB)
-  const [instGainsDb, setInstGainsDb] = useState(() =>
+  const [instGainsDb, setInstGainsDb] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
   );
 
-  // Solo
   const [soloActive, setSoloActive] = useState(false);
-  const prevMutesRef = useRef(null); // to restore mutes after unsolo
+  const prevMutesRef = useRef(null);
 
-  // Global swing scale (0..150%), default 100
   const [globalSwingPct, setGlobalSwingPct] = useState(100);
   const globalSwingPctRef = useRef(100);
-  useEffect(() => {
-    globalSwingPctRef.current = globalSwingPct;
-  }, [globalSwingPct]);
+  useEffect(() => { globalSwingPctRef.current = globalSwingPct; }, [globalSwingPct]);
 
-  // Per-instrument swing type and amount
   const [instSwingType, setInstSwingType] = useState(
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"])) // "none" | "8" | "16"
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]))
   );
   const [instSwingAmt, setInstSwingAmt] = useState(
-    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0])) // 0..100 (%)
+    Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
   );
   const instSwingTypeRef = useRef(instSwingType);
-  const instSwingAmtRef = useRef(instSwingAmt);
-  useEffect(() => {
-    instSwingTypeRef.current = instSwingType;
-  }, [instSwingType]);
-  useEffect(() => {
-    instSwingAmtRef.current = instSwingAmt;
-  }, [instSwingAmt]);
+  const instSwingAmtRef  = useRef(instSwingAmt);
+  useEffect(() => { instSwingTypeRef.current = instSwingType; }, [instSwingType]);
+  useEffect(() => { instSwingAmtRef.current  = instSwingAmt;  }, [instSwingAmt]);
 
-  // Patterns: instrument -> { A: Array(16), B: Array(16) } (velocities 0..1)
-  const [patterns, setPatterns] = useState(() =>
+  const [patterns, setPatterns] = useState(
     Object.fromEntries(
       INSTRUMENTS.map((i) => [
         i.id,
@@ -346,248 +279,34 @@ const [showSum,     setShowSum]     = useState(false);
     )
   );
 
-  // Row activity (at least one true)
-  const [rowActive, setRowActive] = useState(() =>
+  const [rowActive, setRowActive] = useState(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: true, B: false }]))
   );
 
-  // Scheduler internals
+  // ===== Scheduler mirrors =====
   const nextNoteTimeRef = useRef(0);
-  const currentStepRef = useRef(0);
-  const timerIdRef = useRef(null);
+  const currentStepRef  = useRef(0);
+  const timerIdRef      = useRef(null);
   const recentWritesRef = useRef(new Map()); // keys like "kick-A-3"
-  const loopStartRef = useRef(0);
+  const loopStartRef    = useRef(0);
 
-  // Active voices per instrument so we can choke (fade/stop) them
-  const activeVoicesRef = useRef(new Map()); // instId -> Set<{src, gain}>
-
-  // Mirrors of state in refs
   const patternsRef = useRef(patterns);
-  const mutesRef = useRef(mutes);
-  
-  const rowActiveRef = useRef(rowActive);
-  useEffect(() => {
-    patternsRef.current = patterns;
-  }, [patterns]);
-  useEffect(() => {
-    mutesRef.current = mutes;
-  }, [mutes]);
-  
-  useEffect(() => {
-    rowActiveRef.current = rowActive;
-  }, [rowActive]);
+  const mutesRef    = useRef(mutes);
+  const rowActiveRef= useRef(rowActive);
+  useEffect(() => { patternsRef.current = patterns; }, [patterns]);
+  useEffect(() => { mutesRef.current    = mutes;    }, [mutes]);
+  useEffect(() => { rowActiveRef.current= rowActive;}, [rowActive]);
 
-  // Latched row for each instrument (which row plays this bar)
   const latchedRowRef = useRef(
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "A"]))
   );
 
-  // ===== Init Audio =====
-  useEffect(() => {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    audioCtxRef.current = ctx;
-
-    // Master (pre-sum)
-    const master = ctx.createGain();
-    master.gain.value = 0.9;
-    masterGainRef.current = master;
-
-    // ===== SUM BUS chain: master -> in -> analyser -> comp -> (limiter?) -> makeup -> destination
-    const sumIn = ctx.createGain();
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048; // pass-through; we'll read peak
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -12;
-    comp.ratio.value = 3;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.25;
-    comp.knee.value = 3;
-
-    const limiter = ctx.createDynamicsCompressor();
-    // quasi-limiter settings
-    limiter.threshold.value = -1.0;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.001;
-    limiter.release.value = 0.05;
-
-    const makeup = ctx.createGain(); // sum output (makeup) gain
-    makeup.gain.value = dbToGain(0);
-
-    // Wire it
-    master.connect(sumIn);
-    sumIn.connect(analyser);
-    analyser.connect(comp);
-    comp.connect(limiter);
-    limiter.connect(makeup);
-    makeup.connect(ctx.destination);
-
-    // keep for later control
-    sumNodesRef.current = { in: sumIn, analyser, comp, limiter, makeup };
-
-    // Per-instrument post nodes (mute + volume)
-    INSTRUMENTS.forEach((inst) => {
-      const g = ctx.createGain();
-      g.gain.value = dbToGain(instGainsDb[inst.id] ?? 0);
-      g.connect(master);
-      muteGainsRef.current.set(inst.id, g);
-    });
-
-    // ===== Delay buses (three: 1/16, 1/8, 3/4) =====
-    const mkDelayBus = () => {
-      const inGain = ctx.createGain();
-      inGain.gain.value = 1.0;
-      const node = ctx.createDelay(2.0); // max 2s
-      const fb = ctx.createGain();
-      fb.gain.value = 0.35;
-      const filt = ctx.createBiquadFilter();
-      filt.type = "lowpass";
-      filt.frequency.value = 5000;
-      const wet = ctx.createGain();
-      wet.gain.value = 1.0;
-
-      inGain.connect(node);
-      node.connect(filt);
-      filt.connect(wet);
-      wet.connect(master);
-      node.connect(fb);
-      fb.connect(node);
-
-      return { in: inGain, node, fb, filt, wet };
-    };
-
-    const busN16 = mkDelayBus();
-    const busN8 = mkDelayBus();
-    const busN3_4 = mkDelayBus();
-
-    delayBusesRef.current = { N16: busN16, N8: busN8, N3_4: busN3_4 };
-
-    // initial tempo sync
-    const spbInit = 60 / bpm;
-    busN16.node.delayTime.value = spbInit / 4; // 1/16
-    busN8.node.delayTime.value = spbInit / 2; // 1/8
-    busN3_4.node.delayTime.value = (3 * spbInit) / 4; // 3/4
-
-    // ===== Reverb buses (S/M/L) =====
-    const convS = ctx.createConvolver();
-    const convM = ctx.createConvolver();
-    const convL = ctx.createConvolver();
-    const wetS = ctx.createGain();
-    wetS.gain.value = 1.0;
-    const wetM = ctx.createGain();
-    wetM.gain.value = 1.0;
-    const wetL = ctx.createGain();
-    wetL.gain.value = 1.0;
-
-    convS.connect(wetS);
-    wetS.connect(master);
-    convM.connect(wetM);
-    wetM.connect(master);
-    convL.connect(wetL);
-    wetL.connect(master);
-
-    reverbConvRef.current = { S: convS, M: convM, L: convL };
-    reverbWetGainRef.current = { S: wetS, M: wetM, L: wetL };
-
-    // Per-instrument sends to each bus (post-fader/post-mute)
-    INSTRUMENTS.forEach((inst) => {
-      const post = muteGainsRef.current.get(inst.id);
-
-      const sN16 = ctx.createGain();
-      const sN8 = ctx.createGain();
-      const sN3_4 = ctx.createGain();
-
-      // start muted; updateDelaySends will set the active one
-      sN16.gain.value = 0;
-      sN8.gain.value = 0;
-      sN3_4.gain.value = 0;
-
-      post.connect(sN16);
-      sN16.connect(busN16.in);
-      post.connect(sN8);
-      sN8.connect(busN8.in);
-      post.connect(sN3_4);
-      sN3_4.connect(busN3_4.in);
-
-      // store all three sends for this instrument
-      delaySendGainsRef.current.set(inst.id, { N16: sN16, N8: sN8, N3_4: sN3_4 });
-
-      // apply current wet/mode immediately
-      updateDelaySends(inst.id);
-
-      // --- Reverb sends (S / M / L) ---
-      const rSendS = ctx.createGain();
-      const rSendM = ctx.createGain();
-      const rSendL = ctx.createGain();
-
-      // start muted; the active one will be set by updateReverbSends()
-      rSendS.gain.value = 0;
-      rSendM.gain.value = 0;
-      rSendL.gain.value = 0;
-
-      post.connect(rSendS);
-      rSendS.connect(convS);
-      post.connect(rSendM);
-      rSendM.connect(convM);
-      post.connect(rSendL);
-      rSendL.connect(convL);
-
-      reverbSendGainsRef.current.set(inst.id, { S: rSendS, M: rSendM, L: rSendL });
-
-      // apply current reverb wet/mode immediately
-      updateReverbSends(inst.id);
-    });
-
-    // Metronome click buffers
-    metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
-    metClickRef.current.lo = createClickBuffer(ctx, 1200, 0.002);
-
-    // Unlock on first user gesture (iOS)
-    const resume = () => ctx.resume();
-    window.addEventListener("pointerdown", resume, { once: true });
-
-    // Load the initial pack as soon as the AudioContext is ready
-    loadPack(selectedPack);
-
-    // Per-instrument pre-duck mix + duck chain: voices -> mix -> [duck gains...] -> post
-    INSTRUMENTS.forEach((inst) => {
-      const post = muteGainsRef.current.get(inst.id);
-      if (!post) return;
-
-      // Sum of all voices for this instrument
-      const mix = audioCtxRef.current.createGain();
-      mix.gain.value = 1.0;
-
-      // One duck gain per possible trigger (default 1.0), chained in series
-      const gMap = new Map();
-      let last = mix;
-      INSTRUMENTS.forEach((trig) => {
-        const dg = audioCtxRef.current.createGain();
-        dg.gain.value = 1.0; // no ducking by default
-        last.connect(dg);
-        last = dg;
-        gMap.set(trig.id, dg);
-      });
-
-      // Out of duck chain into the instrument's post node (which feeds master + FX sends)
-      last.connect(post);
-
-      // Stash refs
-      mixGainsRef.current.set(inst.id, mix);
-      duckGainsRef.current.set(inst.id, gMap);
-    });
-
-    return () => ctx.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ===== Solo helpers =====
+  // ===== Solo helpers (now notify engine) =====
   function applyMutes(newMutes) {
     setMutes(newMutes);
     mutesRef.current = newMutes;
     INSTRUMENTS.forEach((i) => {
-      const g = muteGainsRef.current.get(i.id);
-      if (g) g.gain.value = newMutes[i.id] ? 0 : dbToGain(instGainsDb[i.id] ?? 0);
+      engine.updateInstrumentGain(i.id, instGainsDb[i.id] ?? 0, newMutes[i.id]);
     });
   }
 
@@ -611,174 +330,48 @@ const [showSum,     setShowSum]     = useState(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, soloActive]);
 
-  // Delay times follow BPM for all three buses
-  useEffect(() => {
-    const ctx = audioCtxRef.current;
-    const buses = delayBusesRef.current;
-    if (!ctx || !buses) return;
-    const spb = 60 / bpm;
-
-    const targets = {
-      N16: spb / 4, // 1/16
-      N8: spb / 2, // 1/8
-      N3_4: (3 * spb) / 4, // 3/4
-    };
-
-    Object.entries(targets).forEach(([k, t]) => {
-      const d = buses[k]?.node;
-      if (d) {
-        d.delayTime.cancelScheduledValues(ctx.currentTime);
-        d.delayTime.linearRampToValueAtTime(t, ctx.currentTime + 0.01);
-      }
-    });
-  }, [bpm]);
-
-  // Rebuild three IRs to match BPM (S=4 steps, M=8, L=16)
-  useEffect(() => {
-    const ctx = audioCtxRef.current;
-    const convs = reverbConvRef.current;
-    if (!ctx || !convs?.S || !convs?.M || !convs?.L) return;
-
-    const secondsPerBeat = 60 / bpm;
-    const secondsPerStep = secondsPerBeat / PPQ;
-
-    const durS = Math.max(0.2, 4 * secondsPerStep);
-    const durM = Math.max(0.2, 8 * secondsPerStep);
-    const durL = Math.max(0.2, 16 * secondsPerStep);
-
-    convs.S.buffer = makeImpulseResponse(ctx, durS, 1.8);
-    convs.M.buffer = makeImpulseResponse(ctx, durM, 2.2);
-    convs.L.buffer = makeImpulseResponse(ctx, durL, 2.8);
-  }, [bpm]);
-
-  // Update compressor params when sliders change
-  useEffect(() => {
-    const n = sumNodesRef.current.comp;
-    if (!n) return;
-    n.threshold.value = sumComp.threshold;
-    n.ratio.value = sumComp.ratio;
-    n.attack.value = sumComp.attack;
-    n.release.value = sumComp.release;
-    n.knee.value = sumComp.knee;
-  }, [sumComp]);
-
-  // Toggle limiter in/out of circuit
-  useEffect(() => {
-    const { comp, limiter, makeup } = sumNodesRef.current;
-    if (!comp || !limiter || !makeup) return;
-
-    // Clean current connections after comp
-    try {
-      comp.disconnect();
-    } catch {}
-    try {
-      limiter.disconnect();
-    } catch {}
-
-    if (limiterOn) {
-      comp.connect(limiter);
-      limiter.connect(makeup);
-    } else {
-      comp.connect(makeup);
-    }
-  }, [limiterOn]);
-
-  // Makeup/output gain
-  useEffect(() => {
-    const n = sumNodesRef.current.makeup;
-    if (n) n.gain.value = dbToGain(sumGainDb);
-  }, [sumGainDb]);
-
-  // Peak meter (dBFS)
-  useEffect(() => {
-    const analyser = sumNodesRef.current.analyser;
-    if (!analyser) return;
-
-    const buf = new Float32Array(analyser.fftSize);
-    let rafId;
-    const tick = () => {
-      analyser.getFloatTimeDomainData(buf);
-      let peak = 0;
-      for (let i = 0; i < buf.length; i++) {
-        const v = Math.abs(buf[i]);
-        if (v > peak) peak = v;
-      }
-      const db = 20 * Math.log10(peak || 1e-8); // avoid -Infinity
-      setSumMeterDb(db);
-      rafId = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
+  // ===== Meter/FX/tempo done; sidechain helper forwards to engine for now =====
   function scheduleDuckEnvelopes(triggerId, when) {
-    const matrix = scMatrixRef.current;
-    const amtDb = scAmtDbRef.current;
-    const atkMs = scAtkMsRef.current;
-    const relMs = scRelMsRef.current;
-
-    // For every TARGET that has this trigger toggled on, dip its specific duck gain
-    INSTRUMENTS.forEach((target) => {
-      if (!matrix?.[target.id]?.[triggerId]) return;
-
-      const dg = duckGainsRef.current.get(target.id)?.get(triggerId);
-      if (!dg) return;
-
-      const g = dg.gain;
-      const dip = Math.max(0.0001, dbToGain(-(amtDb[target.id] ?? 6)));
-      const atk = Math.max(0.001, (atkMs[target.id] ?? 12) / 1000);
-      const rel = Math.max(0.001, (relMs[target.id] ?? 180) / 1000);
-
-      const t0 = when;
-      g.cancelScheduledValues(t0);
-      g.setValueAtTime(1.0, t0);
-      // exponential ramps sound smoother for ducking
-      g.exponentialRampToValueAtTime(dip, t0 + atk);
-      g.exponentialRampToValueAtTime(1.0, t0 + atk + rel);
-    });
+    engine.duckFromTrigger(
+      triggerId,
+      when,
+      scMatrixRef.current,
+      scAmtDbRef.current,
+      scAtkMsRef.current,
+      scRelMsRef.current
+    );
   }
-  
-  // Keep this near your other refs/states (just before Scheduling is fine)
-const selectedPackRef = useRef(selectedPack);
-useEffect(() => { selectedPackRef.current = selectedPack; }, [selectedPack]);
 
-function getBufferForCurrentPack(instId) {
-  const packId = selectedPackRef.current;
-  const packMap = bufferCacheRef.current.get(packId);
-  return packMap?.get(instId) ?? null;
-}
-
-
-
-function persistSessions(next) {
+  // ===== Sessions helpers =====
+  function persistSessions(next) {
     setSessions(next);
     try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(next)); } catch {}
   }
-  
+
   function saveNamedSession(name) {
     const trimmed = (name || "").trim();
     if (!trimmed) return;
     const payload = { ...buildSession(), updatedAt: Date.now() };
-  
+
     const next = { ...sessions, [trimmed]: payload };
     persistSessions(next);
-  
+
     setCurrentSessionName(trimmed);
     try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
   }
-  
+
   function deleteNamedSession(name) {
     const trimmed = (name || "").trim();
     if (!trimmed || !sessions[trimmed]) return;
     const { [trimmed]: _, ...rest } = sessions;
     persistSessions(rest);
-  
+
     if (currentSessionName === trimmed) {
       setCurrentSessionName("");
       try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
     }
   }
-  
+
   function loadNamedSession(name) {
     const trimmed = (name || "").trim();
     if (!trimmed || !sessions[trimmed]) return;
@@ -786,68 +379,100 @@ function persistSessions(next) {
     try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
     applySession(sessions[trimmed]);
   }
-  
 
-
-function buildSession() {
-    // Capture everything you'd expect to restore
+  // ===== Build/Apply session =====
+  function buildSession() {
     return {
       v: SESSION_VERSION,
       selectedPack,
-  
+
       // transport & grid
       bpm,
       metMode,
-  
+
       // per-instrument stuff
       patterns,            // {instId: {A:[16], B:[16]}}
       rowActive,           // {instId: {A:bool, B:bool}}
       instGainsDb,         // {instId: dB}
       mutes,               // {instId: bool}
       soloActive,
-  
+
       // swing
       instSwingType,       // {instId: 'none'|'8'|'16'|'32'}
       instSwingAmt,        // {instId: 0..100}
       globalSwingPct,
-  
+
       // FX
       instDelayWet,        // {instId: 0..100}
       instDelayMode,       // {instId: 'N16'|'N8'|'N3_4'}
       instReverbWet,       // {instId: 0..100}
       instRevMode,         // {instId: 'S'|'M'|'L'}
-  
+
       // sidechain
       scMatrix,            // target->trigger->bool
       scAmtDb,             // {targetId: dB}
       scAtkMs,             // {targetId: ms}
       scRelMs,             // {targetId: ms}
-  
+
       // sum bus
       sumComp,             // {threshold, ratio, attack, release, knee}
       sumGainDb,
       limiterOn,
-  
-      // (Optional UI niceties you may want to remember)
+
+      // (Optional UI niceties)
       rowExpanded,         // {instId:{A:bool,B:bool}}
       selected,            // selected instrument id
     };
   }
+
+
+  function exportSessionToFile() {
+    const data =
+      typeof buildSession === "function" ? buildSession() : null;
+    if (!data) return;
   
-  // Apply a session safely (merges + node updates)
+    const name =
+      currentSessionName ||
+      `session-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  
+  function importSessionFromFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result || ""));
+        applySession(obj);
+        const suggested = (file.name || "Imported").replace(/\.json$/i, "");
+        const name = prompt("Save imported session as:", suggested);
+        if (name) saveNamedSession(name);
+      } catch (e) {
+        console.error(e);
+        alert("Invalid session file.");
+      }
+    };
+    reader.readAsText(file);
+  }
+  
   async function applySession(raw) {
     if (!raw || typeof raw !== "object") return;
     const s = deepClone(raw);
-  
-    // version gate (simple for now)
+
     if (!("v" in s) || s.v > SESSION_VERSION) {
       console.warn("Session version is newer than this app. Attempting to load anyway.");
     }
-  
-    // Validate pack id
+
     const packId = PACK_IDS.includes(s.selectedPack) ? s.selectedPack : PACK_IDS[0];
-  
-    // Coerce patterns length & ensure all instruments exist
+
     const nextPatterns = {};
     INSTRUMENTS.forEach((i) => {
       const p = s.patterns?.[i.id];
@@ -856,8 +481,7 @@ function buildSession() {
         B: coerce16(p?.B),
       };
     });
-  
-    // Shallow fallbacks for maps that must include all instruments
+
     const fallbackBoolRows = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: true, B: false }]));
     const fallbackDbMap    = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     const fallbackZeroMap  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
@@ -865,57 +489,52 @@ function buildSession() {
     const fallbackModeRev  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]));
     const fallbackSwingT   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
     const fallbackSwingA   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
-  
+
     const safeMap = (src, fb) =>
       Object.fromEntries(INSTRUMENTS.map((i) => [i.id, (src && src[i.id] !== undefined) ? src[i.id] : fb[i.id]]));
-  
-    // === Set pack first so audio can load during/after state application ===
+
+    // === Set pack first (engine will load buffers) ===
     setSelectedPack(packId);
-  
+
     // === Core transport / grid
     actions.transport.setBpm(Number.isFinite(s.bpm) ? s.bpm : 120);
     actions.transport.setMetMode(["beats", "all", "off"].includes(s.metMode) ? s.metMode : "beats");
     setPatterns(nextPatterns);
     setRowActive(s.rowActive ? { ...fallbackBoolRows, ...s.rowActive } : fallbackBoolRows);
-  
+
     // === Per-instrument volumes/mutes/solo
     setInstGainsDb(safeMap(s.instGainsDb, fallbackDbMap));
-    // Apply mutes through helper so GainNodes update:
-    applyMutes(s.mutes ? safeMap(s.mutes, Object.fromEntries(INSTRUMENTS.map(i => [i.id, false]))) :
-      Object.fromEntries(INSTRUMENTS.map(i => [i.id, false])));
+    applyMutes(
+      s.mutes ? safeMap(s.mutes, Object.fromEntries(INSTRUMENTS.map(i => [i.id, false])))
+              : Object.fromEntries(INSTRUMENTS.map(i => [i.id, false]))
+    );
     setSoloActive(!!s.soloActive);
-  
+
     // === Swing
     setInstSwingType(safeMap(s.instSwingType, fallbackSwingT));
     setInstSwingAmt(safeMap(s.instSwingAmt,  fallbackSwingA));
     setGlobalSwingPct(Number.isFinite(s.globalSwingPct) ? s.globalSwingPct : 100);
-  
+
     // === FX
     setInstDelayWet(safeMap(s.instDelayWet, fallbackZeroMap));
     setInstDelayMode(safeMap(s.instDelayMode, fallbackModeDly));
     setInstReverbWet(safeMap(s.instReverbWet, fallbackZeroMap));
     setInstRevMode(safeMap(s.instRevMode, fallbackModeRev));
-  
-    // After state lands, update FX sends on nodes (tick next microtask)
-    queueMicrotask(() => {
-      INSTRUMENTS.forEach((i) => {
-        updateDelaySends(i.id);
-        updateReverbSends(i.id);
-      });
-    });
-  
+
+    // After state lands, update FX sends on nodes (next tick)
+    queueMicrotask(() => applyAllFxSends());
+
     // === Sidechain
-    // Matrix: fill all target->trigger pairs with false by default
     const emptyRow = Object.fromEntries(INSTRUMENTS.map((s) => [s.id, false]));
     const nextScMatrix = Object.fromEntries(
       INSTRUMENTS.map((t) => [t.id, { ...emptyRow, ...(s.scMatrix?.[t.id] || {}) }])
     );
     setScMatrix(nextScMatrix);
-  
+
     setScAmtDb(safeMap(s.scAmtDb, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6]))));
     setScAtkMs(safeMap(s.scAtkMs, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12]))));
     setScRelMs(safeMap(s.scRelMs, Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180]))));
-  
+
     // === Sum bus
     setSumComp({
       threshold: Number.isFinite(s.sumComp?.threshold) ? s.sumComp.threshold : -12,
@@ -926,17 +545,14 @@ function buildSession() {
     });
     setSumGainDb(Number.isFinite(s.sumGainDb) ? s.sumGainDb : 0);
     setLimiterOn(!!s.limiterOn);
-  
+
     // === Optional UI niceties ===
     if (s.rowExpanded) setRowExpanded(s.rowExpanded);
     if (s.selected && INSTRUMENTS.some(i => i.id === s.selected)) actions.mix.setSelected(s.selected);
-  
-    // Pack switching: loadPack will run automatically via your `[selectedPack]` effect.
   }
 
-
   // Load once on mount (after audio nodes exist)
-useEffect(() => {
+  useEffect(() => {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return;
     try {
@@ -947,16 +563,14 @@ useEffect(() => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   // Auto-save whenever relevant state changes
   useEffect(() => {
     const session = buildSession();
-    // simple throttle: write on next tick to batch multiple setStates
     const id = setTimeout(() => {
       try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
     }, 0);
     return () => clearTimeout(id);
-    // Add anything you want persisted here:
   }, [
     selectedPack,
     bpm, metMode,
@@ -969,40 +583,47 @@ useEffect(() => {
     sumComp, sumGainDb, limiterOn,
     rowExpanded, selected
   ]);
-  
-  
+
+  // keep engine’s post-gain/mutes aligned whenever these change
+  useEffect(() => {
+    INSTRUMENTS.forEach(i => {
+      engine.updateInstrumentGain(i.id, instGainsDb[i.id] ?? 0, mutes[i.id]);
+    });
+  }, [engine, instGainsDb, mutes]);
+
+  // Selected channel volume change (also update engine)
   function handleSelectedVolumeChange(db) {
     setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-    const g = muteGainsRef.current.get(selected);
-    if (g) g.gain.value = mutes[selected] ? 0 : dbToGain(db);
+    engine.updateInstrumentGain(selected, db, mutes[selected]);
   }
+
 
 
 // ===== Scheduling =====
 useEffect(() => {
-  if (!isPlaying || !audioCtxRef.current) return;
+  if (!isPlaying || !engine.getCtx()) return;
 
   // align loop start to current bar
+  const ctx = engine.getCtx();
   const secondsPerBeat = 60.0 / bpm;
   const secondsPerStep = secondsPerBeat / PPQ;
   const startIdx = currentStepRef.current % STEPS_PER_BAR;
-  loopStartRef.current =
-    audioCtxRef.current.currentTime - startIdx * secondsPerStep;
+  loopStartRef.current = ctx.currentTime - startIdx * secondsPerStep;
 
-  nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
+  nextNoteTimeRef.current = ctx.currentTime + 0.05;
 
   timerIdRef.current = setInterval(() => {
     schedule();
   }, LOOKAHEAD_MS);
 
   return () => clearInterval(timerIdRef.current);
-}, [isPlaying, bpm]);
+}, [engine, isPlaying, bpm]);
 
 function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
   const type = instSwingTypeRef.current?.[instId] ?? "none";
   const amtLocal = (instSwingAmtRef.current?.[instId] ?? 0) / 100;
-  const amtGlobal = (globalSwingPctRef.current ?? 100) / 100; // 1.0 = 100%
-  const amt = amtLocal * amtGlobal; // allow up to 1.5 (150%)
+  const amtGlobal = (globalSwingPctRef.current ?? 100) / 100;
+  const amt = amtLocal * amtGlobal;
 
   if (type === "none" || amt <= 0) return 0;
 
@@ -1012,24 +633,23 @@ function getSwingOffsetSec(instId, stepIndex, secondsPerBeat) {
     // delay the off-beat 8th (index 2 within each beat)
     return withinBeat === 2 ? amt * (secondsPerBeat / 6) : 0;
   }
-
   if (type === "16") {
     // delay off 16ths (indices 1 and 3)
-    const isOff16 = (withinBeat % 2 === 1);
+    const isOff16 = withinBeat % 2 === 1;
     return isOff16 ? amt * ((secondsPerBeat / 4) / 3) : 0;
   }
-
   if (type === "32") {
     // micro-swing: smaller delay on off-16ths (approx 32nd feel)
-    const isOff16 = (withinBeat % 2 === 1);
+    const isOff16 = withinBeat % 2 === 1;
     return isOff16 ? amt * ((secondsPerBeat / 8) / 3) : 0;
   }
-
   return 0;
 }
 
 function schedule() {
-  const ctx = audioCtxRef.current;
+  const ctx = engine.getCtx();
+  if (!ctx) return;
+
   const secondsPerBeat = 60.0 / bpm;
   const secondsPerStep = secondsPerBeat / PPQ;
 
@@ -1052,7 +672,6 @@ function schedule() {
         }
       });
 
-      // reflect latches in UI immediately (avoid extra renders if unchanged)
       setUiLatchedRow((prev) => {
         let changed = false;
         const next = { ...prev };
@@ -1067,16 +686,15 @@ function schedule() {
       });
     }
 
-    // 2) Metronome (unchanged)
+    // 2) Metronome
     const mm = metModeRef.current;
     if (mm === "beats") {
-      if (stepIndex % 4 === 0) playBuffer(metClickRef.current.hi, 0.15, nextNoteTimeRef.current);
+      if (stepIndex % 4 === 0) engine.click("hi", nextNoteTimeRef.current);
     } else if (mm === "all") {
-      const click = stepIndex % 4 === 0 ? metClickRef.current.hi : metClickRef.current.lo;
-      playBuffer(click, 0.15, nextNoteTimeRef.current);
-    } // mm === "off" → no clicks
+      engine.click(stepIndex % 4 === 0 ? "hi" : "lo", nextNoteTimeRef.current);
+    }
 
-    // 3) Schedule notes for this exact step (with HH→OHH choke + sidechain)
+    // 3) Schedule notes (HH→OHH choke + sidechain)
     INSTRUMENTS.forEach((inst) => {
       const row  = latchedRowRef.current[inst.id] || "A";
       const patt = patternsRef.current?.[inst.id]?.[row];
@@ -1095,23 +713,18 @@ function schedule() {
 
         // Choke group (e.g., closed HH chokes open HH)
         const targets = (CHOKE_GROUPS && CHOKE_GROUPS[inst.id]) ? CHOKE_GROUPS[inst.id] : [];
-        targets.forEach(tid => chokeVoices(tid, when));
+        targets.forEach(tid => engine.choke(tid, when));
 
-        // Fire sidechain envelopes for any targets listening to this trigger
+        // Sidechain envelopes
         scheduleDuckEnvelopes(inst.id, when);
 
-        // Finally play the note — pull buffer from CURRENT PACK
-        const buf = getBufferForCurrentPack(inst.id);
-        if (!buf) {
-          // Optional: warn once in console for missing file in this pack
-          // console.warn(`[Pack ${selectedPackRef.current}] Missing buffer for: ${inst.id}`);
-          return;
-        }
-        playSample(inst.id, vel, when);
+        // Finally play the note (skip if buffer missing in current pack)
+        if (!engine.getBuffer(inst.id)) return;
+        engine.playSample(inst.id, vel, when);
       }
     });
 
-    // 4) Update the UI step to THIS step index (precise, not relative)
+    // 4) Update the UI step to THIS step index
     actions.transport.setStep(stepIndex);
 
     // 5) Advance scheduler
@@ -1122,7 +735,7 @@ function schedule() {
 
 // ===== Compute precise step from AudioContext time (for recording) =====
 function getRecordingStepIndex() {
-  const ctx = audioCtxRef.current;
+  const ctx = engine.getCtx();
   if (!ctx) return currentStepRef.current % STEPS_PER_BAR;
 
   const secondsPerBeat = 60.0 / bpm;
@@ -1137,306 +750,197 @@ function getRecordingStepIndex() {
   return idx;
 }
 
-// ===== Audio playback =====
-function playBuffer(buffer, gain = 1.0, when = 0) {
-  if (!buffer || !audioCtxRef.current) return;
-  const ctx = audioCtxRef.current;
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  const g = ctx.createGain();
-  g.gain.value = gain;
-  src.connect(g).connect(masterGainRef.current);
-  src.start(when > 0 ? when : 0);
-}
-
-function playSample(instId, velocity = 1.0, when = 0) {
-  const ctx  = audioCtxRef.current;
-  const buf  = getBufferForCurrentPack(instId);   // ⟵ key change
-  const mix  = mixGainsRef.current.get(instId);
-  if (!ctx || !buf || !mix) return;
-
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-
-  const g = ctx.createGain();
-  g.gain.value = clamp(velocity, 0, 1);
-
-  // voice chain: src -> voice gain -> per-instrument mix (then duck chain -> post -> master/FX)
-  src.connect(g).connect(mix);
-
-  const tStart = when > 0 ? when : 0;
-  src.start(tStart);
-
-  // track active voices (for chokes)
-  if (!activeVoicesRef.current.has(instId)) {
-    activeVoicesRef.current.set(instId, new Set());
+// ===== UI handlers =====
+function togglePlay() {
+  if (!engine.getCtx()) return;
+  const next = !isPlaying;
+  if (next) {
+    currentStepRef.current = 0;
+    actions.transport.setStep(0);
   }
-  const voice = { src, gain: g };
-  activeVoicesRef.current.get(instId).add(voice);
-
-  src.onended = () => {
-    const set = activeVoicesRef.current.get(instId);
-    if (set) set.delete(voice);
-  };
+  actions.transport.setIsPlaying(next);
 }
 
-function chokeVoices(targetInstId, when = 0) {
-  const ctx = audioCtxRef.current;
-  if (!ctx) return;
+function toggleRecord() {
+  actions.transport.setIsRecording(!isRecording);
+}
 
-  const set = activeVoicesRef.current.get(targetInstId);
-  if (!set || set.size === 0) return;
-
-  const t = Math.max(when, ctx.currentTime);
-  // fast fade and stop shortly after
-  const RELEASE = 0.02; // 20ms
-  set.forEach(({ src, gain }) => {
-    try {
-      gain.gain.cancelScheduledValues(t);
-      gain.gain.setValueAtTime(gain.gain.value, t);
-      gain.gain.linearRampToValueAtTime(0.0001, t + RELEASE);
-      src.stop(t + RELEASE + 0.005);
-    } catch (_) {
-      /* ignore nodes already stopped */
-    }
+function toggleMute(instId) {
+  setMutes((prev) => {
+    const next = { ...prev, [instId]: !prev[instId] };
+    engine.updateInstrumentGain(instId, instGainsDb[instId] ?? 0, next[instId]);
+    return next;
   });
 }
 
-function exportSessionToFile() {
-    const data = buildSession();
-    const name =
-      currentSessionName ||
-      `session-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}`;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-  
-  function importSessionFromFile(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const obj = JSON.parse(String(reader.result || "")); // basic parse
-        applySession(obj);
-        const suggested = (file.name || "Imported").replace(/\.json$/i, "");
-        const name = prompt("Save imported session as:", suggested);
-        if (name) saveNamedSession(name);
-      } catch (e) {
-        console.error(e);
-        alert("Invalid session file.");
-      }
-    };
-    reader.readAsText(file);
-  }
-  
+function selectInstrument(instId) {
+  actions.mix.setSelected(instId);
+}
 
-  // ===== UI handlers =====
-  function togglePlay() {
-    if (!audioCtxRef.current) return;
-    const next = !isPlaying;
-    if (next) {
-      currentStepRef.current = 0;
-      actions.transport.setStep(0);
-    }
-    actions.transport.setIsPlaying(next);
+function onPadPress(r, c) {
+  const vel = VELS[r][c];
+
+  // Monitor immediately
+  if (!mutes[selected]) {
+    const targets = CHOKE_GROUPS[selected] || [];
+    const now = engine.getCtx()?.currentTime || 0;
+    targets.forEach(tid => engine.choke(tid, now));
+    engine.playSample(selected, vel, 0);
   }
 
-  function toggleRecord() {
-    actions.transport.setIsRecording(!isRecording);
-  }
+  if (isRecording && isPlaying) {
+    const idx = getRecordingStepIndex();
+    const row = latchedRowRef.current[selected] || "A";
 
-  function toggleMute(instId) {
-    setMutes((prev) => {
-      const next = { ...prev, [instId]: !prev[instId] };
-      const g = muteGainsRef.current.get(instId);
-      if (g) g.gain.value = next[instId] ? 0 : dbToGain(instGainsDb[instId] ?? 0);
-      return next;
-    });
-  }
-
-  function selectInstrument(instId) {
-    actions.mix.setSelected(instId);
-  }
-
-  function onPadPress(r, c) {
-    const vel = VELS[r][c];
-
-    // Monitor immediately
-    if (!mutes[selected]) {
-        // if this pad is the closed HH, choke the open HH right now
-        const targets = CHOKE_GROUPS[selected] || [];
-        const now = audioCtxRef.current?.currentTime || 0;
-        targets.forEach(tid => chokeVoices(tid, now));
-        playSample(selected, vel, 0);
-      }
-
-    if (isRecording && isPlaying) {
-      const idx = getRecordingStepIndex();
-      const row = latchedRowRef.current[selected] || "A";
-
-      // Write now
-      setPatterns((prev) => {
-        const next = {
-          ...prev,
-          [selected]: {
-            A: [...prev[selected].A],
-            B: [...prev[selected].B],
-          },
-        };
-        next[selected][row][idx] = vel;
-        return next;
-      });
-
-      // Skip once only if this step is still ahead in THIS bar
-      const ctx = audioCtxRef.current;
-      const secondsPerBeat = 60.0 / bpm;
-      const secondsPerStep = secondsPerBeat / PPQ;
-      const now = ctx.currentTime;
-      const tStepThisBar = loopStartRef.current + idx * secondsPerStep;
-
-      const key = `${selected}-${row}-${idx}`;
-      if (tStepThisBar > now + 1e-4) {
-        recentWritesRef.current.set(key, true);
-      } else {
-        recentWritesRef.current.delete(key);
-      }
-    }
-  }
-
-  function cycleStepRow(row, stepIdx) {
-    setPatterns((prev) => {
-      const next = {
-        ...prev,
-        [selected]: { A: [...prev[selected].A], B: [...prev[selected].B] },
-      };
-  
-      const curr = next[selected][row][stepIdx] ?? 0;
-  
-      // Find current in our explicit order [1.0, 0.75, 0.6, 0.45, 0]
-      let i = STEP_CYCLE_ORDER.findIndex(v => Math.abs(v - curr) < 1e-6);
-  
-      // If not found (shouldn't happen), start at index -1 so next = 1.0
-      if (i === -1) i = STEP_CYCLE_ORDER.length - 1; // treat as if at "0"
-  
-      const nextVel = STEP_CYCLE_ORDER[(i + 1) % STEP_CYCLE_ORDER.length];
-      next[selected][row][stepIdx] = nextVel;
-  
-      return next;
-    });
-  }
-
-  function toggleRowActiveUI(instId, row) {
-    setRowActive((prev) => {
-      const other = row === "A" ? "B" : "A";
-      const curr = prev[instId];
-      const nextVal = !curr[row];
-
-      // Disallow disabling both
-      if (!nextVal && !curr[other]) return prev;
-
-      return {
-        ...prev,
-        [instId]: { ...curr, [row]: nextVal },
-      };
-    });
-  }
-
-  function clearSelectedPattern() {
-    // wipe both rows for selected instrument
+    // Write now
     setPatterns((prev) => {
       const next = {
         ...prev,
         [selected]: {
-          A: new Array(STEPS_PER_BAR).fill(0),
-          B: new Array(STEPS_PER_BAR).fill(0),
+          A: [...prev[selected].A],
+          B: [...prev[selected].B],
         },
       };
+      next[selected][row][idx] = vel;
       return next;
     });
 
-    // reset volume to 0 dB and unmute
-    setInstGainsDb((prev) => ({ ...prev, [selected]: 0 }));
-    setMutes((prev) => {
-      const next = { ...prev, [selected]: false };
-      mutesRef.current = next;
-      return next;
-    });
-    const g = muteGainsRef.current.get(selected);
-    if (g) g.gain.value = dbToGain(0);
+    // Skip once only if this step is still ahead in THIS bar
+    const ctx = engine.getCtx();
+    const secondsPerBeat = 60.0 / bpm;
+    const secondsPerStep = secondsPerBeat / PPQ;
+    const now = ctx.currentTime;
+    const tStepThisBar = loopStartRef.current + idx * secondsPerStep;
 
-    // clear any skip tokens for this instrument (both rows)
-    for (const key of Array.from(recentWritesRef.current.keys())) {
-      if (key.startsWith(`${selected}-`)) {
-        recentWritesRef.current.delete(key);
-      }
+    const key = `${selected}-${row}-${idx}`;
+    if (tStepThisBar > now + 1e-4) {
+      recentWritesRef.current.set(key, true);
+    } else {
+      recentWritesRef.current.delete(key);
     }
-    // reset FX sends for selected
-setInstDelayWet(prev => ({ ...prev, [selected]: 0 }));
-setInstReverbWet(prev => ({ ...prev, [selected]: 0 }));
-const dSendSel = delaySendGainsRef.current.get(selected);
-if (dSendSel) dSendSel.gain.value = 0;
-const rSendSel = reverbSendGainsRef.current.get(selected);
-if (rSendSel) rSendSel.gain.value = 0;
+  }
+}
 
+function cycleStepRow(row, stepIdx) {
+  setPatterns((prev) => {
+    const next = {
+      ...prev,
+      [selected]: { A: [...prev[selected].A], B: [...prev[selected].B] },
+    };
+
+    const curr = next[selected][row][stepIdx] ?? 0;
+
+    // Find current in our explicit order [1.0, 0.75, 0.6, 0.45, 0]
+    let i = STEP_CYCLE_ORDER.findIndex(v => Math.abs(v - curr) < 1e-6);
+    if (i === -1) i = STEP_CYCLE_ORDER.length - 1; // treat as if at "0"
+
+    const nextVel = STEP_CYCLE_ORDER[(i + 1) % STEP_CYCLE_ORDER.length];
+    next[selected][row][stepIdx] = nextVel;
+
+    return next;
+  });
+}
+
+function toggleRowActiveUI(instId, row) {
+  setRowActive((prev) => {
+    const other = row === "A" ? "B" : "A";
+    const curr = prev[instId];
+    const nextVal = !curr[row];
+
+    // Disallow disabling both
+    if (!nextVal && !curr[other]) return prev;
+
+    return {
+      ...prev,
+      [instId]: { ...curr, [row]: nextVal },
+    };
+  });
+}
+
+function clearSelectedPattern() {
+  // wipe both rows for selected instrument
+  setPatterns((prev) => {
+    const next = {
+      ...prev,
+      [selected]: {
+        A: new Array(STEPS_PER_BAR).fill(0),
+        B: new Array(STEPS_PER_BAR).fill(0),
+      },
+    };
+    return next;
+  });
+
+  // reset volume to 0 dB and unmute (and reflect in engine)
+  setInstGainsDb((prev) => ({ ...prev, [selected]: 0 }));
+  setMutes((prev) => {
+    const next = { ...prev, [selected]: false };
+    mutesRef.current = next;
+    return next;
+  });
+  engine.updateInstrumentGain(selected, 0, false);
+
+  // clear any skip tokens for this instrument (both rows)
+  for (const key of Array.from(recentWritesRef.current.keys())) {
+    if (key.startsWith(`${selected}-`)) {
+      recentWritesRef.current.delete(key);
+    }
   }
 
-  function clearAllPatternsAndLevels() {
-    // 1) Clear patterns (both rows)
-    setPatterns(
-      Object.fromEntries(
-        INSTRUMENTS.map((i) => [
-          i.id,
-          { A: new Array(STEPS_PER_BAR).fill(0), B: new Array(STEPS_PER_BAR).fill(0) },
-        ])
-      )
-    );
+  // reset FX sends for selected (state + engine)
+  setInstDelayWet(prev => ({ ...prev, [selected]: 0 }));
+  setInstReverbWet(prev => ({ ...prev, [selected]: 0 }));
+  engine.setDelayWet(selected, 0, instDelayMode[selected] ?? "N8");
+  engine.setReverbWet(selected, 0, instRevMode[selected] ?? "M");
+}
 
-    // 2) Reset all volumes to 0 dB
-    const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
-    setInstGainsDb(zeroDbMap);
+function clearAllPatternsAndLevels() {
+  // 1) Clear patterns (both rows)
+  setPatterns(
+    Object.fromEntries(
+      INSTRUMENTS.map((i) => [
+        i.id,
+        { A: new Array(STEPS_PER_BAR).fill(0), B: new Array(STEPS_PER_BAR).fill(0) },
+      ])
+    )
+  );
 
-    // 3) Reset swing (type none, amt 0) + refs
-    const swingTypeNone = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
-    const swingAmtZero = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
-    setInstSwingType(swingTypeNone);
-    setInstSwingAmt(swingAmtZero);
-    instSwingTypeRef.current = swingTypeNone;
-    instSwingAmtRef.current = swingAmtZero;
+  // 2) Reset all volumes to 0 dB
+  const zeroDbMap = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+  setInstGainsDb(zeroDbMap);
 
-    // reset all FX sends
-const zeroWet = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
-setInstDelayWet(zeroWet);
-setInstReverbWet(zeroWet);
-INSTRUMENTS.forEach((i) => {
-  const dS = delaySendGainsRef.current.get(i.id); if (dS) dS.gain.value = 0;
-  const rS = reverbSendGainsRef.current.get(i.id); if (rS) rS.gain.value = 0;
-});
+  // 3) Reset swing (type none, amt 0) + refs
+  const swingTypeNone = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
+  const swingAmtZero  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+  setInstSwingType(swingTypeNone);
+  setInstSwingAmt(swingAmtZero);
+  instSwingTypeRef.current = swingTypeNone;
+  instSwingAmtRef.current  = swingAmtZero;
 
-    // 4) Unmute everything
-    const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
-    setMutes(allUnmuted);
-    mutesRef.current = allUnmuted;
+  // 4) Reset all FX sends (state + engine)
+  const zeroWet = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
+  setInstDelayWet(zeroWet);
+  setInstReverbWet(zeroWet);
+  INSTRUMENTS.forEach((i) => {
+    engine.setDelayWet(i.id, 0, "N8");
+    engine.setReverbWet(i.id, 0, "M");
+  });
 
-    // 5) Apply 0 dB to GainNodes
-    INSTRUMENTS.forEach((i) => {
-      const g = muteGainsRef.current.get(i.id);
-      if (g) g.gain.value = dbToGain(0);
-    });
+  // 5) Unmute everything and reflect in engine
+  const allUnmuted = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]));
+  setMutes(allUnmuted);
+  mutesRef.current = allUnmuted;
 
-    // 6) Clear skip-once tokens
-    recentWritesRef.current.clear();
+  // 6) Apply 0 dB to engine post-gains
+  INSTRUMENTS.forEach((i) => {
+    engine.updateInstrumentGain(i.id, 0, false);
+  });
 
-    // 7) Turn off solo
-    setSoloActive(false);
-    prevMutesRef.current = null;
-  }
+  // 7) Clear skip-once tokens & solo
+  recentWritesRef.current.clear();
+  setSoloActive(false);
+  prevMutesRef.current = null;
+}
+
 
   // ===== Render =====
 

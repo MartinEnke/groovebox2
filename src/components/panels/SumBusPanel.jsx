@@ -7,6 +7,8 @@ export default function SumBusPanel({
   sumComp, setSumComp,
   sumGainDb, setSumGainDb,
   sumMeterDb,
+  lowCutOn, setLowCutOn,
+  highCutOn, setHighCutOn,
 }) {
   const meterPct = Math.max(0, Math.min(1, (sumMeterDb + 60) / 60));
 
@@ -73,6 +75,25 @@ export default function SumBusPanel({
               value={sumGainDb}
               onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}
             />
+            <div className="row" style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <button
+  className={`btn press ${lowCutOn ? "on" : ""}`}
+  aria-pressed={lowCutOn}
+  title="Low Cut 230 Hz (Q≈1.0)"
+  onClick={() => setLowCutOn(v => !v)}
+>
+  Low Cut 230Hz
+</button>
+
+<button
+  className={`btn press ${highCutOn ? "on" : ""}`}
+  aria-pressed={highCutOn}
+  title="High Cut 3 kHz (Q≈1.0)"
+  onClick={() => setHighCutOn(v => !v)}
+>
+  High Cut 3k
+</button>
+     </div>
             <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
               {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
             </div>

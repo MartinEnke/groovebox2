@@ -1,6 +1,7 @@
 // src/engine/useAudioEngine.js
 import { useEffect, useMemo, useRef } from "react";
 import { INSTRUMENTS } from "../constants/instruments";
+import { PPQ } from "../constants/sequencer";
 import { dbToGain } from "../utils/misc";
 import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "../utils/audio";
 
@@ -16,6 +17,9 @@ export function useAudioEngine() {
   // Core
   const ctxRef = useRef(null);
   const masterGainRef = useRef(null);
+
+  const sumHpRef = useRef(null); // high-pass (low-cut)
+  const sumLpRef = useRef(null); // low-pass (high-cut)
 
   // Sum bus
   const sumInRef = useRef(null);
@@ -70,10 +74,25 @@ export function useAudioEngine() {
 
     const makeup = ctx.createGain(); makeup.gain.value = dbToGain(0); makeupRef.current = makeup;
 
-    // wire: master -> sumIn -> analyser -> comp -> limiter -> makeup -> destination
+    // wire: master -> sumIn -> analyser -> HP -> LP -> comp -> limiter -> makeup -> destination
     master.connect(sumIn);
     sumIn.connect(analyser);
-    analyser.connect(comp);
+    // Sum-bus filters (default bypass = 'allpass')
+    const hp = ctx.createBiquadFilter();
+    hp.type = "allpass";      // toggled to 'highpass' when enabled
+    hp.frequency.value = 230; // default freq
+    hp.Q.value = 1.0;         // "medium" Q
+    sumHpRef.current = hp;
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "allpass";      // toggled to 'lowpass' when enabled
+    lp.frequency.value = 3000;
+    lp.Q.value = 1.0;
+    sumLpRef.current = lp;
+
+    analyser.connect(hp);
+    hp.connect(lp);
+    lp.connect(comp);
     comp.connect(limiter);
     limiter.connect(makeup);
     makeup.connect(ctx.destination);
@@ -176,7 +195,7 @@ export function useAudioEngine() {
     // Rebuild IRs: S=4 steps, M=8, L=16 relative to PPQ=4
     const convs = reverbConvRef.current;
     if (convs?.S && convs?.M && convs?.L) {
-      const secondsPerStep = (60 / bpm) / 4; // PPQ=4
+      const secondsPerStep = (60 / bpm) / PPQ;
       const durS = Math.max(0.2, 4 * secondsPerStep);
       const durM = Math.max(0.2, 8 * secondsPerStep);
       const durL = Math.max(0.2, 16 * secondsPerStep);
@@ -331,6 +350,29 @@ export function useAudioEngine() {
     src.start(when > 0 ? when : 0);
   }
 
+
+  function setSumFilters({ lowCutOn, highCutOn, lowCutHz = 230, highCutHz = 3000, Q = 1.0 } = {}) {
+    const hp = sumHpRef.current;
+    const lp = sumLpRef.current;
+    if (hp) {
+      hp.type = lowCutOn ? "highpass" : "allpass";
+      hp.frequency.value = lowCutHz;
+      hp.Q.value = Q;
+    }
+    if (lp) {
+      lp.type = highCutOn ? "lowpass" : "allpass";
+      lp.frequency.value = highCutHz;
+      lp.Q.value = Q;
+    }
+  }
+  function setSumLowCut(on, hz = 230, q = 1.0) {
+    setSumFilters({ lowCutOn: on, highCutOn: sumLpRef.current?.type === "lowpass", lowCutHz: hz, highCutHz: sumLpRef.current?.frequency?.value ?? 3000, Q: q });
+  }
+  function setSumHighCut(on, hz = 3000, q = 1.0) {
+    setSumFilters({ lowCutOn: sumHpRef.current?.type === "highpass", highCutOn: on, lowCutHz: sumHpRef.current?.frequency?.value ?? 230, highCutHz: hz, Q: q });
+  }
+
+  
   const api = useMemo(() => ({
     getCtx: () => ctxRef.current,
     getAnalyser: () => analyserRef.current,
@@ -344,6 +386,9 @@ export function useAudioEngine() {
     setSumComp,
     setLimiterOn,
     setSumGainDb,
+    setSumFilters,
+    setSumLowCut,
+    setSumHighCut,
 
     // fx per instrument
     setDelayWet,

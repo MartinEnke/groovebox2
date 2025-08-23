@@ -11,7 +11,7 @@ import { pad, coerce16, deepClone } from "./utils/misc";
 import { InstrumentGrid } from "./components/InstrumentGrid";
 import Channel from "./components/Channel";
 import SidechainPanel from "./components/panels/SidechainPanel";
-import FXPanel from "./components/panels/FXPanel";
+import FXPanel from "./components/panels/FXPanel";   
 import SwingPanel from "./components/panels/SwingPanel";
 import SumBusPanel from "./components/panels/SumBusPanel";
 import TransportBar from "./components/TransportBar";
@@ -166,6 +166,8 @@ export default function GrooveBox() {
   const [sumGainDb, setSumGainDb] = useState(0); // makeup/output gain
   const [limiterOn, setLimiterOn] = useState(true); // limiter toggle
   const [sumMeterDb, setSumMeterDb] = useState(-Infinity); // peak dBFS readout
+  const [sumLowCut, setSumLowCut] = useState(false);
+  const [sumHighCut, setSumHighCut] = useState(false);
 
   const [sumComp, setSumComp] = useState({
     threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3,
@@ -175,6 +177,15 @@ export default function GrooveBox() {
   useEffect(() => { engine.setSumComp(sumComp); }, [engine, sumComp]);
   useEffect(() => { engine.setLimiterOn(limiterOn); }, [engine, limiterOn]);
   useEffect(() => { engine.setSumGainDb(sumGainDb); }, [engine, sumGainDb]);
+  useEffect(() => {
+      engine.setSumFilters({
+        lowCutOn:  sumLowCut,
+        highCutOn: sumHighCut,
+        lowCutHz:  230,
+        highCutHz: 3000,
+        Q:         1.0,
+      });
+    }, [engine, sumLowCut, sumHighCut]);
 
   // Meter (dBFS peak)
   useEffect(() => {
@@ -363,6 +374,8 @@ export default function GrooveBox() {
       sumComp,             // {threshold, ratio, attack, release, knee}
       sumGainDb,
       limiterOn,
+      sumLowCut,
+      sumHighCut,
 
       // (Optional UI niceties)
       rowExpanded,         // {instId:{A:bool,B:bool}}
@@ -465,6 +478,8 @@ export default function GrooveBox() {
     });
     setSumGainDb(Number.isFinite(s.sumGainDb) ? s.sumGainDb : 0);
     setLimiterOn(!!s.limiterOn);
+    setSumLowCut(!!s.sumLowCut);
+    setSumHighCut(!!s.sumHighCut);
 
     // === Optional UI niceties ===
     if (s.rowExpanded) setRowExpanded(s.rowExpanded);
@@ -500,7 +515,7 @@ export default function GrooveBox() {
     instDelayWet, instDelayMode,
     instReverbWet, instRevMode,
     scMatrix, scAmtDb, scAtkMs, scRelMs,
-    sumComp, sumGainDb, limiterOn,
+    sumComp, sumGainDb, limiterOn, sumLowCut, sumHighCut,
     rowExpanded, selected
   ]);
 
@@ -1001,6 +1016,8 @@ return (
   sumComp={sumComp} setSumComp={setSumComp}
   sumGainDb={sumGainDb} setSumGainDb={setSumGainDb}
   sumMeterDb={sumMeterDb}
+  lowCutOn={sumLowCut} setLowCutOn={setSumLowCut}
+  highCutOn={sumHighCut} setHighCutOn={setSumHighCut}
 />
 
 

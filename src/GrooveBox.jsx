@@ -21,15 +21,31 @@ import StepEditor from "./components/StepEditor";
 import PackBar from "./components/header/PackBar";
 import SessionBar from "./components/header/SessionBar";
 
+import { useSessionStore } from "./state/useSessionStore";
+
+
+
 
 
 export default function GrooveBox() {
+  const { state, actions } = useSessionStore();
+
+  const bpm        = state.transport.bpm;
+  const isPlaying  = state.transport.isPlaying;
+  const isRecording= state.transport.isRecording;
+  const step       = state.transport.step;
+  const metMode    = state.transport.metMode;
+
+  const selected   = state.instrumentMix.selected;
+
   // ===== Audio graph refs =====
   const audioCtxRef = useRef(null);
   const masterGainRef = useRef(null);
   const buffersRef = useRef(new Map()); // id -> AudioBuffer
   const muteGainsRef = useRef(new Map()); // id -> GainNode
   const metClickRef = useRef({ hi: null, lo: null });
+
+
 
 
 
@@ -158,22 +174,18 @@ const [showSum,     setShowSum]     = useState(false);
   // per-instrument reverb sends: instId -> { S: GainNode, M: GainNode, L: GainNode }
   const reverbSendGainsRef = useRef(new Map());
 
-  // Sequencer state
-  const [bpm, setBpm] = useState(120);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [metronomeOn, setMetronomeOn] = useState(true);
-  const [step, setStep] = useState(0); // UI indicator only
 
   // Metronome mode: "beats" (4), "all" (16), "off"
-  const [metMode, setMetMode] = useState("beats");
+  
   const metModeRef = useRef(metMode);
-  useEffect(() => {
-    metModeRef.current = metMode;
-  }, [metMode]);
+  useEffect(() => { metModeRef.current = state.transport.metMode; }, [state.transport.metMode]);
 
   function cycleMetronomeMode() {
-    setMetMode((prev) => (prev === "beats" ? "all" : prev === "all" ? "off" : "beats"));
+    const next =
+      metMode === "beats" ? "all" :
+      metMode === "all"   ? "off" :
+      "beats";
+    actions.transport.setMetMode(next);
   }
 
   // Which row (A/B) is active *for UI* this bar
@@ -288,7 +300,6 @@ const [showSum,     setShowSum]     = useState(false);
   }, [instRevMode, instReverbWet]);
 
   // Selected instrument & mutes
-  const [selected, setSelected] = useState(INSTRUMENTS[0].id);
   const [mutes, setMutes] = useState(() =>
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, false]))
   );
@@ -353,7 +364,7 @@ const [showSum,     setShowSum]     = useState(false);
   // Mirrors of state in refs
   const patternsRef = useRef(patterns);
   const mutesRef = useRef(mutes);
-  const metronomeOnRef = useRef(metronomeOn);
+  
   const rowActiveRef = useRef(rowActive);
   useEffect(() => {
     patternsRef.current = patterns;
@@ -361,9 +372,7 @@ const [showSum,     setShowSum]     = useState(false);
   useEffect(() => {
     mutesRef.current = mutes;
   }, [mutes]);
-  useEffect(() => {
-    metronomeOnRef.current = metronomeOn;
-  }, [metronomeOn]);
+  
   useEffect(() => {
     rowActiveRef.current = rowActive;
   }, [rowActive]);
@@ -864,8 +873,8 @@ function buildSession() {
     setSelectedPack(packId);
   
     // === Core transport / grid
-    setBpm(Number.isFinite(s.bpm) ? s.bpm : 120);
-    setMetMode(["beats", "all", "off"].includes(s.metMode) ? s.metMode : "beats");
+    actions.transport.setBpm(Number.isFinite(s.bpm) ? s.bpm : 120);
+    actions.transport.setMetMode(["beats", "all", "off"].includes(s.metMode) ? s.metMode : "beats");
     setPatterns(nextPatterns);
     setRowActive(s.rowActive ? { ...fallbackBoolRows, ...s.rowActive } : fallbackBoolRows);
   
@@ -920,7 +929,7 @@ function buildSession() {
   
     // === Optional UI niceties ===
     if (s.rowExpanded) setRowExpanded(s.rowExpanded);
-    if (s.selected && INSTRUMENTS.some(i => i.id === s.selected)) setSelected(s.selected);
+    if (s.selected && INSTRUMENTS.some(i => i.id === s.selected)) actions.mix.setSelected(s.selected);
   
     // Pack switching: loadPack will run automatically via your `[selectedPack]` effect.
   }
@@ -1103,7 +1112,7 @@ function schedule() {
     });
 
     // 4) Update the UI step to THIS step index (precise, not relative)
-    setStep(stepIndex);
+    actions.transport.setStep(stepIndex);
 
     // 5) Advance scheduler
     nextNoteTimeRef.current += secondsPerStep;
@@ -1231,18 +1240,16 @@ function exportSessionToFile() {
   // ===== UI handlers =====
   function togglePlay() {
     if (!audioCtxRef.current) return;
-    setIsPlaying((p) => {
-      const next = !p;
-      if (next) {
-        currentStepRef.current = 0;
-        setStep(0);
-      }
-      return next;
-    });
+    const next = !isPlaying;
+    if (next) {
+      currentStepRef.current = 0;
+      actions.transport.setStep(0);
+    }
+    actions.transport.setIsPlaying(next);
   }
 
   function toggleRecord() {
-    setIsRecording((r) => !r);
+    actions.transport.setIsRecording(!isRecording);
   }
 
   function toggleMute(instId) {
@@ -1255,7 +1262,7 @@ function exportSessionToFile() {
   }
 
   function selectInstrument(instId) {
-    setSelected(instId);
+    actions.mix.setSelected(instId);
   }
 
   function onPadPress(r, c) {
@@ -1472,7 +1479,7 @@ return (
     metMode={metMode}
     cycleMetronomeMode={cycleMetronomeMode}
     bpm={bpm}
-    setBpm={setBpm}
+    setBpm={actions.transport.setBpm}
   />
 
   <SessionBar

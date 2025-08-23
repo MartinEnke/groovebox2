@@ -24,6 +24,8 @@ import { useSessionStore } from "./state/useSessionStore";
 
 import useAudioEngine from "./engine/useAudioEngine";
 
+import useSessions from "./session/useSessions";
+
 
 
 
@@ -43,25 +45,6 @@ export default function GrooveBox() {
   // --- audio engine (WebAudio graph) ---
   const engine = useAudioEngine();
 
-  // ===== Sessions (named) =====
-  const [sessions, setSessions] = useState({}); // { [name]: sessionObj }
-  const [currentSessionName, setCurrentSessionName] = useState("");
-
-  useEffect(() => {
-    // Load saved sessions dictionary
-    let dict = {};
-    try { dict = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch {}
-    setSessions(dict);
-
-    // Optional: auto-load last selected named session
-    const last = localStorage.getItem(CURRENT_SESSION_KEY);
-    if (last && dict[last]) {
-      setCurrentSessionName(last);
-      // apply AFTER audio/graph exist; slight deferral helps:
-      queueMicrotask(() => applySession(dict[last]));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (engine.getCtx()) {
@@ -342,44 +325,6 @@ export default function GrooveBox() {
     );
   }
 
-  // ===== Sessions helpers =====
-  function persistSessions(next) {
-    setSessions(next);
-    try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(next)); } catch {}
-  }
-
-  function saveNamedSession(name) {
-    const trimmed = (name || "").trim();
-    if (!trimmed) return;
-    const payload = { ...buildSession(), updatedAt: Date.now() };
-
-    const next = { ...sessions, [trimmed]: payload };
-    persistSessions(next);
-
-    setCurrentSessionName(trimmed);
-    try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
-  }
-
-  function deleteNamedSession(name) {
-    const trimmed = (name || "").trim();
-    if (!trimmed || !sessions[trimmed]) return;
-    const { [trimmed]: _, ...rest } = sessions;
-    persistSessions(rest);
-
-    if (currentSessionName === trimmed) {
-      setCurrentSessionName("");
-      try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
-    }
-  }
-
-  function loadNamedSession(name) {
-    const trimmed = (name || "").trim();
-    if (!trimmed || !sessions[trimmed]) return;
-    setCurrentSessionName(trimmed);
-    try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
-    applySession(sessions[trimmed]);
-  }
-
   // ===== Build/Apply session =====
   function buildSession() {
     return {
@@ -425,43 +370,15 @@ export default function GrooveBox() {
     };
   }
 
-
-  function exportSessionToFile() {
-    const data =
-      typeof buildSession === "function" ? buildSession() : null;
-    if (!data) return;
-  
-    const name =
-      currentSessionName ||
-      `session-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-  
-  function importSessionFromFile(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const obj = JSON.parse(String(reader.result || ""));
-        applySession(obj);
-        const suggested = (file.name || "Imported").replace(/\.json$/i, "");
-        const name = prompt("Save imported session as:", suggested);
-        if (name) saveNamedSession(name);
-      } catch (e) {
-        console.error(e);
-        alert("Invalid session file.");
-      }
-    };
-    reader.readAsText(file);
-  }
+  const {
+    sessions,
+    currentSessionName,
+    saveNamedSession,
+    loadNamedSession,
+    deleteNamedSession,
+    exportSessionToFile,
+    importSessionFromFile,
+  } = useSessions({ buildSession, applySession });
   
   async function applySession(raw) {
     if (!raw || typeof raw !== "object") return;
@@ -470,6 +387,9 @@ export default function GrooveBox() {
     if (!("v" in s) || s.v > SESSION_VERSION) {
       console.warn("Session version is newer than this app. Attempting to load anyway.");
     }
+
+    
+
 
     const packId = PACK_IDS.includes(s.selectedPack) ? s.selectedPack : PACK_IDS[0];
 
@@ -942,28 +862,6 @@ function clearAllPatternsAndLevels() {
 }
 
 
-  // ===== Render =====
-
-  const FoldLabel = ({ text, height = 80 }) => (
-    <div
-      aria-hidden
-      style={{
-        height,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        pointerEvents: "none",
-        userSelect: "none",
-        color: "rgba(255,255,255,.55)",
-        fontSize: 13,
-        fontWeight: 600,
-        letterSpacing: 1.2,
-        textTransform: "uppercase",
-      }}
-    >
-      {text}
-    </div>
-  );
 
   
 // ===== Render =====

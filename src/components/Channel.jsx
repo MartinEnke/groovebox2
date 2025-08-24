@@ -1,48 +1,29 @@
-// src/components/Channel.jsx
-import React from "react";
+import React, { useState } from "react";
 import FoldSection from "./ui/FoldSection.jsx";
 import PadButton from "./PadButton";
 import { VELS } from "../constants/sequencer";
 import { INSTRUMENTS } from "../constants/instruments";
-
 
 export default function Channel({
   show,
   onToggle,
   selected,
   volumeDb,
+  pitchSemi,
   onVolumeChange,
+  onPitchChange,
   soloActive,
   onToggleSolo,
   onPadPress,
 }) {
   const label = INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected;
+  const [mode, setMode] = useState("vol"); // "vol" | "pitch"
 
   return (
     <FoldSection title="Channel" show={show} onToggle={onToggle}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 88px",
-          gap: 16,
-          alignItems: "center",
-          maxWidth: 560,
-          marginTop: 8,
-          marginLeft: "auto",
-          marginRight: "auto",
-        }}
-      >
-        {/* 2×2 Pads */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "1fr 1fr",
-            gap: 16,
-            justifyItems: "center",
-            alignItems: "center",
-          }}
-        >
+      <div className="channel-block three-cols pads-left">
+        {/* LEFT: 2×2 pads */}
+        <div className="pads-2x2">
           {[0, 1].map((r) =>
             [0, 1].map((c) => (
               <PadButton
@@ -55,35 +36,57 @@ export default function Channel({
           )}
         </div>
 
-        {/* Volume fader + solo */}
+        {/* MIDDLE: vertical fader + readout + Solo */}
         <div className="vfader-wrap">
-          <div className="vfader-title">{label}</div>
-
           <div className="vfader-slot">
             <input
               className="vfader"
               type="range"
-              min={-24}
-              max={+6}
-              step={0.1}
-              value={volumeDb}
-              onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-              title="Volume (selected instrument)"
+              min={mode === "vol" ? -24 : -12}
+              max={mode === "vol" ? 6 : 12}
+              step={mode === "vol" ? 0.1 : 1}
+              value={mode === "vol" ? volumeDb : pitchSemi}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (mode === "vol") onVolumeChange?.(v);
+                else onPitchChange?.(v);
+              }}
+              aria-label={mode === "vol" ? "Volume" : "Pitch (semitones)"}
+              orient="vertical"
             />
           </div>
 
-          <div className="vfader-readout">
-            {volumeDb >= 0 ? `+${volumeDb.toFixed(1)} dB` : `${volumeDb.toFixed(1)} dB`}
+          <div className="lcd-compact" aria-live="polite">
+            {mode === "vol" ? Number(volumeDb).toFixed(1) : `${pitchSemi > 0 ? "+" : ""}${pitchSemi}`}
           </div>
 
           <button
-            className={`btn solo-btn ${soloActive ? "solo-on" : ""}`}
-            onClick={onToggleSolo}
+            className={`press solo-btn edge ${soloActive ? "solo-on" : ""}`}
             aria-pressed={soloActive}
-            title="Solo selected instrument (mute others)"
-            style={{ width: "100%" }}
+            onClick={onToggleSolo}
+            title="Solo"
           >
             Solo
+          </button>
+        </div>
+
+        {/* RIGHT: Vol/Pitch toggle buttons (small, edgy) */}
+        <div className="mode-col">
+          <button
+            className={`press toggle xs edge ${mode === "vol" ? "on" : ""}`}
+            aria-pressed={mode === "vol"}
+            onClick={() => setMode("vol")}
+            title="Volume mode"
+          >
+            Vol
+          </button>
+          <button
+            className={`press toggle xs edge ${mode === "pitch" ? "on" : ""}`}
+            aria-pressed={mode === "pitch"}
+            onClick={() => setMode("pitch")}
+            title="Pitch mode"
+          >
+            Pitch
           </button>
         </div>
       </div>

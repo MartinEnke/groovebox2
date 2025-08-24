@@ -18,6 +18,8 @@ export function useAudioEngine() {
   const ctxRef = useRef(null);
   const masterGainRef = useRef(null);
 
+  const pitchMapRef = useRef(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))); // semitones
+
   const sumHpRef = useRef(null); // high-pass (low-cut)
   const sumLpRef = useRef(null); // low-pass (high-cut)
 
@@ -293,12 +295,19 @@ export function useAudioEngine() {
     const ctx = ctxRef.current; if (!ctx) return;
     const buf = getBuffer(instId); if (!buf) return;
     const mix = mixGainsRef.current.get(instId); if (!mix) return;
-
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const g = ctx.createGain(); g.gain.value = Math.max(0, Math.min(1, velocity));
+  
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+  
+    const semi = pitchMapRef.current[instId] || 0;
+    src.playbackRate.value = Math.pow(2, semi / 12);
+  
+    const g = ctx.createGain();
+    g.gain.value = Math.max(0, Math.min(1, velocity));
+  
     src.connect(g).connect(mix);
     src.start(when > 0 ? when : 0);
-
+  
     if (!activeVoicesRef.current.has(instId)) activeVoicesRef.current.set(instId, new Set());
     const voice = { src, gain: g };
     activeVoicesRef.current.get(instId).add(voice);
@@ -306,6 +315,10 @@ export function useAudioEngine() {
       const set = activeVoicesRef.current.get(instId);
       if (set) set.delete(voice);
     };
+  }
+  function setInstrumentPitch(instId, semitones) {
+    const s = Math.max(-12, Math.min(12, Math.round(semitones)));
+    pitchMapRef.current[instId] = s;
   }
 
   function choke(instId, when = 0) {
@@ -398,6 +411,7 @@ export function useAudioEngine() {
 
     // instrument gain/mute
     updateInstrumentGain,
+    setInstrumentPitch,
 
     // playback
     playSample,

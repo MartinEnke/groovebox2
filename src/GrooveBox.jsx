@@ -380,6 +380,8 @@ export default function GrooveBox() {
       // (Optional UI niceties)
       rowExpanded,         // {instId:{A:bool,B:bool}}
       selected,            // selected instrument id
+
+      instPitchSemi,
     };
   }
 
@@ -399,6 +401,7 @@ export default function GrooveBox() {
 
     if (!("v" in s) || s.v > SESSION_VERSION) {
       console.warn("Session version is newer than this app. Attempting to load anyway.");
+
     }
 
     
@@ -422,6 +425,8 @@ export default function GrooveBox() {
     const fallbackModeRev  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]));
     const fallbackSwingT   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
     const fallbackSwingA   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    const fallbackPitchMap = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
+
 
     const safeMap = (src, fb) =>
       Object.fromEntries(INSTRUMENTS.map((i) => [i.id, (src && src[i.id] !== undefined) ? src[i.id] : fb[i.id]]));
@@ -455,7 +460,11 @@ export default function GrooveBox() {
     setInstRevMode(safeMap(s.instRevMode, fallbackModeRev));
 
     // After state lands, update FX sends on nodes (next tick)
-    queueMicrotask(() => applyAllFxSends());
+    queueMicrotask(() => {
+      applyAllFxSends();
+      INSTRUMENTS.forEach(i => engine.setInstrumentPitch(i.id, (s.instPitchSemi?.[i.id] ?? 0)));
+    });
+    
 
     // === Sidechain
     const emptyRow = Object.fromEntries(INSTRUMENTS.map((s) => [s.id, false]));
@@ -480,6 +489,17 @@ export default function GrooveBox() {
     setLimiterOn(!!s.limiterOn);
     setSumLowCut(!!s.sumLowCut);
     setSumHighCut(!!s.sumHighCut);
+
+    setInstPitchSemi(
+      s.instPitchSemi
+        ? Object.fromEntries(
+            INSTRUMENTS.map(i => [
+              i.id,
+              Math.max(-12, Math.min(12, Math.round(s.instPitchSemi[i.id] ?? 0))),
+            ])
+          )
+        : fallbackPitchMap
+    );
 
     // === Optional UI niceties ===
     if (s.rowExpanded) setRowExpanded(s.rowExpanded);
@@ -526,11 +546,23 @@ export default function GrooveBox() {
     });
   }, [engine, instGainsDb, mutes]);
 
+
+  const [instPitchSemi, setInstPitchSemi] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
+  );
+
   // Selected channel volume change (also update engine)
   function handleSelectedVolumeChange(db) {
-    setInstGainsDb((prev) => ({ ...prev, [selected]: db }));
-    engine.updateInstrumentGain(selected, db, mutes[selected]);
+    setInstGainsDb(prev => ({ ...prev, [selected]: db }));
+    engine.updateInstrumentGain(selected, db, mutesRef.current?.[selected]);
   }
+  
+  function handleSelectedPitchChange(semi) {
+    const clamped = Math.max(-12, Math.min(12, Math.round(semi)));
+    setInstPitchSemi(prev => ({ ...prev, [selected]: clamped }));
+    engine.setInstrumentPitch(selected, clamped);
+  }
+  
 
 
 
@@ -920,7 +952,7 @@ return (
       setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
       setSumGainDb(0);
       setLimiterOn(true);
-      setCurrentSessionName("");
+      
       try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
 
       // reset folds (Channel open, others closed)
@@ -956,7 +988,11 @@ return (
   onToggle={() => setShowPads(s => !s)}
   selected={selected}
   volumeDb={instGainsDb[selected]}
+
   onVolumeChange={handleSelectedVolumeChange}
+  pitchSemi={instPitchSemi[selected]}
+
+  onPitchChange={handleSelectedPitchChange}
   soloActive={soloActive}
   onToggleSolo={toggleSolo}
   onPadPress={onPadPress}

@@ -1,0 +1,64 @@
+.channel-controls {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  /* left column */
+  .channel-fader-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  /* vertical slider with rotation for webkit/blink, orient for firefox */
+  .vslider-wrap {
+    height: 220px; /* visual height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .vslider {
+    width: 220px;      /* becomes visual height after rotation */
+    height: 28px;      /* visual thickness */
+    transform: rotate(-90deg);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .under-fader {
+    min-width: 72px;
+    text-align: center;
+    opacity: 0.85;
+  }
+  
+  /* right column: two same-size buttons */
+  .channel-toggle-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .channel-toggle-col .btn {
+    width: 84px;
+    height: 36px;
+  }
+  
+  /* responsive: stack on small screens */
+  @media (max-width: 520px) {
+    .channel-controls {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 10px;
+    }
+    .vslider-wrap { height: 180px; }
+    .vslider { width: 160px; height: 26px; }
+    .channel-toggle-col {
+      flex-direction: row;            /* put Vol/Pitch side-by-side on mobile */
+    }
+    .channel-toggle-col .btn {
+      width: 88px;
+      height: 36px;
+    }
+  }
+  

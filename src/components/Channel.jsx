@@ -9,21 +9,32 @@ export default function Channel({
   onToggle,
   selected,
   volumeDb,
-  pitchSemi,
   onVolumeChange,
+  pitchSemi = 0,
   onPitchChange,
   soloActive,
   onToggleSolo,
   onPadPress,
 }) {
+  const [mode, setMode] = useState("vol");
   const label = INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected;
-  const [mode, setMode] = useState("vol"); // "vol" | "pitch"
+
+  const sliderMin = mode === "vol" ? -24 : -12;
+  const sliderMax = mode === "vol" ? 6 : 12;
+  const sliderStep = mode === "vol" ? 0.1 : 1;
+  const sliderValue = mode === "vol" ? volumeDb : pitchSemi;
+
+  const numericDisplay =
+    mode === "vol"
+      ? Number(volumeDb).toFixed(1)                      // e.g. -6.0  (no “dB”)
+      : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`; // -12..+12 (no “Pitch”)
 
   return (
-    <FoldSection title="Channel" show={show} onToggle={onToggle}>
+    <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
+      {/* Layout: [Pads] | [Fader stack] | [Mode toggles] */}
       <div className="channel-block three-cols pads-left">
-        {/* LEFT: 2×2 pads */}
-        <div className="pads-2x2">
+        {/* Pads (tiny gap, no overlap) */}
+        <div className="pads-2x2 tiny-gap">
           {[0, 1].map((r) =>
             [0, 1].map((c) => (
               <PadButton
@@ -36,29 +47,28 @@ export default function Channel({
           )}
         </div>
 
-        {/* MIDDLE: vertical fader + readout + Solo */}
+        {/* Vertical fader + numeric readout below + Solo below */}
         <div className="vfader-wrap">
+          {/* no “Channel” title above fader */}
           <div className="vfader-slot">
             <input
               className="vfader"
               type="range"
-              min={mode === "vol" ? -24 : -12}
-              max={mode === "vol" ? 6 : 12}
-              step={mode === "vol" ? 0.1 : 1}
-              value={mode === "vol" ? volumeDb : pitchSemi}
+              min={sliderMin}
+              max={sliderMax}
+              step={sliderStep}
+              value={sliderValue}
               onChange={(e) => {
                 const v = Number(e.target.value);
                 if (mode === "vol") onVolumeChange?.(v);
                 else onPitchChange?.(v);
               }}
-              aria-label={mode === "vol" ? "Volume" : "Pitch (semitones)"}
+              aria-label={mode === "vol" ? "Volume" : "Pitch"}
               orient="vertical"
             />
           </div>
 
-          <div className="lcd-compact" aria-live="polite">
-            {mode === "vol" ? Number(volumeDb).toFixed(1) : `${pitchSemi > 0 ? "+" : ""}${pitchSemi}`}
-          </div>
+          <div className="lcd-compact">{numericDisplay}</div>
 
           <button
             className={`press solo-btn edge ${soloActive ? "solo-on" : ""}`}
@@ -70,10 +80,10 @@ export default function Channel({
           </button>
         </div>
 
-        {/* RIGHT: Vol/Pitch toggle buttons (small, edgy) */}
+        {/* Vol/Pitch buttons to the RIGHT of the fader */}
         <div className="mode-col">
           <button
-            className={`press toggle xs edge ${mode === "vol" ? "on" : ""}`}
+            className={`press toggle xs ${mode === "vol" ? "on" : ""}`}
             aria-pressed={mode === "vol"}
             onClick={() => setMode("vol")}
             title="Volume mode"
@@ -81,7 +91,7 @@ export default function Channel({
             Vol
           </button>
           <button
-            className={`press toggle xs edge ${mode === "pitch" ? "on" : ""}`}
+            className={`press toggle xs ${mode === "pitch" ? "on" : ""}`}
             aria-pressed={mode === "pitch"}
             onClick={() => setMode("pitch")}
             title="Pitch mode"

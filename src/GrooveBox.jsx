@@ -31,6 +31,16 @@ import useSessions from "./session/useSessions";
 
 
 export default function GrooveBox() {
+
+  // Visual scheme (retro = original look, neo = modern)
+const [scheme, setScheme] = useState(() => {
+  try { return localStorage.getItem("gb-scheme") || "retro"; } catch { return "retro"; }
+});
+useEffect(() => {
+  try { localStorage.setItem("gb-scheme", scheme); } catch {}
+  document.documentElement.setAttribute("data-scheme", scheme);
+}, [scheme]);
+
   // --- central store ---
   const { state, actions } = useSessionStore();
 
@@ -978,23 +988,26 @@ function clearAllPatternsAndLevels() {
   
 // ===== Render =====
 return (
-  <div style={{ color: "white" }}>
+  <div style={{ color: "white" }} className={scheme === "neo" ? "gb-root" : undefined}>
+
     {/* Header (2 rows) */}
 
 
 {/* ROW 1: Pack + Metronome + BPM */}
 <div style={{ display: "grid", rowGap: 8, marginBottom: 16 }}>
-  <PackBar
-    selectedPack={selectedPack}
-    setSelectedPack={setSelectedPack}
-    packLoading={packLoading}
-    packIds={PACK_IDS}
-    samplePacks={SAMPLE_PACKS}
-    metMode={metMode}
-    cycleMetronomeMode={cycleMetronomeMode}
-    bpm={bpm}
-    setBpm={actions.transport.setBpm}
-  />
+<PackBar
+  selectedPack={selectedPack}
+  setSelectedPack={setSelectedPack}
+  packLoading={packLoading}
+  packIds={PACK_IDS}
+  samplePacks={SAMPLE_PACKS}
+  metMode={metMode}
+  cycleMetronomeMode={cycleMetronomeMode}
+  bpm={bpm}
+  setBpm={actions.transport.setBpm}
+  scheme={scheme}
+  setScheme={setScheme}
+/>
 
   <SessionBar
     sessions={sessions}

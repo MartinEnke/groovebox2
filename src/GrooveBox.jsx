@@ -108,6 +108,25 @@ export default function GrooveBox() {
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]))
   );
 
+
+  const [instSatWet, setInstSatWet] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]))
+  );
+  const [instSatMode, setInstSatMode] = useState(
+    Object.fromEntries(INSTRUMENTS.map(i => [i.id, "tape"]))
+  );
+
+
+  function updateSat(instId, pctOverride) {
+    const pct  = pctOverride ?? instSatWet[instId] ?? 0;
+    const mode = instSatMode[instId] ?? "tape";
+    engine.setSaturationWet(instId, pct, mode);
+  }
+  useEffect(() => {
+    INSTRUMENTS.forEach(i => updateSat(i.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instSatWet, instSatMode]);
+
   // keep engine sends in sync when mode/wet changes
   function updateDelaySends(instId, pctOverride) {
     const pct  = pctOverride ?? instDelayWet[instId] ?? 0;
@@ -138,6 +157,7 @@ export default function GrooveBox() {
     INSTRUMENTS.forEach((i) => {
       engine.setDelayWet(i.id, dw?.[i.id] ?? 0, dm?.[i.id] ?? "N8");
       engine.setReverbWet(i.id, rw?.[i.id] ?? 0, rm?.[i.id] ?? "M");
+      engine.setSaturationWet(i.id, instSatWet[i.id] ?? 0, instSatMode[i.id] ?? "tape");
     });
   }
 
@@ -268,7 +288,7 @@ export default function GrooveBox() {
   const instGainsDbRef = useRef({});
   useEffect(() => { instGainsDbRef.current = instGainsDb; }, [instGainsDb]);
 
-  
+
   const [soloActive, setSoloActive] = useState(false);
   const prevMutesRef = useRef(null);
 
@@ -385,7 +405,9 @@ export default function GrooveBox() {
       instDelayWet,        // {instId: 0..100}
       instDelayMode,       // {instId: 'N16'|'N8'|'N3_4'}
       instReverbWet,       // {instId: 0..100}
-      instRevMode,         // {instId: 'S'|'M'|'L'}
+      instRevMode,
+      instSatWet,
+      instSatMode,         // {instId: 'S'|'M'|'L'}
 
       // sidechain
       scMatrix,            // target->trigger->bool
@@ -441,11 +463,13 @@ export default function GrooveBox() {
     const fallbackBoolRows = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, { A: true, B: false }]));
     const fallbackDbMap    = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     const fallbackZeroMap  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
+    const fallbackSatMode  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "tape"]));   
     const fallbackModeDly  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "N8"]));
     const fallbackModeRev  = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "M"]));
     const fallbackSwingT   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, "none"]));
     const fallbackSwingA   = Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]));
     const fallbackPitchMap = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
+    
 
 
     const safeMap = (src, fb) =>
@@ -478,6 +502,8 @@ export default function GrooveBox() {
     setInstDelayMode(safeMap(s.instDelayMode, fallbackModeDly));
     setInstReverbWet(safeMap(s.instReverbWet, fallbackZeroMap));
     setInstRevMode(safeMap(s.instRevMode, fallbackModeRev));
+    setInstSatWet(safeMap(s.instSatWet, fallbackZeroMap));
+    setInstSatMode(safeMap(s.instSatMode, fallbackSatMode));
 
     // Immediately reflect the loaded snapshot to the engine.
     // (Do NOT read from React state here — use the snapshot 's' you just loaded.)
@@ -490,7 +516,7 @@ export default function GrooveBox() {
       const wetR = s.instReverbWet?.[id]  ?? 0;
       const modeR= s.instRevMode?.[id]    ?? "M";
       engine.setReverbWet(id, wetR, modeR);
-
+      engine.setSaturationWet(id, s.instSatWet?.[id] ?? 0, (s.instSatMode?.[id] ?? "tape"));
       engine.setInstrumentPitch(id, s.instPitchSemi?.[id] ?? 0);
     });
 
@@ -924,9 +950,11 @@ function clearAllPatternsAndLevels() {
   const zeroWet = Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0]));
   setInstDelayWet(zeroWet);
   setInstReverbWet(zeroWet);
+  setInstSatWet(zeroWet);
   INSTRUMENTS.forEach((i) => {
     engine.setDelayWet(i.id, 0, "N8");
     engine.setReverbWet(i.id, 0, "M");
+    engine.setSaturationWet(i.id, 0, "tape");
   });
 
   // 5) Unmute everything and reflect in engine
@@ -1063,6 +1091,9 @@ return (
   instReverbWet={instReverbWet} setInstReverbWet={setInstReverbWet}
   instRevMode={instRevMode} setInstRevMode={setInstRevMode}
   updateReverbSends={updateReverbSends}
+  instSatWet={instSatWet} setInstSatWet={setInstSatWet}
+  instSatMode={instSatMode} setInstSatMode={setInstSatMode}
+  updateSat={updateSat}
 />
 
 {/* Divider */}

@@ -4,23 +4,35 @@ import FoldSection from "../ui/FoldSection";
 export default function FXPanel({
   show, onToggle,
   selected,
+
+  // Delay
   instDelayWet, setInstDelayWet,
   instDelayMode, setInstDelayMode,
   updateDelaySends,
+
+  // Reverb
   instReverbWet, setInstReverbWet,
   instRevMode, setInstRevMode,
   updateReverbSends,
+
+  // Saturation (new)
+  instSatWet, setInstSatWet,
+  instSatMode, setInstSatMode,
+  updateSat,
 }) {
   const delayPct = instDelayWet[selected] ?? 0;
   const revPct   = instReverbWet[selected] ?? 0;
+  const satPct   = instSatWet?.[selected] ?? 0;
 
   return (
     <FoldSection title="FX" show={show} onToggle={onToggle}>
-      <div className="fx-row" style={{ marginTop: 8 }}>
+      <div className="fx-row" style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         {/* Delay */}
         <div className="fx-block">
           <div className="fx-label">DLY</div>
-          <input className="slider slider-fx" type="range" min={0} max={100} step={1}
+          <input
+            className="slider slider-fx"
+            type="range" min={0} max={100} step={1}
             value={delayPct}
             onChange={(e) => {
               const pct = parseInt(e.target.value, 10);
@@ -58,7 +70,9 @@ export default function FXPanel({
         {/* Reverb */}
         <div className="fx-block">
           <div className="fx-label">REV</div>
-          <input className="slider slider-fx" type="range" min={0} max={100} step={1}
+          <input
+            className="slider slider-fx"
+            type="range" min={0} max={100} step={1}
             value={revPct}
             onChange={(e) => {
               const pct = parseInt(e.target.value, 10);
@@ -83,6 +97,46 @@ export default function FXPanel({
                   title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
                 >
                   {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Saturation */}
+        <div className="fx-block">
+          <div className="fx-label">SAT</div>
+          <input
+            className="slider slider-fx"
+            type="range" min={0} max={100} step={1}
+            value={satPct}
+            onChange={(e) => {
+              const pct = parseInt(e.target.value, 10);
+              setInstSatWet(prev => ({ ...prev, [selected]: pct }));
+              updateSat(selected, pct);
+            }}
+            title="Saturation amount (mix % / drive)"
+          />
+          <div className="revlen-wrap">
+            {[
+              { key: "tape", label: "Tape" },
+              { key: "warm", label: "Warm" },
+              { key: "hard", label: "Hard" },
+            ].map(opt => {
+              const on = (instSatMode?.[selected] ?? "tape") === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  className={`revlen-btn ${on ? "on" : ""}`}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setInstSatMode(prev => ({ ...prev, [selected]: opt.key }));
+                    updateSat(selected);
+                  }}
+                  title={`Saturation mode: ${opt.label}`}
+                >
+                  {opt.label}
                 </button>
               );
             })}

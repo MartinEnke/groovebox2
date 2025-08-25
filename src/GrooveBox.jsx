@@ -34,6 +34,8 @@ export default function GrooveBox() {
   // --- central store ---
   const { state, actions } = useSessionStore();
 
+  
+
   const bpm         = state.transport.bpm;
   const isPlaying   = state.transport.isPlaying;
   const isRecording = state.transport.isRecording;
@@ -44,6 +46,9 @@ export default function GrooveBox() {
 
   // --- audio engine (WebAudio graph) ---
   const engine = useAudioEngine();
+
+
+  
 
 
   useEffect(() => {
@@ -126,13 +131,26 @@ export default function GrooveBox() {
 
 
   function applyAllFxSends() {
+    const dw = instDelayWetRef.current;
+    const dm = instDelayModeRef.current;
+    const rw = instReverbWetRef.current;
+    const rm = instRevModeRef.current;
     INSTRUMENTS.forEach((i) => {
-      engine.setDelayWet(i.id, instDelayWet[i.id] ?? 0, instDelayMode[i.id] ?? "N8");
-      engine.setReverbWet(i.id, instReverbWet[i.id] ?? 0, instRevMode[i.id] ?? "M");
+      engine.setDelayWet(i.id, dw?.[i.id] ?? 0, dm?.[i.id] ?? "N8");
+      engine.setReverbWet(i.id, rw?.[i.id] ?? 0, rm?.[i.id] ?? "M");
     });
   }
 
-  
+  // add refs near your other refs
+  const instDelayWetRef = useRef(instDelayWet);
+  const instDelayModeRef = useRef(instDelayMode);
+  const instReverbWetRef = useRef(instReverbWet);
+  const instRevModeRef = useRef(instRevMode);
+  useEffect(() => { instDelayWetRef.current = instDelayWet; }, [instDelayWet]);
+  useEffect(() => { instDelayModeRef.current = instDelayMode; }, [instDelayMode]);
+  useEffect(() => { instReverbWetRef.current = instReverbWet; }, [instReverbWet]);
+  useEffect(() => { instRevModeRef.current = instRevMode; }, [instRevMode]);
+
   // ===== Sidechain =====
   const [scMatrix, setScMatrix] = useState(
     Object.fromEntries(
@@ -246,6 +264,11 @@ export default function GrooveBox() {
     Object.fromEntries(INSTRUMENTS.map((i) => [i.id, 0]))
   );
 
+
+  const instGainsDbRef = useRef({});
+  useEffect(() => { instGainsDbRef.current = instGainsDb; }, [instGainsDb]);
+
+  
   const [soloActive, setSoloActive] = useState(false);
   const prevMutesRef = useRef(null);
 
@@ -300,7 +323,7 @@ export default function GrooveBox() {
     setMutes(newMutes);
     mutesRef.current = newMutes;
     INSTRUMENTS.forEach((i) => {
-      engine.updateInstrumentGain(i.id, instGainsDb[i.id] ?? 0, newMutes[i.id]);
+      engine.updateInstrumentGain(i.id, instGainsDbRef.current[i.id] ?? 0, newMutes[i.id]);
     });
   }
 
@@ -404,9 +427,6 @@ export default function GrooveBox() {
 
     }
 
-    
-
-
     const packId = PACK_IDS.includes(s.selectedPack) ? s.selectedPack : PACK_IDS[0];
 
     const nextPatterns = {};
@@ -459,10 +479,27 @@ export default function GrooveBox() {
     setInstReverbWet(safeMap(s.instReverbWet, fallbackZeroMap));
     setInstRevMode(safeMap(s.instRevMode, fallbackModeRev));
 
-    // After state lands, update FX sends on nodes (next tick)
-    queueMicrotask(() => {
-      applyAllFxSends();
-      INSTRUMENTS.forEach(i => engine.setInstrumentPitch(i.id, (s.instPitchSemi?.[i.id] ?? 0)));
+    // Immediately reflect the loaded snapshot to the engine.
+    // (Do NOT read from React state here — use the snapshot 's' you just loaded.)
+    INSTRUMENTS.forEach(i => {
+      const id = i.id;
+      const wetD = s.instDelayWet?.[id]  ?? 0;
+      const modeD= s.instDelayMode?.[id] ?? "N8";
+      engine.setDelayWet(id, wetD, modeD);
+
+      const wetR = s.instReverbWet?.[id]  ?? 0;
+      const modeR= s.instRevMode?.[id]    ?? "M";
+      engine.setReverbWet(id, wetR, modeR);
+
+      engine.setInstrumentPitch(id, s.instPitchSemi?.[id] ?? 0);
+    });
+
+    // Also ensure post-gain/mute is reflected immediately (don’t wait for effects).
+    INSTRUMENTS.forEach(i => {
+      const id = i.id;
+      const db = s.instGainsDb?.[id] ?? 0;
+      const muted = s.mutes?.[id] ?? false;
+      engine.updateInstrumentGain(id, db, muted);
     });
     
 
@@ -952,7 +989,7 @@ return (
       setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
       setSumGainDb(0);
       setLimiterOn(true);
-      
+      setCurrentSessionName("");
       try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
 
       // reset folds (Channel open, others closed)
@@ -991,7 +1028,7 @@ return (
 
   onVolumeChange={handleSelectedVolumeChange}
   pitchSemi={instPitchSemi[selected]}
-
+  
   onPitchChange={handleSelectedPitchChange}
   soloActive={soloActive}
   onToggleSolo={toggleSolo}

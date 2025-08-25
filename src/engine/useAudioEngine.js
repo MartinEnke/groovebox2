@@ -49,26 +49,29 @@ const satModeRef  = useRef(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "tape"
 const satWetRef   = useRef(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 0])));
 
 // build a shaping curve (different flavors)
-function makeSatCurve(k = 0, mode = "tape") {
+function makeSatCurve(k = 0, mode = "tape", blend = 1) {
     const n = 2048; // enough resolution, cheap to recompute
     const curve = new Float32Array(n);
     const clamp = (v) => Math.max(-1, Math.min(1, v));
     for (let i = 0; i < n; i++) {
       const x = (i / (n - 1)) * 2 - 1; // -1..+1
       let y;
-      if (k <= 0.0001) { y = x; } 
+      if (k <= 0.0001) { y = x; }
       else {
         switch (mode) {
-          case "hard": // arctan-ish hard drive
+          case "hard": // arctan-ish
             y = Math.atan(k * x) * (2 / Math.PI);
             break;
-          case "warm": // canonical saturator
+          case "warm": // soft clip
             y = ((1 + k) * x) / (1 + k * Math.abs(x));
             break;
-          case "tape": // softer/tape-ish
-          default:
-            y = Math.tanh(k * x) / Math.tanh(k);
-            break;
+          case "tape": // subtle: blend linear with soft tanh
+          default: {
+            const nonlin = Math.tanh(k * x) / Math.tanh(k);
+            const b = Math.max(0, Math.min(1, blend));     // 0..1
+            y = (1 - b) * x + b * nonlin;                  // mostly linear
+          break;
+          }
         }
       }
       curve[i] = clamp(y);
@@ -147,7 +150,9 @@ function makeSatCurve(k = 0, mode = "tape") {
       // ---- Saturation insert: mix -> [dry + (pre->shaper->post)] -> sum ----
       const dry = ctx.createGain();  dry.gain.value  = 1.0; // 1 - wet
       const pre = ctx.createGain();  pre.gain.value  = 1.0; // input drive (we’ll keep 1.0; curve handles “drive”)
-      const shp = ctx.createWaveShaper(); shp.curve = makeSatCurve(0, "tape"); shp.oversample = "4x";
+      const shp = ctx.createWaveShaper();
+      shp.curve = makeSatCurve(0.8, "tape", 0.2); // mild
+      shp.oversample = "4x";
       const wet = ctx.createGain();  wet.gain.value  = 0.0; // wet = 0..1
       const sum = ctx.createGain();  sum.gain.value  = 1.0; // sums dry+wet and feeds duck chain
 
@@ -315,14 +320,27 @@ function makeSatCurve(k = 0, mode = "tape") {
   
     const nodes = satNodesRef.current.get(instId); if (!nodes) return;
     const wet = Math.max(0, Math.min(1, pct / 100));
-  
-    // mix
-    nodes.dry.gain.value = 1 - wet;
-    nodes.post.gain.value = wet;
-  
-    // curve “drive” tracks pct (feels strong at higher values)
-    const drive = Math.max(0, pct) * 1.2 + 1; // 1..~121
-    nodes.shaper.curve = makeSatCurve(drive, satModeRef.current[instId]);
+
+   // Mix: slider is still the wet mix
+   nodes.dry.gain.value = 1 - wet;
+   nodes.post.gain.value = wet;
+ 
+   // Drive mapping per mode
+   const m = satModeRef.current[instId];
+   let k, blend;
+   if (m === "tape") {
+     // Very gentle: k in ~[0.7..2.0], blend in ~[0.15..0.6], sublinear vs slider
+     const t = wet * wet;                 // ease-in (sublinear)
+     k = 0.7 + 1.3 * t;                   // 0.7 → 2.0
+     blend = 0.15 + 0.45 * t;             // 0.15 → 0.60
+     nodes.shaper.curve = makeSatCurve(k, "tape", blend);
+   } else if (m === "warm") {
+     k = 1 + 3.0 * wet;                   // 1..4
+     nodes.shaper.curve = makeSatCurve(k, "warm");
+   } else { // "hard"
+     k = 3 + 12 * wet;                    // 3..15
+     nodes.shaper.curve = makeSatCurve(k, "hard");
+   }
   }
   
   function setSaturationMode(instId, mode) {

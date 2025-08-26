@@ -72,24 +72,7 @@ export default function PackBar({
           </span>
         </div>
 
-        {/* Theme toggle: a small button in Retro; chip group in Neo */}
-        {isRetro ? (
-          <button
-            onClick={() => setScheme("neo")}
-            title="Switch to Neo theme"
-            style={{
-              background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.2)", color: "white",
-              padding: "6px 10px", borderRadius: 999, fontWeight: 700, letterSpacing: 0.3, opacity: 0.85
-            }}
-          >
-            Neo
-          </button>
-        ) : (
-          <div className="scheme-toggle" role="group" aria-label="UI theme">
-            <button type="button" className="chip" onClick={() => setScheme("retro")} title="Oldschool look">Retro</button>
-            <button type="button" className="chip is-active" onClick={() => setScheme("neo")} title="Modern / futuristic look">Neo</button>
-          </div>
-        )}
+        
       </div>
     </div>
   );

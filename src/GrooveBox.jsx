@@ -30,6 +30,8 @@ import useSessions from "./session/useSessions";
 
 
 
+
+
 export default function GrooveBox() {
 
   // Visual scheme (retro = original look, neo = modern)
@@ -984,68 +986,117 @@ function clearAllPatternsAndLevels() {
 }
 
 
+useEffect(() => {
+  document.documentElement.setAttribute("data-scheme", scheme);
+}, [scheme]);
+
+
+
+function RetroLogo() {
+  return <h1 className="gb-wordmark" aria-label="GrooveBox">GrooveBox</h1>;
+}
+
+
+function ThemeButtons({ scheme, setScheme }) {
+  return (
+    <div className="gb-theme-switch" role="tablist" aria-label="Theme switch">
+      <button
+        type="button"
+        className={`gb-theme-btn ${scheme === "retro" ? "is-active" : ""}`}
+        aria-pressed={scheme === "retro"}
+        onClick={() => setScheme("retro")}
+      >
+        RETRO
+      </button>
+      <button
+        type="button"
+        className={`gb-theme-btn ${scheme === "neo" ? "is-active" : ""}`}
+        aria-pressed={scheme === "neo"}
+        onClick={() => setScheme("neo")}
+      >
+        NEO
+      </button>
+    </div>
+  );
+}
+
+
 
   
 // ===== Render =====
 return (
-  <div style={{ color: "white" }} className={scheme === "neo" ? "gb-root" : undefined}>
+  <div
+    style={{ color: "white" }}
+    className={scheme === "neo" ? "gb-root" : undefined}
+    data-scheme={scheme} // lets CSS target retro cleanly
+  >
 
-    {/* Header (2 rows) */}
+    {/* RETRO PANEL: Brand row + controls */}
+    
 
+      {/* ROW 0: Logo (left) + Theme Toggle (right) */}
+      <header className="gb-retro-header">
+  <div className="gb-brand">
+    <RetroLogo />
+  </div>
+  <ThemeButtons scheme={scheme} setScheme={setScheme} />
+</header>
 
-{/* ROW 1: Pack + Metronome + BPM */}
-<div style={{ display: "grid", rowGap: 8, marginBottom: 16 }}>
-<PackBar
-  selectedPack={selectedPack}
-  setSelectedPack={setSelectedPack}
-  packLoading={packLoading}
-  packIds={PACK_IDS}
-  samplePacks={SAMPLE_PACKS}
-  metMode={metMode}
-  cycleMetronomeMode={cycleMetronomeMode}
-  bpm={bpm}
-  setBpm={actions.transport.setBpm}
-  scheme={scheme}
-  setScheme={setScheme}
-/>
+      {/* ROW 1: Pack + Metronome + BPM */}
+      <div className="gb-row gb-row--packs">
+        <PackBar
+          selectedPack={selectedPack}
+          setSelectedPack={setSelectedPack}
+          packLoading={packLoading}
+          packIds={PACK_IDS}
+          samplePacks={SAMPLE_PACKS}
+          metMode={metMode}
+          cycleMetronomeMode={cycleMetronomeMode}
+          bpm={bpm}
+          setBpm={actions.transport.setBpm}
+          
+        />
+      </div>
 
-  <SessionBar
-    sessions={sessions}
-    currentSessionName={currentSessionName}
-    loadNamedSession={loadNamedSession}
-    saveNamedSession={saveNamedSession}
-    deleteNamedSession={deleteNamedSession}
-    exportSessionToFile={exportSessionToFile}
-    importSessionFromFile={importSessionFromFile}
-    onNewSession={() => {
-      // your existing "New" logic:
-      clearAllPatternsAndLevels();
-      setGlobalSwingPct(100);
-      setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
-      setInstRevMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "M"])));
-      setScMatrix(Object.fromEntries(INSTRUMENTS.map(t => [t.id, Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))])));
-      setScAmtDb(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));
-      setScAtkMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));
-      setScRelMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));
-      setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
-      setSumGainDb(0);
-      setLimiterOn(true);
-      setCurrentSessionName("");
-      try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+      {/* ROW 2: Session */}
+      <div className="gb-row gb-row--session">
+        <SessionBar
+          sessions={sessions}
+          currentSessionName={currentSessionName}
+          loadNamedSession={loadNamedSession}
+          saveNamedSession={saveNamedSession}
+          deleteNamedSession={deleteNamedSession}
+          exportSessionToFile={exportSessionToFile}
+          importSessionFromFile={importSessionFromFile}
+          onNewSession={() => {
+            // your existing "New" logic (unchanged)
+            clearAllPatternsAndLevels();
+            setGlobalSwingPct(100);
+            setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
+            setInstRevMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "M"])));
+            setScMatrix(Object.fromEntries(INSTRUMENTS.map(t => [t.id, Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))])));
+            setScAmtDb(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));
+            setScAtkMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));
+            setScRelMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));
+            setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
+            setSumGainDb(0);
+            setLimiterOn(true);
+            setCurrentSessionName("");
+            try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+            setShowPads(true);
+            setShowSC(false);
+            setShowFX(false);
+            setShowSwingUI(false);
+            setShowSum(false);
+          }}
+        />
+      </div>
+    
 
-      // reset folds (Channel open, others closed)
-      setShowPads(true);
-      setShowSC(false);
-      setShowFX(false);
-      setShowSwingUI(false);
-      setShowSum(false);
-    }}
-  />
-</div>
-
-
-  {/* Divider */}
-  <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+    {/* Divider */}
+    <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
+  
+)
 
   
 

@@ -1,0 +1,8 @@
+/* styles/theme-retro.css */
+:root[data-scheme="retro"] {
+    /* optional: define variables if you later refactor retro out of inline */
+    --text: #ffffff;
+  }
+  
+  /* If you want to style only the Neo classes when Retro is active, do nothing here.
+     Your inline styles continue to render the original look. */

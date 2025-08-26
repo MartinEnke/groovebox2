@@ -1,0 +1,12 @@
+/* styles/theme-base.css */
+:root {
+    --radius: 12px;
+    --tap: 44px;
+    --space-2: 10px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --font-ui: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  }
+  
+  /* unthemed utility (used only when Neo classes are active) */
+  .gb-root { min-height: 100dvh; padding: clamp(12px, 2vw, 20px); }

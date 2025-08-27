@@ -1,7 +1,60 @@
-/* styles/theme-retro.css */
+/* =========================
+   THEME: RETRO (full file)
+   ========================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Russo+One&family=Orbitron:wght@700;800&display=swap");
+/* Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Russo+One&display=swap");
 
+/* ---------- Vars ---------- */
+:root[data-scheme="retro"],
+[data-scheme="retro"] {
+  --retro-bg: #131316;
+  --retro-panel: #1d1e22;
+  --retro-border: #3a3a3f;
+  --retro-gloss: rgba(255,255,255,.08);
+  --retro-text: #f6f6f6;
+  --retro-muted: #a9a9b0;
+
+  --retro-a1: #EF476F; /* magenta */
+  --retro-a2: #FFD166; /* yellow */
+  --retro-a3: #06D6A0; /* green */
+  --retro-a4: #118AB2; /* cyan-blue */
+
+  --theme-metal-top: #2b2c31;
+  --theme-metal-bot: #1f2024;
+  --theme-frame: #2f2f35;
+  --theme-gloss: rgba(255,255,255,.08);
+
+  --glow-on: #ff8a00;         /* active orange */
+  --glow-on-strong: #ff6a00;
+
+  --radius: 12px;
+  --tap: 44px;
+}
+
+/* Background hint when retro */
+:root[data-scheme="retro"] body,
+[data-scheme="retro"] body {
+  background: radial-gradient(1200px 700px at 20% -10%, #1a1b20 0%, #111115 60%, #0c0c0f 100%) fixed;
+  color: var(--retro-text);
+}
+
+/* ---------- Panel ---------- */
+:root[data-scheme="retro"] .gb-retro-panel,
+[data-scheme="retro"] .gb-retro-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: linear-gradient(180deg, var(--retro-panel) 0%, #17181b 100%);
+  border: 1px solid var(--retro-border);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.45),
+    inset 0 1px 0 var(--retro-gloss),
+    inset 0 -1px 0 rgba(0,0,0,.4);
+}
+
+/* ---------- Header: wordmark + theme buttons ---------- */
 :root[data-scheme="retro"] .gb-retro-header,
 [data-scheme="retro"] .gb-retro-header {
   display: flex;
@@ -9,16 +62,16 @@
   gap: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255,255,255,.06);
-  flex-wrap: nowrap;      /* prevents buttons from dropping below */
+  flex-wrap: nowrap;
 }
 
 :root[data-scheme="retro"] .gb-theme-switch,
 [data-scheme="retro"] .gb-theme-switch {
-  margin-left: auto;      /* pushes RETRO/NEO to the right of the logo */
+  margin-left: auto;           /* push buttons to the right */
   display: inline-flex;
   gap: 8px;
 }
-/* Seamless color loop + gentle drift (no jump) */
+
 :root[data-scheme="retro"] .gb-wordmark,
 [data-scheme="retro"] .gb-wordmark {
   font-family: "Russo One", "Orbitron", "Audiowide", var(--font-ui);
@@ -29,7 +82,7 @@
   margin: 0;
   white-space: nowrap;
 
-  /* Base gradient (static pattern) */
+  /* Colorful seamless loop */
   background: linear-gradient(90deg, #EF476F, #FFD166, #06D6A0, #118AB2, #EF476F);
   background-size: 240% 100%;
   background-position: 0% 50%;
@@ -38,143 +91,153 @@
   color: transparent;
   -webkit-text-fill-color: transparent;
 
-  /* Seamless animations */
   animation:
-    gbHueCycle 6s linear infinite,          /* rotates colors = perfect loop */
-    gbDrift     5s ease-in-out infinite alternate; /* slides left↔right w/o jump */
-
+    gbHueCycle 14s linear infinite,          /* perfect color loop */
+    gbDrift    10s ease-in-out infinite alternate; /* smooth left↔right */
   will-change: filter, background-position;
 }
+@keyframes gbHueCycle { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+@keyframes gbDrift    { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 
-/* Rotates the hue 0→360° (start==end) */
-@keyframes gbHueCycle {
-  0%   { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
+/* Theme buttons (small, edgy) */
+:root[data-scheme="retro"] .gb-theme-btn,
+[data-scheme="retro"] .gb-theme-btn {
+  min-width: 70px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  border: 1px solid var(--theme-frame);
+  cursor: pointer;
+
+  font: 900 11px/1 var(--font-ui);
+  letter-spacing: .1em;
+
+  color: #ececf1;
+  background: linear-gradient(180deg, var(--theme-metal-top), var(--theme-metal-bot));
+  box-shadow: 0 3px 0 rgba(0,0,0,.5), inset 0 1px 0 var(--theme-gloss);
+  transition: filter .15s, transform .05s, box-shadow .2s, background .2s, color .2s;
+}
+:root[data-scheme="retro"] .gb-theme-btn:hover,
+[data-scheme="retro"] .gb-theme-btn:hover { filter: brightness(1.06); }
+:root[data-scheme="retro"] .gb-theme-btn:active,
+[data-scheme="retro"] .gb-theme-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+}
+:root[data-scheme="retro"] .gb-theme-btn.is-active,
+[data-scheme="retro"] .gb-theme-btn.is-active {
+  color: #1b0e00;
+  border-color: rgba(255,138,0,.75);
+  background: linear-gradient(180deg, var(--glow-on) 0%, var(--glow-on-strong) 100%);
+  box-shadow:
+    0 0 14px rgba(255,140,0,.45),
+    0 0 26px rgba(255,140,0,.25),
+    0 3px 0 rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.35);
 }
 
-/* Smooth back-and-forth pan so there’s never a reset jump */
-@keyframes gbDrift {
-  0%   { background-position:   0% 50%; }
-  100% { background-position: 100% 50%; }
+/* ---------- Rows (hardware strips) ---------- */
+:root[data-scheme="retro"] .gb-row,
+[data-scheme="retro"] .gb-row {
+  position: relative;
+  padding: 12px;
+  border: 1px solid var(--retro-border);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #232429 0%, #1a1b20 100%);
+  box-shadow:
+    inset 0 1px 0 var(--retro-gloss),
+    inset 0 -1px 0 rgba(0,0,0,.5),
+    0 8px 16px rgba(0,0,0,.25);
 }
 
+/* Remove any old chip labels that may linger */
+:root[data-scheme="retro"] .gb-row--packs::before,
+:root[data-scheme="retro"] .gb-row--session::before,
+[data-scheme="retro"] .gb-row--packs::before,
+[data-scheme="retro"] .gb-row--session::before { content: none !important; }
 
-  
-  /* theme buttons live on the RIGHT of the wordmark */
-  :root[data-scheme="retro"] .gb-theme-switch {
-    margin-left: auto;                   /* pushes buttons to the far right */
-    display: inline-flex;
-    gap: 8px;
-    flex: 0 0 auto;                      /* don't let them grow/shrink oddly */
-  }
-  
-  /* smaller, edgier buttons */
-  :root[data-scheme="retro"] .gb-theme-btn {
-    min-width: 70px;                     /* smaller */
-    height: 30px;                        /* smaller */
-    padding: 0 12px;
-    border-radius: 4px;                  /* edgy corners */
-    border: 1px solid #2f2f35;
-    cursor: pointer;
-  
-    font: 900 11px/1 var(--font-ui);     /* smaller text */
-    letter-spacing: .1em;
-  
-    color: #ececf1;
-    background: linear-gradient(180deg, #2b2c31, #1f2024);
-    box-shadow: 0 3px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
-    transition: filter .15s, transform .05s, box-shadow .2s, background .2s, color .2s;
-  }
-  :root[data-scheme="retro"] .gb-theme-btn:hover { filter: brightness(1.06); }
-  :root[data-scheme="retro"] .gb-theme-btn:active {
-    transform: translateY(1px);
-    box-shadow: 0 1px 0 rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-  }
-  
-  /* active = orange glow */
-  :root[data-scheme="retro"] .gb-theme-btn.is-active {
-    color: #1b0e00;
-    border-color: rgba(255,138,0,.75);
-    background: linear-gradient(180deg, #ff8a00 0%, #ff6a00 100%);
-    box-shadow:
-      0 0 14px rgba(255,140,0,.45),
-      0 0 26px rgba(255,140,0,.25),
-      0 3px 0 rgba(0,0,0,.45),
-      inset 0 1px 0 rgba(255,255,255,.35);
-  }
-  
-  /* keep things on one row on narrow screens too */
-  @media (max-width: 640px) {
-    :root[data-scheme="retro"] .gb-wordmark { font-size: clamp(28px, 8vw, 40px); }
-    :root[data-scheme="retro"] .gb-theme-btn { min-width: 64px; height: 28px; font-weight: 800; }
-  }
-  
-
-/* ---------- Rows ---------- */
-:root[data-scheme="retro"] .gb-row {
-  display: grid;
-  align-items: center;
-}
-:root[data-scheme="retro"] .gb-row--packs {
-  grid-template-columns: minmax(0,1fr);
-}
-:root[data-scheme="retro"] .gb-row--session {
-  grid-template-columns: minmax(0,1fr);
-  padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,.06);
-}
-
-/* ---------- Universal retro controls inside panel ---------- */
+/* ---------- Universal control typography ---------- */
 :root[data-scheme="retro"] .gb-retro-panel select,
 :root[data-scheme="retro"] .gb-retro-panel button,
 :root[data-scheme="retro"] .gb-retro-panel input[type="number"],
-:root[data-scheme="retro"] .gb-retro-panel input[type="text"] {
-  font: 700 12px/1.2 var(--font-ui);
-  letter-spacing: .03em;
+:root[data-scheme="retro"] .gb-retro-panel input[type="text"],
+[data-scheme="retro"] .gb-retro-panel select,
+[data-scheme="retro"] .gb-retro-panel button,
+[data-scheme="retro"] .gb-retro-panel input[type="number"],
+[data-scheme="retro"] .gb-retro-panel input[type="text"] {
+  font-family: "Orbitron", var(--font-ui);
+  font-weight: 700;
+  letter-spacing: .04em;
 }
 
-/* Buttons: oldschool drumcomputer */
+/* Focus ring */
+:root[data-scheme="retro"] .gb-retro-panel select:focus-visible,
+:root[data-scheme="retro"] .gb-retro-panel button:focus-visible,
+:root[data-scheme="retro"] .gb-retro-panel input[type="number"]:focus-visible,
+:root[data-scheme="retro"] .gb-retro-panel input[type="text"]:focus-visible,
+:root[data-scheme="retro"] .gb-retro-panel input[type="range"]:focus-visible,
+[data-scheme="retro"] .gb-retro-panel select:focus-visible,
+[data-scheme="retro"] .gb-retro-panel button:focus-visible,
+[data-scheme="retro"] .gb-retro-panel input[type="number"]:focus-visible,
+[data-scheme="retro"] .gb-retro-panel input[type="text"]:focus-visible,
+[data-scheme="retro"] .gb-retro-panel input[type="range"]:focus-visible {
+  outline: 2px solid var(--retro-a2);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .18);
+}
+
+/* Disabled */
+:root[data-scheme="retro"] .gb-retro-panel :disabled,
+[data-scheme="retro"] .gb-retro-panel :disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  filter: grayscale(.15);
+}
+
+/* ---------- Buttons: oldschool drumcomputer (base) ---------- */
 :root[data-scheme="retro"] .btn-retro,
-:root[data-scheme="retro"] .gb-retro-panel button:not(.gb-toggle) {
+:root[data-scheme="retro"] .gb-retro-panel button:not(.gb-theme-btn),
+[data-scheme="retro"] .btn-retro,
+[data-scheme="retro"] .gb-retro-panel button:not(.gb-theme-btn) {
   min-height: var(--tap);
   padding: 0 14px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid rgba(0,0,0,.6);
   color: #f4f4f4;
   background: linear-gradient(180deg, #2e2f34 0%, #222329 100%);
-  box-shadow:
-    0 3px 0 rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.08);
+  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
   transition: transform .05s ease, filter .15s ease, box-shadow .2s ease;
 }
-:root[data-scheme="retro"] .gb-retro-panel button:hover { filter: brightness(1.06); }
-:root[data-scheme="retro"] .gb-retro-panel button:active {
+:root[data-scheme="retro"] .gb-retro-panel button:hover,
+[data-scheme="retro"] .gb-retro-panel button:hover { filter: brightness(1.06); }
+:root[data-scheme="retro"] .gb-retro-panel button:active,
+[data-scheme="retro"] .gb-retro-panel button:active {
   transform: translateY(1px);
-  box-shadow:
-    0 1px 0 rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow: 0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
 }
+/* Accent variants (optional via className) */
+:root[data-scheme="retro"] .btn--accent-red,
+[data-scheme="retro"] .btn--accent-red    { background: linear-gradient(180deg, #ef476f, #b83a59); color:#fff; }
+:root[data-scheme="retro"] .btn--accent-yellow,
+[data-scheme="retro"] .btn--accent-yellow { background: linear-gradient(180deg, #ffd166, #ccac53); color:#1b1b1b; }
+:root[data-scheme="retro"] .btn--accent-green,
+[data-scheme="retro"] .btn--accent-green  { background: linear-gradient(180deg, #06d6a0, #059e77); color:#02130e; }
 
-/* Accent variants (use on key actions via className) */
-:root[data-scheme="retro"] .btn--accent-red { background: linear-gradient(180deg, #ef476f, #b83a59); color:#fff; }
-:root[data-scheme="retro"] .btn--accent-yellow { background: linear-gradient(180deg, #ffd166, #ccac53); color:#1b1b1b; }
-:root[data-scheme="retro"] .btn--accent-green { background: linear-gradient(180deg, #06d6a0, #059e77); color:#02130e; }
-
-/* Selects (dropdowns) */
-:root[data-scheme="retro"] .gb-retro-panel select {
+/* ---------- Selects & Inputs (shared) ---------- */
+:root[data-scheme="retro"] .gb-retro-panel select,
+[data-scheme="retro"] .gb-retro-panel select {
   min-height: var(--tap);
   padding: 0 12px;
   color: var(--retro-text);
-  background:
-    linear-gradient(180deg, #2b2c31 0%, #1f2024 100%);
+  background: linear-gradient(180deg, #2b2c31 0%, #1f2024 100%);
   border: 1px solid #2f2f35;
   border-radius: 6px;
   box-shadow: inset 0 1px 0 var(--retro-gloss), inset 0 -1px 0 rgba(0,0,0,.5);
 }
-
-/* Inputs (e.g., BPM number) */
 :root[data-scheme="retro"] .gb-retro-panel input[type="number"],
-:root[data-scheme="retro"] .gb-retro-panel input[type="text"] {
+:root[data-scheme="retro"] .gb-retro-panel input[type="text"],
+[data-scheme="retro"] .gb-retro-panel input[type="number"],
+[data-scheme="retro"] .gb-retro-panel input[type="text"] {
   min-height: var(--tap);
   padding: 0 10px;
   color: var(--retro-text);
@@ -184,78 +247,398 @@
   box-shadow: inset 0 1px 0 var(--retro-gloss), inset 0 -1px 0 rgba(0,0,0,.5);
 }
 
-/* ---------- Metronome button (3 states) ---------- */
-:root[data-scheme="retro"] .metro-btn {
+/* =======================================================
+   PACKBAR — RETRO layout (inline label, 2 rows)
+   Row 1: [Pack label] [Pack select] [Met]
+   Row 2: [BPM label]  [BPM slider]  [BPM readout]
+   ======================================================= */
+:root[data-scheme="retro"] .packbar-retro,
+[data-scheme="retro"] .packbar-retro {
+  display: grid;
+  gap: 12px;
+}
+
+/* Row 1: Pack + Met */
+:root[data-scheme="retro"] .packbar-retro .packbar-line1,
+[data-scheme="retro"] .packbar-retro .packbar-line1 {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto; /* [label] [select] [met] */
+  gap: 12px;
+  align-items: center;
+}
+/* Inline "Pack" label */
+:root[data-scheme="retro"] .packbar-retro .packbar-line1::before,
+[data-scheme="retro"] .packbar-retro .packbar-line1::before {
+  content: "Pack";
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .12em;
+  color: #eaeaf0;
+  opacity: .95;
+}
+
+/* Row 2: BPM on its own line */
+:root[data-scheme="retro"] .packbar-retro .packbar-line2,
+[data-scheme="retro"] .packbar-retro .packbar-line2 {
+  display: grid;
+  grid-template-columns: auto 1fr auto;     /* [BPM] [slider] [readout] */
+  gap: 12px;
+  align-items: center;
+}
+:root[data-scheme="retro"] .packbar-retro .bpm-label,
+[data-scheme="retro"] .packbar-retro .bpm-label {
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .12em;
+  opacity: .9;
+}
+:root[data-scheme="retro"] .packbar-retro .bpm-readout,
+[data-scheme="retro"] .packbar-retro .bpm-readout {
+  min-width: 52px;
+  text-align: right;
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .06em;
+  color: #f2f2f2;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #2f2f35;
+  background: linear-gradient(180deg, #2b2c31, #1f2024);
+  box-shadow: inset 0 1px 0 var(--retro-gloss);
+}
+
+/* Pack select style (Session uses the same) */
+:root[data-scheme="retro"] .packbar-retro select,
+[data-scheme="retro"] .packbar-retro select {
+  min-height: var(--tap);
+  padding: 0 12px;
+  color: var(--retro-text);
+  background: linear-gradient(180deg, #2b2c31 0%, #1f2024 100%);
+  border: 1px solid #2f2f35;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 var(--retro-gloss), inset 0 -1px 0 rgba(0,0,0,.5);
+}
+
+/* =======================================================
+   SESSION — same dropdown look, buttons on row 2
+   Layout: 2-row grid. Row 1 = [Session label] [select].
+           Row 2 = all buttons (auto-wrapping).
+   ======================================================= */
+:root[data-scheme="retro"] .gb-row--session > *,
+[data-scheme="retro"] .gb-row--session > * {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr); /* row 1 columns */
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 10px;
+  grid-auto-rows: auto;
+}
+
+/* SESSION — inline label + select on row 1, buttons wrap on row 2 (no overflow) */
+:root[data-scheme="retro"] .gb-row--session > *,
+[data-scheme="retro"] .gb-row--session > * {
+  display: flex !important;          /* override any old grid */
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;                    /* allow wrapping to new lines */
+  max-width: 100%;
+  min-width: 0;                       /* prevent content from forcing overflow */
+}
+
+/* Inline "Session" label (same style as "Pack") */
+:root[data-scheme="retro"] .gb-row--session > *::before,
+[data-scheme="retro"] .gb-row--session > *::before {
+  content: "Session";
+  order: 0;
+  flex: 0 0 auto;
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .12em;
+  color: #eaeaf0;
+  opacity: .95;
+}
+
+/* Force a line break after label + select so buttons start on the next row */
+:root[data-scheme="retro"] .gb-row--session > *::after,
+[data-scheme="retro"] .gb-row--session > *::after {
+  content: "";
+  order: 1;
+  flex: 0 0 100%;                     /* acts as a line breaker */
+}
+
+/* Session select: same look as Pack; stays on row 1 */
+:root[data-scheme="retro"] .gb-row--session > * select:first-of-type,
+[data-scheme="retro"] .gb-row--session > * select:first-of-type {
+  order: 0;
+  flex: 1 1 auto;                     /* fills remaining space on row 1 */
+  min-width: 220px;
+  width: auto;
+  min-height: var(--tap);
+  padding: 0 12px;
+  color: var(--retro-text);
+  background: linear-gradient(180deg, #2b2c31 0%, #1f2024 100%);
+  border: 1px solid #2f2f35;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 var(--retro-gloss), inset 0 -1px 0 rgba(0,0,0,.5);
+  max-width: 100%;
+}
+
+/* All non-select controls (buttons, label.btn for Import) live on row 2 and wrap */
+:root[data-scheme="retro"] .gb-row--session > * > :not(select),
+[data-scheme="retro"] .gb-row--session > * > :not(select) {
+  order: 2;
+  flex: 0 1 auto;                     /* shrink if needed, then wrap */
+  max-width: 100%;
+}
+
+/* Retro button finish for Session row controls */
+:root[data-scheme="retro"] .gb-row--session > * :where(button, .btn),
+[data-scheme="retro"] .gb-row--session > * :where(button, .btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.6);
+  color: #f4f4f4;
+  background: linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+  font: 800 11px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .08em;
+  white-space: nowrap;                /* keeps labels tidy; wrapped by flex, not inside */
+  transition: transform .05s, filter .15s, box-shadow .2s;
+}
+:root[data-scheme="retro"] .gb-row--session > * :where(button, .btn):hover,
+[data-scheme="retro"] .gb-row--session > * :where(button, .btn):hover { filter: brightness(1.06); }
+:root[data-scheme="retro"] .gb-row--session > * :where(button, .btn):active,
+[data-scheme="retro"] .gb-row--session > * :where(button, .btn):active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* Phone tweaks */
+@media (max-width: 640px) {
+  :root[data-scheme="retro"] .gb-row--session > *,
+  [data-scheme="retro"] .gb-row--session > * {
+    gap: 8px;
+  }
+  :root[data-scheme="retro"] .gb-row--session > * select:first-of-type,
+  [data-scheme="retro"] .gb-row--session > * select:first-of-type {
+    min-width: 0;                      /* allow tighter phones */
+    flex: 1 1 60%;
+  }
+  :root[data-scheme="retro"] .gb-row--session > * :where(button, .btn),
+  [data-scheme="retro"] .gb-row--session > * :where(button, .btn) {
+    min-height: 36px;
+    padding: 0 10px;
+    font-weight: 700;
+  }
+}
+
+/* =======================================================
+   METRONOME (3 states)
+   ======================================================= */
+:root[data-scheme="retro"] .metro-btn,
+[data-scheme="retro"] .metro-btn {
   min-width: 112px;
   border-radius: 4px;
   font-weight: 800;
   letter-spacing: .04em;
-  transition: background .15s ease, box-shadow .2s ease, color .15s ease, transform .05s ease;
+  transition: background .15s ease, box-shadow .2s ease, color .15s ease, transform .05s ease, filter .15s ease;
 }
-:root[data-scheme="retro"] .metro-btn:hover { filter: brightness(1.06); }
-:root[data-scheme="retro"] .metro-btn:active { transform: translateY(1px); }
+:root[data-scheme="retro"] .metro-btn:hover,
+[data-scheme="retro"] .metro-btn:hover { filter: brightness(1.06); }
+:root[data-scheme="retro"] .metro-btn:active,
+[data-scheme="retro"] .metro-btn:active { transform: translateY(1px); }
 
-:root[data-scheme="retro"] .metro-btn.mode-beats{
-  background: linear-gradient(180deg, #e6e7ea 0%, #d8d9dd 100%);
-  color:#111;
-  box-shadow: 0 3px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.6);
-}
-:root[data-scheme="retro"] .metro-btn.mode-all{
+/* Met 16 — cyan glow */
+:root[data-scheme="retro"] .metro-btn.mode-all,
+[data-scheme="retro"] .metro-btn.mode-all {
   background: linear-gradient(180deg, var(--retro-a4) 0%, #0e7da2 100%);
   color:#fff;
-  box-shadow: 0 3px 10px rgba(17,138,178,.45), inset 0 1px 0 rgba(255,255,255,.25);
+  box-shadow:
+    0 3px 10px rgba(17,138,178,.45),
+    0 0 24px rgba(17,138,178,.35),
+    inset 0 1px 0 rgba(255,255,255,.25);
 }
-:root[data-scheme="retro"] .metro-btn.mode-off{
+
+/* Met 4 — warm glow */
+:root[data-scheme="retro"] .metro-btn.mode-beats,
+[data-scheme="retro"] .metro-btn.mode-beats {
+  background: linear-gradient(180deg, #ffb34a 0%, #ff9800 100%);
+  color:#1b0e00;
+  text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  box-shadow:
+    0 3px 10px rgba(255,152,0,.45),
+    0 0 24px rgba(255,152,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* Off — muted */
+:root[data-scheme="retro"] .metro-btn.mode-off,
+[data-scheme="retro"] .metro-btn.mode-off {
   background: linear-gradient(180deg, #2c2c2f 0%, #1f1f22 100%);
   color:#aaa;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
 }
 
-/* ---------- BPM slider ---------- */
-:root[data-scheme="retro"] .slider-bpm {
-  height: 44px;
-}
+/* =======================================================
+   BPM SLIDER
+   ======================================================= */
+:root[data-scheme="retro"] .slider-bpm,
+[data-scheme="retro"] .slider-bpm { height: 44px; }
 
 /* track */
-:root[data-scheme="retro"] .slider-bpm::-webkit-slider-runnable-track{
-  height: 8px;
-  background: linear-gradient(180deg, #3b3b3b, #2b2b2b);
-  border-radius: 4px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
-}
-:root[data-scheme="retro"] .slider-bpm::-moz-range-track{
-  height: 8px;
-  background: linear-gradient(180deg, #3b3b3b, #2b2b2b);
-  border-radius: 4px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3);
-}
+:root[data-scheme="retro"] .slider-bpm::-webkit-slider-runnable-track { height: 8px; background: linear-gradient(180deg, #3b3b3b, #2b2b2b); border-radius: 4px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3); }
+:root[data-scheme="retro"] .slider-bpm::-moz-range-track        { height: 8px; background: linear-gradient(180deg, #3b3b3b, #2b2b2b); border-radius: 4px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.3); }
 
 /* thumb */
 :root[data-scheme="retro"] .slider-bpm::-webkit-slider-thumb{
-  -webkit-appearance: none;
-  width: 14px; height: 28px;
-  margin-top: -10px;
-  border-radius: 3px;
-  border: 1px solid rgba(0,0,0,.6);
+  -webkit-appearance:none; width:14px;height:28px;margin-top:-10px;border-radius:3px;
+  border:1px solid rgba(0,0,0,.6);
   background:
-    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
-    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%);
-  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+    linear-gradient(180deg,#f7f7f7 0%,#e8e8e8 60%,#d6d6d6 100%),
+    linear-gradient(90deg,transparent 45%,rgba(0,0,0,.25) 47%,rgba(0,0,0,.25) 53%,transparent 55%);
+  box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
   transition: box-shadow .2s, transform .05s, filter .15s;
 }
 :root[data-scheme="retro"] .slider-bpm::-webkit-slider-thumb:active{
   transform: translateY(1px);
-  box-shadow:
-    0 1px 0 rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.55),
-    0 0 10px rgba(37,99,235,.35);
+  box-shadow:0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.55), 0 0 10px rgba(37,99,235,.35);
 }
 :root[data-scheme="retro"] .slider-bpm::-moz-range-thumb{
-  width: 14px; height: 28px;
-  border-radius: 3px;
-  border: 1px solid rgba(0,0,0,.6);
+  width:14px;height:28px;border-radius:3px;border:1px solid rgba(0,0,0,.6);
   background:
-    linear-gradient(180deg, #f7f7f7 0%, #e8e8e8 60%, #d6d6d6 100%),
-    linear-gradient(90deg, transparent 45%, rgba(0,0,0,.25) 47%, rgba(0,0,0,.25) 53%, transparent 55%);
-  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+    linear-gradient(180deg,#f7f7f7 0%,#e8e8e8 60%,#d6d6d6 100%),
+    linear-gradient(90deg,transparent 45%,rgba(0,0,0,.25) 47%,rgba(0,0,0,.25) 53%,transparent 55%);
+  box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+
+/* =======================================================
+   Responsive
+   ======================================================= */
+@media (max-width: 640px) {
+  :root[data-scheme="retro"] .gb-wordmark,
+  [data-scheme="retro"] .gb-wordmark { font-size: clamp(28px, 8vw, 40px); }
+
+  :root[data-scheme="retro"] .gb-theme-btn,
+  [data-scheme="retro"] .gb-theme-btn { min-width: 64px; height: 28px; font-weight: 800; }
+
+  /* PackBar rows keep structure; just let columns flex */
+  :root[data-scheme="retro"] .packbar-retro .packbar-line1,
+  [data-scheme="retro"] .packbar-retro .packbar-line1 { grid-template-columns: auto 1fr auto; }
+
+  :root[data-scheme="retro"] .packbar-retro .packbar-line2,
+  [data-scheme="retro"] .packbar-retro .packbar-line2 { grid-template-columns: auto 1fr auto; }
+
+  /* Session: label removed; select full-width on row 1; buttons wrap below */
+  :root[data-scheme="retro"] .gb-row--session > *,
+  [data-scheme="retro"] .gb-row--session > * { gap: 8px; }
 }
+}
+
+
+/* =========================
+   Instruments — Retro finish
+   ========================= */
+   :root[data-scheme="retro"] .inst-btn,
+   [data-scheme="retro"] .inst-btn {
+     /* keep your nice dimensions */
+     padding-top: 10px;
+     padding-bottom: 14px;
+     min-height: 20px;
+     border-radius: 3px;
+   
+     /* retro slab */
+     background: linear-gradient(180deg, #2f3035 0%, #232428 100%);
+     border: 1px solid rgba(0,0,0,.6);
+     color: #f4f4f4;
+     box-shadow:
+       0 3px 0 rgba(0,0,0,.45),
+       inset 0 1px 0 rgba(255,255,255,.08);
+   
+     font-family: "Orbitron", var(--font-ui);
+     font-weight: 800;
+     letter-spacing: .04em;
+     transition: filter .15s ease, transform .05s ease, box-shadow .2s ease, background .2s ease;
+   }
+   :root[data-scheme="retro"] .inst-btn:hover,
+   [data-scheme="retro"] .inst-btn:hover { filter: brightness(1.06); }
+   :root[data-scheme="retro"] .inst-btn:active,
+   [data-scheme="retro"] .inst-btn:active { transform: translateY(1px); }
+   
+   /* subtle step indicator bar (lights up when selected) */
+   :root[data-scheme="retro"] .inst-btn::after,
+   [data-scheme="retro"] .inst-btn::after {
+     content: "";
+     display: block;
+     height: 3px;
+     margin-top: 8px;
+     border-radius: 2px;
+     background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+   }
+   
+   /* Selected instrument — warm retro-green glow */
+   :root[data-scheme="retro"] .inst-btn.is-selected,
+   [data-scheme="retro"] .inst-btn.is-selected {
+     background: linear-gradient(180deg, #1fe0b3 0%, #0fa67f 100%);
+     color: #071a12;
+     text-shadow: 0 1px 0 rgba(255,255,255,.35);
+     border-color: rgba(0,0,0,.55);
+     box-shadow:
+       0 0 16px rgba(6,214,160,.35),
+       0 0 28px rgba(6,214,160,.22),
+       0 3px 0 rgba(0,0,0,.45),
+       inset 0 1px 0 rgba(255,255,255,.35);
+   }
+   :root[data-scheme="retro"] .inst-btn.is-selected::after,
+   [data-scheme="retro"] .inst-btn.is-selected::after {
+     background: linear-gradient(90deg, rgba(6,214,160,.85), rgba(6,214,160,.45));
+   }
+   
+   /* Focus ring (keyboard) */
+   :root[data-scheme="retro"] .inst-btn:focus-visible,
+   [data-scheme="retro"] .inst-btn:focus-visible {
+     outline: 2px solid var(--retro-a2);
+     outline-offset: 2px;
+     box-shadow: 0 0 0 3px rgba(255,209,102,.18), 0 3px 0 rgba(0,0,0,.45) inset;
+   }
+   
+   /* ---- Mute buttons ---- */
+   :root[data-scheme="retro"] .mute-btn,
+   [data-scheme="retro"] .mute-btn {
+     /* similar slab, slightly shorter than inst pads by default */
+     min-height: 36px;
+     padding: 0 12px;
+     border-radius: 6px;
+     border: 1px solid rgba(0,0,0,.6);
+     background: linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+     color: #f4f4f4;
+     box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+     font: 800 11px/1 "Orbitron", var(--font-ui);
+     letter-spacing: .06em;
+     transition: filter .15s, transform .05s, box-shadow .2s;
+   }
+   :root[data-scheme="retro"] .mute-btn:hover,
+   [data-scheme="retro"] .mute-btn:hover { filter: brightness(1.06); }
+   :root[data-scheme="retro"] .mute-btn:active,
+   [data-scheme="retro"] .mute-btn:active { transform: translateY(1px); }
+   
+   /* Muted state — glowing red */
+   :root[data-scheme="retro"] .mute-btn.is-muted,
+   [data-scheme="retro"] .mute-btn.is-muted {
+     background: linear-gradient(180deg, #ff6b6b 0%, #d33a3a 100%);
+     color: #2a0a0a;
+     text-shadow: 0 1px 0 rgba(255,255,255,.25);
+     box-shadow:
+       0 0 14px rgba(239,71,111,.4),
+       0 0 26px rgba(239,71,111,.22),
+       0 3px 0 rgba(0,0,0,.45),
+       inset 0 1px 0 rgba(255,255,255,.35);
+   }
+   
+   /* Make sure pads/buttons never overflow narrow screens */
+   @media (max-width: 640px) {
+     :root[data-scheme="retro"] .inst-btn,
+     [data-scheme="retro"] .inst-btn { min-width: 0; }
+     :root[data-scheme="retro"] .mute-btn,
+     [data-scheme="retro"] .mute-btn { min-width: 0; }
+   }
+   

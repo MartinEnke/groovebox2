@@ -8,7 +8,7 @@ export default function SessionBar({
   deleteNamedSession,
   exportSessionToFile,
   importSessionFromFile,
-  onNewSession, // <- call your big reset here
+  onNewSession,
 }) {
   const sortedNames = Object
     .entries(sessions)
@@ -16,23 +16,13 @@ export default function SessionBar({
     .map(([name]) => name);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <span style={{ opacity: .85, fontSize: 12 }}>Session</span>
+    <div className="sessionbar">
+      {/* label is provided by CSS ::before on the row wrapper */}
 
       <select
         value={currentSessionName}
         onChange={(e) => loadNamedSession(e.target.value)}
         title="Select session"
-        style={{
-          background: "rgba(255,255,255,.08)",
-          border: "1px solid rgba(255,255,255,.2)",
-          color: "white",
-          padding: "6px 10px",
-          borderRadius: 8,
-          fontWeight: 600,
-          letterSpacing: 0.3,
-          minWidth: 180,
-        }}
       >
         <option value="">— choose —</option>
         {sortedNames.map((name) => (
@@ -78,7 +68,6 @@ export default function SessionBar({
           }
         }}
         disabled={!currentSessionName}
-        style={{ opacity: currentSessionName ? 1 : 0.6 }}
       >
         Delete
       </button>

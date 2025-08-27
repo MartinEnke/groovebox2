@@ -79,26 +79,26 @@ const InstrumentRow = memo(function InstrumentRow({
   );
 });
 
+// InstrumentButton
 const InstrumentButton = memo(function InstrumentButton({ inst, isSelected, onSelect }) {
   return (
     <button
       onClick={onSelect}
-      className="btn inst-btn"
+      className={`btn inst-btn ${isSelected ? "is-selected" : ""}`}
       title={`Select ${inst.label}`}
-      style={{ background: isSelected ? "#059669" : "#333" }}
     >
       <div style={{ fontWeight: 600 }}>{inst.label}</div>
     </button>
   );
 });
 
+// MuteButton
 const MuteButton = memo(function MuteButton({ inst, muted, onToggle }) {
   return (
     <button
       onClick={onToggle}
-      className="btn"
+      className={`btn mute-btn ${muted ? "is-muted" : ""}`}
       title={`Mute ${inst.label}`}
-      style={{ background: muted ? "#b91c1c" : "#444" }}
     >
       {muted ? "Mute" : "Mute"}
     </button>

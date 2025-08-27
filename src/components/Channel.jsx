@@ -74,14 +74,8 @@ export default function Channel({
                 if (mode === "vol") onVolumeChange?.(v);
                 else onPitchChange?.(v);
               }}
-              onInput={(e) => {
-                // smoother dragging on Chrome/Edge
-                const v = Number(e.target.value);
-                if (mode === "vol") onVolumeChange?.(v);
-                else onPitchChange?.(v);
-              }}
+              
               aria-label={mode === "vol" ? "Volume" : "Pitch"}
-              orient="vertical" /* works in Firefox */
             />
           </div>
 

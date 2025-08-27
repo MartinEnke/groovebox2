@@ -1,40 +1,52 @@
-import React, { useState } from "react";
+// Channel.jsx
+import React, { useState, useRef, useLayoutEffect } from "react";
 import FoldSection from "./ui/FoldSection.jsx";
 import PadButton from "./PadButton";
 import { VELS } from "../constants/sequencer";
 import { INSTRUMENTS } from "../constants/instruments";
 
+
 export default function Channel({
-  show,
-  onToggle,
+  show, onToggle,
   selected,
-  volumeDb,
-  onVolumeChange,
-  pitchSemi = 0,
-  onPitchChange,
-  soloActive,
-  onToggleSolo,
+  volumeDb, onVolumeChange,
+  pitchSemi = 0, onPitchChange,
+  soloActive, onToggleSolo,
   onPadPress,
 }) {
   const [mode, setMode] = useState("vol");
   const label = INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected;
 
-  const sliderMin = mode === "vol" ? -24 : -12;
-  const sliderMax = mode === "vol" ? 6 : 12;
-  const sliderStep = mode === "vol" ? 0.1 : 1;
+  const sliderMin   = mode === "vol" ? -24 : -12;
+  const sliderMax   = mode === "vol" ? 6   : 12;
+  const sliderStep  = mode === "vol" ? 0.1 : 1;
   const sliderValue = mode === "vol" ? volumeDb : pitchSemi;
 
-  const numericDisplay =
-    mode === "vol"
-      ? Number(volumeDb).toFixed(1)                      // e.g. -6.0  (no “dB”)
-      : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`; // -12..+12 (no “Pitch”)
+  const numericDisplay = mode === "vol"
+    ? Number(volumeDb).toFixed(1)
+    : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`;
+
+  // NEW: sync fader height to pads
+  const padsRef = useRef(null);
+  const slotRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!padsRef.current || !slotRef.current) return;
+    const update = () => {
+      const h = padsRef.current.offsetHeight || 180;
+      slotRef.current.style.setProperty("--vfader-h", `${h}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(padsRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
-      {/* Layout: [Pads] | [Fader stack] | [Mode toggles] */}
       <div className="channel-block three-cols pads-left">
         {/* Pads (tiny gap, no overlap) */}
-        <div className="pads-2x2 tiny-gap">
+        <div className="pads-2x2 tiny-gap" ref={padsRef}>
           {[0, 1].map((r) =>
             [0, 1].map((c) => (
               <PadButton
@@ -47,10 +59,9 @@ export default function Channel({
           )}
         </div>
 
-        {/* Vertical fader + numeric readout below + Solo below */}
+        {/* Vertical fader + numeric + Solo */}
         <div className="vfader-wrap">
-          {/* no “Channel” title above fader */}
-          <div className="vfader-slot">
+          <div className="vfader-slot" ref={slotRef}>
             <input
               className="vfader"
               type="range"
@@ -63,8 +74,14 @@ export default function Channel({
                 if (mode === "vol") onVolumeChange?.(v);
                 else onPitchChange?.(v);
               }}
+              onInput={(e) => {
+                // smoother dragging on Chrome/Edge
+                const v = Number(e.target.value);
+                if (mode === "vol") onVolumeChange?.(v);
+                else onPitchChange?.(v);
+              }}
               aria-label={mode === "vol" ? "Volume" : "Pitch"}
-              orient="vertical"
+              orient="vertical" /* works in Firefox */
             />
           </div>
 

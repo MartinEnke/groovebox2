@@ -1,3 +1,4 @@
+// src/components/fx/FXPanel.jsx
 import React from "react";
 import FoldSection from "../ui/FoldSection";
 
@@ -15,7 +16,7 @@ export default function FXPanel({
   instRevMode, setInstRevMode,
   updateReverbSends,
 
-  // Saturation (new)
+  // Saturation
   instSatWet, setInstSatWet,
   instSatMode, setInstSatMode,
   updateSat,
@@ -26,10 +27,10 @@ export default function FXPanel({
 
   return (
     <FoldSection title="FX" show={show} onToggle={onToggle}>
-      <div className="fx-row" style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div className="fx-row fx-panel three">
         {/* Delay */}
         <div className="fx-block">
-          <div className="fx-label">DLY</div>
+          <div className="fx-label">DELAY</div>
           <input
             className="slider slider-fx"
             type="range" min={0} max={100} step={1}
@@ -69,7 +70,7 @@ export default function FXPanel({
 
         {/* Reverb */}
         <div className="fx-block">
-          <div className="fx-label">REV</div>
+          <div className="fx-label">REVERB</div>
           <input
             className="slider slider-fx"
             type="range" min={0} max={100} step={1}
@@ -105,7 +106,7 @@ export default function FXPanel({
 
         {/* Saturation */}
         <div className="fx-block">
-          <div className="fx-label">SAT</div>
+          <div className="fx-label">SATURATION</div>
           <input
             className="slider slider-fx"
             type="range" min={0} max={100} step={1}

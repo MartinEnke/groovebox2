@@ -1110,9 +1110,8 @@ return (
 />
 
 {/* Divider */}
-<div style={{ height: 3, background: "rgba(255,255,255,.1)", margin: "8px 0" }} />
+<div style={{ height: 3, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />
 
-<div style={{margin: "8px 0" }} />
 
 {/* Channel (pads + fader + solo) */}
 <Channel

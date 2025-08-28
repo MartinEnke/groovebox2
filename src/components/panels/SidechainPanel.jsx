@@ -1,7 +1,10 @@
+// src/components/fx/SidechainPanel.jsx
 import React, { useMemo } from "react";
 import FoldSection from "../ui/FoldSection";
 import { INSTRUMENTS } from "../../constants/instruments";
 import { MAX_SC_LINKS } from "../../constants/sequencer";
+
+const HIDDEN_TARGETS = new Set(["ride"]); // hide Ride
 
 export default function SidechainPanel({
   show, onToggle,
@@ -13,11 +16,17 @@ export default function SidechainPanel({
 }) {
   const selectedRow = scMatrix[selected] || {};
 
+  // Only visible targets (no Ride)
+  const TARGETS = useMemo(
+    () => INSTRUMENTS.filter(tr => !HIDDEN_TARGETS.has(tr.id)),
+    []
+  );
+
+  // Count only visible links so cap matches UI
   const totalLinks = useMemo(() => {
-    return Object.values(scMatrix).reduce(
-      (acc, row) => acc + Object.values(row).filter(Boolean).length,
-      0
-    );
+    return Object.values(scMatrix).reduce((acc, row) => {
+      return acc + Object.entries(row || {}).filter(([k, v]) => v && !HIDDEN_TARGETS.has(k)).length;
+    }, 0);
   }, [scMatrix]);
 
   const capReached = totalLinks >= MAX_SC_LINKS;
@@ -25,30 +34,35 @@ export default function SidechainPanel({
 
   return (
     <FoldSection title="Sidechain" show={show} onToggle={onToggle} centerAlways>
-      <div className="fx-block" style={{ marginTop: 8 }}>
-        <div className="fx-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 12, opacity: .8 }}>
+      <div className="fx-block sc-panel">
+        {/* header/counter (uses .sc-header / .sc-counter styles) */}
+        <div className="sc-header">
+          <span className="sc-counter" title="Total sidechain links">
             Links: {totalLinks}/{MAX_SC_LINKS}
-          </div>
+          </span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,auto)", gap: 6, marginBottom: 8 }}>
-          {INSTRUMENTS.map(tr => {
-            if (tr.id === selected) return null;
+        {/* targets grid (Ride omitted) */}
+        <div className="sc-targets">
+          {TARGETS.map(tr => {
+            if (tr.id === selected) return null; // don’t target self
             const on = !!selectedRow[tr.id];
             const disabled = !on && capReached;
+
             const title = on
               ? `Disable: duck ${selectedLabel} on ${tr.label}`
-              : disabled ? `Max ${MAX_SC_LINKS} links reached`
-                         : `Enable: duck ${selectedLabel} on ${tr.label}`;
+              : disabled
+                ? `Max ${MAX_SC_LINKS} links reached`
+                : `Enable: duck ${selectedLabel} on ${tr.label}`;
 
             return (
               <button
                 key={`sc-${selected}-${tr.id}`}
                 type="button"
-                className={`revlen-btn ${on ? "on" : ""}`}
+                className={`revlen-btn sc-btn ${on ? "on" : ""}`}
                 aria-pressed={on}
                 disabled={disabled}
+                title={title}
                 onClick={() => {
                   const nextOn = !on;
                   if (nextOn && capReached) return;
@@ -57,8 +71,6 @@ export default function SidechainPanel({
                     [selected]: { ...(prev[selected] || {}), [tr.id]: nextOn }
                   }));
                 }}
-                title={title}
-                style={disabled ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
               >
                 {tr.label}
               </button>
@@ -66,26 +78,33 @@ export default function SidechainPanel({
           })}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <div>
+        {/* sliders row */}
+        <div className="sc-params">
+          <div className="sc-param">
             <div className="fx-sublabel">AMT</div>
-            <input className="slider slider-fx" type="range" min={0} max={24} step={0.5}
+            <input
+              className="slider slider-fx"
+              type="range" min={0} max={24} step={0.5}
               value={scAmtDb[selected]}
               onChange={(e)=> setScAmtDb(prev => ({ ...prev, [selected]: parseFloat(e.target.value) }))}
               title="Duck amount (dB)"
             />
           </div>
-          <div>
+          <div className="sc-param">
             <div className="fx-sublabel">ATK</div>
-            <input className="slider slider-fx" type="range" min={0} max={60} step={1}
+            <input
+              className="slider slider-fx"
+              type="range" min={0} max={60} step={1}
               value={scAtkMs[selected]}
               onChange={(e)=> setScAtkMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
               title="Attack (ms)"
             />
           </div>
-          <div>
+          <div className="sc-param">
             <div className="fx-sublabel">REL</div>
-            <input className="slider slider-fx" type="range" min={20} max={600} step={5}
+            <input
+              className="slider slider-fx"
+              type="range" min={20} max={600} step={5}
               value={scRelMs[selected]}
               onChange={(e)=> setScRelMs(prev => ({ ...prev, [selected]: parseInt(e.target.value,10) }))}
               title="Release (ms)"

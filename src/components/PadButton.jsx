@@ -1,3 +1,4 @@
+// PadButton.jsx
 import React from "react";
 
 export default function PadButton({ label, sub, onPress }) {
@@ -6,10 +7,7 @@ export default function PadButton({ label, sub, onPress }) {
       type="button"
       className="pad-btn"
       onPointerDown={onPress}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        onPress();
-      }}
+      onTouchStart={(e) => { e.preventDefault(); onPress(); }}
     >
       <div className="pad-btn__inner">
         <span className="pad-btn__label">{label}</span>

@@ -15,7 +15,7 @@ export default function StepEditor({
   const pattB = patterns[selected]?.B ?? Array(16).fill(0);
 
   return (
-    <div style={{ marginTop: 24, width: "100%", maxWidth: 760 }}>
+    <div className="step-editor" style={{ marginTop: 24 }}>
       <Row
         row="A"
         values={pattA}
@@ -48,8 +48,8 @@ const Row = memo(function Row({
   onToggleRow, onToggleExpand, onCycleStep, topMargin = 0,
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateRows: "auto auto", gap: 8, marginTop: topMargin }}>
-      <div style={{ display: "flex", alignItems: "center" }}>
+    <div className="step-row" style={{ marginTop: topMargin }}>
+      <div className="row-head">
         <button
           className="btn btn-ab"
           onClick={onToggleRow}
@@ -91,7 +91,7 @@ const Row = memo(function Row({
               onClick={() => onCycleStep(i)}
               title={`Row ${row} • Step ${i + 1}`}
               style={{
-                height: expanded ? 44 : 20,
+                height: expanded ? 44 : 24,
                 width: "100%",
                 borderRadius: expanded ? 6 : 3,
                 background: fill,

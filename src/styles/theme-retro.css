@@ -1177,6 +1177,100 @@
 
 
 
+
+/* ===== Retro shimmer tints for Sidechain + FX ===== */
+:root[data-scheme="retro"]{
+    /* tweak alphas to taste */
+    --sc-tint-1: rgba(6,214,160,.12);  /* sidechain = warm green */
+    --sc-tint-2: rgba(6,214,160,.08);
+  
+    --fx-dly-1: rgba(17,138,178,.12);  /* FX: Delay = cyan-blue */
+    --fx-dly-2: rgba(17,138,178,.08);
+  
+    --fx-rev-1: rgba(239,71,111,.12);  /* FX: Reverb = magenta */
+    --fx-rev-2: rgba(239,71,111,.08);
+  
+    --fx-sat-1: rgba(255,209,102,.12); /* FX: Saturation = amber */
+    --fx-sat-2: rgba(255,209,102,.08);
+  }
+  
+  /* Sidechain card (your SidechainPanel wraps with .fx-block.sc-panel) */
+  [data-scheme="retro"] .fx-block.sc-panel{
+    background:
+      radial-gradient(140% 180% at 0% -20%, var(--sc-tint-1), transparent 60%),
+      linear-gradient(90deg, var(--sc-tint-2), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+    border-color: rgba(6,214,160,.22);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,.25),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px rgba(6,214,160,.08);
+  }
+  [data-scheme="retro"] .fx-block.sc-panel:hover{
+    background:
+      radial-gradient(140% 180% at 0% -20%, rgba(6,214,160,.14), transparent 60%),
+      linear-gradient(90deg, rgba(6,214,160,.10), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+  }
+  
+  /* FX cards (Delay | Reverb | Saturation) by position: 1,2,3 */
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(1){
+    background:
+      radial-gradient(140% 180% at 0% -20%, var(--fx-dly-1), transparent 60%),
+      linear-gradient(90deg, var(--fx-dly-2), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+    border-color: rgba(17,138,178,.22);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,.25),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px rgba(17,138,178,.08);
+  }
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(1):hover{
+    background:
+      radial-gradient(140% 180% at 0% -20%, rgba(17,138,178,.14), transparent 60%),
+      linear-gradient(90deg, rgba(17,138,178,.10), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+  }
+  
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(2){
+    background:
+      radial-gradient(140% 180% at 50% -20%, var(--fx-rev-1), transparent 60%),
+      linear-gradient(90deg, var(--fx-rev-2), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+    border-color: rgba(239,71,111,.22);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,.25),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px rgba(239,71,111,.08);
+  }
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(2):hover{
+    background:
+      radial-gradient(140% 180% at 50% -20%, rgba(239,71,111,.14), transparent 60%),
+      linear-gradient(90deg, rgba(239,71,111,.10), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+  }
+  
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(3){
+    background:
+      radial-gradient(140% 180% at 100% -20%, var(--fx-sat-1), transparent 60%),
+      linear-gradient(270deg, var(--fx-sat-2), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+    border-color: rgba(255,209,102,.22);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,.25),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 1px rgba(255,209,102,.08);
+  }
+  [data-scheme="retro"] .fx-row.fx-panel.three > .fx-block:nth-child(3):hover{
+    background:
+      radial-gradient(140% 180% at 100% -20%, rgba(255,209,102,.14), transparent 60%),
+      linear-gradient(270deg, rgba(255,209,102,.10), transparent 60%),
+      linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+  }
+
+  
+
+
 /* =========================
    GROOVE
    ========================= */
@@ -1529,6 +1623,59 @@
 }
 
 
+
+
+/* ==== Always-on shimmer (no hover boost) ==== */
+:root[data-scheme="retro"] .swing-card.compact,
+[data-scheme="retro"] .swing-card.compact,
+:root[data-scheme="retro"] .sbus-card,
+[data-scheme="retro"] .sbus-card {
+  position: relative;
+  overflow: hidden;               /* keep overlay inside the card */
+  /* force the base “metal” background so :hover can't swap it */
+  background: linear-gradient(180deg, #2e2f34 0%, #222329 100%) !important;
+}
+
+/* GROOVE overlay */
+:root[data-scheme="retro"] .swing-card.compact::before,
+[data-scheme="retro"] .swing-card.compact::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* use the stronger alphas you liked */
+  background:
+    radial-gradient(140% 180% at 100% -25%, rgba(17,138,178,.16), transparent 60%),
+    linear-gradient(90deg, rgba(6,214,160,.12), transparent 60%);
+  opacity: 1;                      /* always on */
+}
+
+/* SUM BUS overlay */
+:root[data-scheme="retro"] .sbus-card::before,
+[data-scheme="retro"] .sbus-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(50% 100% at   0% -25%, rgba(255,209,152,.16), transparent 60%),
+    linear-gradient(90deg, rgba(239,71,111,.10), transparent 60%);
+  opacity: 1;
+}
+
+/* Kill any old hover pop (same look on hover) */
+:root[data-scheme="retro"] .swing-card.compact:hover,
+[data-scheme="retro"] .swing-card.compact:hover,
+:root[data-scheme="retro"] .sbus-card:hover,
+[data-scheme="retro"] .sbus-card:hover {
+  background: linear-gradient(180deg, #2e2f34 0%, #222329 100%) !important;
+  filter: none !important;
+}
+
+  
+  
+
+  
 
 /* =========================
    TRANSPORT — Retro

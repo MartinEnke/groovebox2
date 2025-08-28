@@ -1,10 +1,8 @@
-// Channel.jsx
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState } from "react";
 import FoldSection from "./ui/FoldSection.jsx";
 import PadButton from "./PadButton";
 import { VELS } from "../constants/sequencer";
 import { INSTRUMENTS } from "../constants/instruments";
-
 
 export default function Channel({
   show, onToggle,
@@ -22,31 +20,15 @@ export default function Channel({
   const sliderStep  = mode === "vol" ? 0.1 : 1;
   const sliderValue = mode === "vol" ? volumeDb : pitchSemi;
 
-  const numericDisplay = mode === "vol"
-    ? Number(volumeDb).toFixed(1)
-    : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`;
-
-  // NEW: sync fader height to pads
-  const padsRef = useRef(null);
-  const slotRef = useRef(null);
-
-  useLayoutEffect(() => {
-    if (!padsRef.current || !slotRef.current) return;
-    const update = () => {
-      const h = padsRef.current.offsetHeight || 180;
-      slotRef.current.style.setProperty("--vfader-h", `${h}px`);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(padsRef.current);
-    return () => ro.disconnect();
-  }, []);
+  const numericDisplay =
+    mode === "vol" ? Number(volumeDb).toFixed(1)
+                   : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`;
 
   return (
     <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
       <div className="channel-block three-cols pads-left">
-        {/* Pads (tiny gap, no overlap) */}
-        <div className="pads-2x2 tiny-gap" ref={padsRef}>
+        {/* Pads */}
+        <div className="pads-2x2 tiny-gap">
           {[0, 1].map((r) =>
             [0, 1].map((c) => (
               <PadButton
@@ -59,9 +41,9 @@ export default function Channel({
           )}
         </div>
 
-        {/* Vertical fader + numeric + Solo */}
+        {/* Fader + LCD + Solo */}
         <div className="vfader-wrap">
-          <div className="vfader-slot" ref={slotRef}>
+          <div className="vfader-slot">
             <input
               className="vfader"
               type="range"
@@ -74,7 +56,6 @@ export default function Channel({
                 if (mode === "vol") onVolumeChange?.(v);
                 else onPitchChange?.(v);
               }}
-              
               aria-label={mode === "vol" ? "Volume" : "Pitch"}
             />
           </div>
@@ -91,7 +72,7 @@ export default function Channel({
           </button>
         </div>
 
-        {/* Vol/Pitch buttons to the RIGHT of the fader */}
+        {/* Vol / Pitch */}
         <div className="mode-col">
           <button
             className={`press toggle xs ${mode === "vol" ? "on" : ""}`}

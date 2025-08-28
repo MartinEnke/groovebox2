@@ -644,60 +644,111 @@
    
 
    /* =========================
-   CHANNEL — PADS + FADER (RETRO) — Option B (pure CSS)
+   CHANNEL — PADS + FADER (RETRO) — consolidated
    ========================= */
 
-/* 3-column strip: [Pads] | [Fader+LCD+Solo] | [Mode toggles] */
-:root[data-scheme="retro"] .channel-block.pads-left,
+/* Grid: [Pads] | [Fader + LCD + Solo] | [Vol/Pitch] */
 [data-scheme="retro"] .channel-block.pads-left {
-  /* Pad sizing (same look as before) */
+  /* sizing */
   --pad-size: clamp(58px, 30vw, 160px);
   --pad-gap: 10px;
-  --track-th: 8px;   /* track thickness */
-  --thumb-w: 16px;   /* thumb width  (before rotation) */
-  --thumb-h: 26px; 
 
-  /* Your preferred pads↔fader spacing (correct clamp order) */
-  /* (same “feel” as your clamp(26px,1.6vw,18px) but valid) */
-  --extra-pad-fader-gap: clamp(24px, 1.6vw, 26px);
+  /* fader visuals */
+  --track-th: 8px;    /* track thickness */
+  --thumb-w: 16px;    /* thumb width  (pre-rotation) */
+  --thumb-h: 26px;    /* thumb height (pre-rotation) */
 
-  /* LCD/Solo heights + vertical gaps inside the fader stack */
+  /* stack pieces */
   --lcd-h: 28px;
   --solo-h: 36px;
   --stack-gap: 8px;
 
-  /* Pads area total height (2 rows + the gap between them) */
-  --stack-h: calc(var(--pad-size) * 2 + var(--pad-gap));
+  /* spacing between pads and fader */
+  /* your original clamp collapsed to ~26px anyway, so make it stable */
+  --extra-pad-fader-gap: 26px;
 
-  /* Fader slot height = pads area minus (LCD + Solo + 2*gaps) */
+  /* derived */
+  --stack-h: calc(var(--pad-size) * 2 + var(--pad-gap));
   --fader-h: max(140px,
                  calc(var(--stack-h) - var(--lcd-h) - var(--solo-h) - (var(--stack-gap) * 2)));
-
-  /* Columns */
   --pads-col-w: calc(var(--pad-size) * 2 + var(--pad-gap));
+
   display: grid;
   grid-template-columns: var(--pads-col-w) auto auto;
   column-gap: var(--extra-pad-fader-gap);
   align-items: stretch;
 }
 
-/* Pads: exact squares, same size */
-:root[data-scheme="retro"] .pads-2x2.tiny-gap,
+/* ---------- PADS (2×2 exact squares) ---------- */
 [data-scheme="retro"] .pads-2x2.tiny-gap {
   margin-left: var(--space-4);
   width: var(--pads-col-w);
   display: grid;
   grid-template-columns: repeat(2, var(--pad-size));
-  grid-auto-rows: var(--pad-size);        /* height = width → squares */
+  grid-auto-rows: var(--pad-size);    /* height = width → perfect squares */
   gap: var(--pad-gap);
   justify-self: start;
 }
-:root[data-scheme="retro"] .pad-btn,
-[data-scheme="retro"] .pad-btn { aspect-ratio: 1 / 1; }
 
-/* Middle stack: fader, LCD, Solo — total = pads height */
-:root[data-scheme="retro"] .vfader-wrap,
-[data-scheme="retro"] .vfader-wrap {
+/* Pad face (retro slab & LED bar) */
+[data-scheme="retro"] .pad-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.6);
+  color: #f4f4f4;
+  background:
+    radial-gradient(90% 70% at 50% 10%, rgba(255,255,255,.06), transparent 60%),
+    linear-gradient(180deg, #303136 0%, #242529 100%);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,.25),
+    inset 0 0 0 1px rgba(255,255,255,.08),
+    inset 0 2px 0 rgba(255,255,255,.06);
+  transition: transform .05s ease, filter .15s ease, box-shadow .2s ease;
+  position: relative;
+  overflow: hidden;
+}
+[data-scheme="retro"] .pad-btn::before{
+  content:"";
+  position:absolute;
+  inset: 0 0 60% 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+  pointer-events:none;
+}
+[data-scheme="retro"] .pad-btn::after{
+  content:"";
+  position:absolute;
+  left:8px; right:8px; bottom:8px; height:4px;
+  border-radius:3px;
+  background: linear-gradient(90deg, rgba(6,214,160,.4), rgba(17,138,178,.35));
+  box-shadow: 0 0 10px rgba(6,214,160,.25), 0 0 18px rgba(17,138,178,.2);
+  opacity:.0;
+  transition: opacity .15s ease, filter .15s ease;
+}
+[data-scheme="retro"] .pad-btn:hover{ filter: brightness(1.05); }
+[data-scheme="retro"] .pad-btn:hover::after{ opacity:.35; }
+[data-scheme="retro"] .pad-btn:active{
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+}
+[data-scheme="retro"] .pad-btn:active::after{ opacity:.95; filter: saturate(1.2); }
+[data-scheme="retro"] .pad-btn__inner{
+  height: 100%; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 4px; user-select: none;
+}
+[data-scheme="retro"] .pad-btn__label{
+  font: 800 18px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .04em; text-shadow: 0 1px 0 rgba(0,0,0,.6);
+}
+[data-scheme="retro"] .pad-btn__sub{
+  font: 12px/1 var(--font-ui); color: #cfd2da; opacity: .8;
+}
+
+/* ---------- MIDDLE STACK (fader → LCD → Solo) ---------- */
+[data-scheme="retro"] .vfader-wrap{
   display: grid;
   grid-template-rows: var(--fader-h) var(--lcd-h) var(--solo-h);
   row-gap: var(--stack-gap);
@@ -705,9 +756,8 @@
   justify-items: center;
 }
 
-/* Slot uses --fader-h (shorter than before so Solo lines up with pads) */
-:root[data-scheme="retro"] .vfader-slot,
-[data-scheme="retro"] .vfader-slot {
+/* Bezel/slot */
+[data-scheme="retro"] .vfader-slot{
   position: relative;
   height: var(--fader-h);
   width: 30px;
@@ -722,342 +772,90 @@
   justify-content: center;
 }
 
-/* Reliable vertical range: rotate + center within the slot */
-:root[data-scheme="retro"] .vfader,
-[data-scheme="retro"] .vfader {
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  outline: none;
-  cursor: pointer;
-  width: calc(var(--stack-h) - 12px);
-  height: calc(var(--track-th) * 2);    /* control box height; was 16px */
-  transform: translate(-50%, -50%) rotate(-90deg);
-
-  position: absolute;
-  left: 50%;
-  top: 50%;
+/* Vertical fader (rotate, center, and size to slot) */
+[data-scheme="retro"] .vfader{
+  appearance: none; -webkit-appearance: none;
+  background: transparent; outline: none; cursor: pointer;
+  position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%) rotate(-90deg);
   transform-origin: 50% 50%;
-
-  width: calc(var(--fader-h) - 12px);   /* track length matches slot */
-  height: 16px;                          /* thickness pre-rotation */
+  width: calc(var(--fader-h) - 12px);   /* slot height - padding */
+  height: calc(var(--track-th) * 2);    /* control box thickness pre-rotation */
   margin: 0;
 }
-
-/* Track visuals */
-:root[data-scheme="retro"] .vfader::-webkit-slider-runnable-track {
-  height: 8px;
+/* track */
+[data-scheme="retro"] .vfader::-webkit-slider-runnable-track{ height: var(--track-th);
   background: linear-gradient(180deg, #3b3c41, #2b2c31);
-  border-radius: 6px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.35);
+  border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.35);
 }
-:root[data-scheme="retro"] .vfader::-moz-range-track {
-  height: 8px;
+[data-scheme="retro"] .vfader::-moz-range-track{ height: var(--track-th);
   background: linear-gradient(180deg, #3b3c41, #2b2c31);
-  border-radius: 6px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.35);
+  border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.35);
 }
-
-/* Thumb (wider-than-tall after rotation) */
-:root[data-scheme="retro"] .vfader::-webkit-slider-thumb {
+/* thumb */
+[data-scheme="retro"] .vfader::-webkit-slider-thumb{
   -webkit-appearance: none;
-  width: 16px;
-  height: 26px;
-  border: 1px solid rgba(0,0,0,.6);
-  border-radius: 4px;
+  width: var(--thumb-w); height: var(--thumb-h);
+  margin-top: calc((var(--track-th) - var(--thumb-h)) / 2); /* centers cap */
+  border: 1px solid rgba(0,0,0,.6); border-radius: 4px;
   background:
     linear-gradient(180deg, #f2f2f2, #d8d8d8),
     linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
   box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
 }
-:root[data-scheme="retro"] .vfader::-moz-range-thumb {
-  width: 16px;
-  height: 26px;
-  border: 1px solid rgba(0,0,0,.6);
-  border-radius: 4px;
-  background:
-    linear-gradient(180deg, #f2f2f2, #d8d8d8),
-    linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
-  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
-}
-
-/* Vol/Pitch squares (kept from before) */
-:root[data-scheme="retro"] .mode-col,
-[data-scheme="retro"] .mode-col {
-  --mode-btn: clamp(48px, 5vw, 56px);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-:root[data-scheme="retro"] .mode-col .press.toggle.xs,
-[data-scheme="retro"] .mode-col .press.toggle.xs {
-  width: var(--mode-btn);
-  height: var(--mode-btn);
-  padding: 0;
-  display: grid;
-  place-items: center;
-  line-height: 1;
-}
-
-/* track thickness from var */
-:root[data-scheme="retro"] .vfader::-webkit-slider-runnable-track { height: var(--track-th); }
-:root[data-scheme="retro"] .vfader::-moz-range-track            { height: var(--track-th); }
-
-/* CENTER THE THUMB */
-:root[data-scheme="retro"] .vfader::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: var(--thumb-w);
-  height: var(--thumb-h);
-  /* this lines up the cap over the (rotated) 8px track */
-  margin-top: calc((var(--track-th) - var(--thumb-h)) / 2); /* e.g. (8 - 26)/2 = -9px */
-  border: 1px solid rgba(0,0,0,.6);
-  border-radius: 4px;
-  background:
-    linear-gradient(180deg, #f2f2f2, #d8d8d8),
-    linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
-  box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
-}
-:root[data-scheme="retro"] .vfader::-moz-range-thumb {
-  width: var(--thumb-w);
-  height: var(--thumb-h);
-  /* same centering trick works in Firefox */
+[data-scheme="retro"] .vfader::-moz-range-thumb{
+  width: var(--thumb-w); height: var(--thumb-h);
   margin-top: calc((var(--track-th) - var(--thumb-h)) / 2);
-  border: 1px solid rgba(0,0,0,.6);
-  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.6); border-radius: 4px;
   background:
     linear-gradient(180deg, #f2f2f2, #d8d8d8),
     linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
   box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
 }
 
-/* =========================
-   PADS — Retro slab & glow
-   ========================= */
-   :root[data-scheme="retro"] .pad-btn,
-   [data-scheme="retro"] .pad-btn {
-     appearance: none;
-     -webkit-appearance: none;
-     width: 100%;
-     aspect-ratio: 1 / 1;                          /* keep perfect squares */
-     border-radius: 12px;
-     border: 1px solid rgba(0,0,0,.6);
-     color: #f4f4f4;
-   
-     /* dark “drum computer” slab */
-     background:
-       radial-gradient(90% 70% at 50% 10%, rgba(255,255,255,.06), transparent 60%),
-       linear-gradient(180deg, #303136 0%, #242529 100%);
-     box-shadow:
-       0 4px 10px rgba(0,0,0,.25),
-       inset 0 0 0 1px rgba(255,255,255,.08),
-       inset 0 2px 0 rgba(255,255,255,.06);
-   
-     transition: transform .05s ease, filter .15s ease, box-shadow .2s ease;
-     position: relative;
-     overflow: hidden;
-   }
-   
-   /* subtle top gloss */
-   :root[data-scheme="retro"] .pad-btn::before,
-   [data-scheme="retro"] .pad-btn::before{
-     content:"";
-     position:absolute;
-     inset: 0 0 60% 0;
-     background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-     pointer-events:none;
-   }
-   
-   /* LED bar that reacts on hover/press */
-   :root[data-scheme="retro"] .pad-btn::after,
-   [data-scheme="retro"] .pad-btn::after{
-     content:"";
-     position:absolute;
-     left:8px; right:8px; bottom:8px; height:4px;
-     border-radius:3px;
-     background: linear-gradient(90deg, rgba(6,214,160,.4), rgba(17,138,178,.35));
-     box-shadow:
-       0 0 10px rgba(6,214,160,.25),
-       0 0 18px rgba(17,138,178,.2);
-     opacity:.0;
-     transition: opacity .15s ease, filter .15s ease;
-   }
-   
-   :root[data-scheme="retro"] .pad-btn:hover,
-   [data-scheme="retro"] .pad-btn:hover { filter: brightness(1.05); }
-   :root[data-scheme="retro"] .pad-btn:hover::after,
-   [data-scheme="retro"] .pad-btn:hover::after { opacity:.35; }
-   
-   :root[data-scheme="retro"] .pad-btn:active,
-   [data-scheme="retro"] .pad-btn:active {
-     transform: translateY(1px);
-     box-shadow:
-       0 2px 6px rgba(0,0,0,.25),
-       inset 0 1px 0 rgba(255,255,255,.05);
-   }
-   :root[data-scheme="retro"] .pad-btn:active::after,
-   [data-scheme="retro"] .pad-btn:active::after {
-     opacity:.95;
-     filter: saturate(1.2);
-   }
-   
-   /* optional: if you later add a “hit” class in JS for a few 100ms */
-   :root[data-scheme="retro"] .pad-btn.is-hit::after,
-   [data-scheme="retro"] .pad-btn.is-hit::after { opacity:.95; }
-   
-   /* inner layout + typography */
-   :root[data-scheme="retro"] .pad-btn__inner,
-   [data-scheme="retro"] .pad-btn__inner {
-     height: 100%; width: 100%;
-     display: flex; align-items: center; justify-content: center;
-     flex-direction: column; gap: 4px; user-select: none;
-   }
-   
-   :root[data-scheme="retro"] .pad-btn__label,
-   [data-scheme="retro"] .pad-btn__label {
-     font: 800 18px/1 "Orbitron", var(--font-ui);
-     letter-spacing: .04em;
-     text-shadow: 0 1px 0 rgba(0,0,0,.6);
-   }
-   
-   :root[data-scheme="retro"] .pad-btn__sub,
-   [data-scheme="retro"] .pad-btn__sub {
-     font: 12px/1 var(--font-ui);
-     color: #cfd2da;
-     opacity: .8;
-   }
-   
-   /* keyboard focus */
-   :root[data-scheme="retro"] .pad-btn:focus-visible,
-   [data-scheme="retro"] .pad-btn:focus-visible {
-     outline: 2px solid var(--retro-a2);
-     outline-offset: 2px;
-     box-shadow: 0 0 0 3px rgba(255,209,102,.18), 0 4px 10px rgba(0,0,0,.25);
-   }
-   
-
-   /* =========================================
-   Fixes: Solo glow, Vol/Pitch centering, LCD
-   ========================================= */
-
-/* 1) SOLO — ensure the ON state wins in the cascade */
-:root[data-scheme="retro"] .solo-btn.edge {
-    /* base stays the same as you had */
-  }
-  
-  /* place this AFTER the base rule & add a tiny specificity bump */
-  :root[data-scheme="retro"] .solo-btn.edge.solo-on,
-  :root[data-scheme="retro"] .solo-btn.edge[aria-pressed="true"] {
-    color: #1b0e00;
-    background: linear-gradient(180deg, #ffb84d 0%, #ff9800 100%);
-    text-shadow: 0 1px 0 rgba(255,255,255,.35);
-    border-color: rgba(255,138,0,.75);
-    box-shadow:
-      0 0 22px rgba(255,185,77,.55),
-      0 0 36px rgba(255,152,0,.35),
-      0 3px 0 rgba(0,0,0,.45),
-      inset 0 1px 0 rgba(255,255,255,.35);
-  }
-  
-  /* 2) VOL/PITCH column — vertically center within its grid cell */
-  :root[data-scheme="retro"] .mode-col {
-    align-self: center;           /* <— key: center on the block (vertical) axis */
-    justify-self: start;          /* keep it near the fader horizontally */
-    --mode-btn: clamp(48px, 5vw, 56px);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  :root[data-scheme="retro"] .mode-col .press.toggle.xs {
-    width: var(--mode-btn);
-    height: var(--mode-btn);
-    padding: 0;
-    display: grid;
-    place-items: center;
-    line-height: 1;
-  }
-  
-  /* 3) LCD — restore the compact retro display styling */
-  :root[data-scheme="retro"] .lcd-compact {
-    min-width: 58px;
-    height: var(--lcd-h);                /* matches your grid row height */
-    display: grid;
-    place-items: center;
-    padding: 0 8px;
-    text-align: center;
-    font: 800 12px/1 "Orbitron", var(--font-ui);
-    letter-spacing: .06em;
-    color: #c4ffd8;
-    background: radial-gradient(120% 140% at 50% 0%, #0d1f14 0%, #0a1510 60%, #09100d 100%);
-    border: 1px solid #163522;
-    border-radius: 6px;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.10),
-      inset 0 -1px 0 rgba(0,0,0,.45),
-      0 0 18px rgba(6,214,160,.18);
-  }
-  
-  /* (tidy) One definitive fader rule so the thumb-centering isn’t overridden */
-  :root[data-scheme="retro"] .vfader {
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    outline: none;
-    cursor: pointer;
-  
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) rotate(-90deg);
-    transform-origin: 50% 50%;
-  
-    width: calc(var(--fader-h) - 12px);  /* track length = slot height - padding */
-    height: calc(var(--track-th) * 2);   /* control box height (before rotation) */
-    margin: 0;
-  }
-  :root[data-scheme="retro"] .vfader::-webkit-slider-runnable-track { height: var(--track-th); }
-  :root[data-scheme="retro"] .vfader::-moz-range-track            { height: var(--track-th); }
-  
-  :root[data-scheme="retro"] .vfader::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: var(--thumb-w);
-    height: var(--thumb-h);
-    margin-top: calc((var(--track-th) - var(--thumb-h)) / 2); /* centers the cap */
-    border: 1px solid rgba(0,0,0,.6);
-    border-radius: 4px;
-    background:
-      linear-gradient(180deg, #f2f2f2, #d8d8d8),
-      linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
-    box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
-  }
-  :root[data-scheme="retro"] .vfader::-moz-range-thumb {
-    width: var(--thumb-w);
-    height: var(--thumb-h);
-    margin-top: calc((var(--track-th) - var(--thumb-h)) / 2);
-    border: 1px solid rgba(0,0,0,.6);
-    border-radius: 4px;
-    background:
-      linear-gradient(180deg, #f2f2f2, #d8d8d8),
-      linear-gradient(90deg, transparent 46%, rgba(0,0,0,.25) 48%, rgba(0,0,0,.25) 52%, transparent 54%);
-    box-shadow: 0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
-  }
-  
-
-  /* =========================
-   Nudge Vol/Pitch closer + Active = green
-   ========================= */
-
-/* pull the mode column left toward the fader */
-:root[data-scheme="retro"] .mode-col,
-[data-scheme="retro"] .mode-col {
-  justify-self: start;                 /* hug left edge of its column */
-  align-self: center;                  /* keep vertically centered */
-  margin-left: clamp(-20px, -1.8vw, -20px);  /* <- closer to fader */
+/* LCD */
+[data-scheme="retro"] .lcd-compact{
+  min-width: 58px;
+  height: var(--lcd-h);
+  display: grid; place-items: center;
+  padding: 0 8px; text-align: center;
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .06em; color: #c4ffd8;
+  background: radial-gradient(120% 140% at 50% 0%, #0d1f14 0%, #0a1510 60%, #09100d 100%);
+  border: 1px solid #163522; border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.45),
+              0 0 18px rgba(6,214,160,.18);
 }
 
-/* active state: warm retro-green */
-:root[data-scheme="retro"] .mode-col .press.toggle.xs.on,
-[data-scheme="retro"] .mode-col .press.toggle.xs[aria-pressed="true"] {
+/* Solo ON — bright yellow glow */
+[data-scheme="retro"] .solo-btn.edge.solo-on,
+[data-scheme="retro"] .solo-btn.edge[aria-pressed="true"]{
+  color: #1b0e00;
+  background: linear-gradient(180deg, #ffb84d 0%, #ff9800 100%);
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  border-color: rgba(255,138,0,.75);
+  box-shadow:
+    0 0 22px rgba(255,185,77,.55),
+    0 0 36px rgba(255,152,0,.35),
+    0 3px 0 rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* ---------- Vol / Pitch (squares, closer to fader) ---------- */
+[data-scheme="retro"] .mode-col{
+  --mode-btn: clamp(48px, 5vw, 56px);
+  display: flex; flex-direction: column; gap: 10px;
+  align-self: center;            /* vertically centered in its grid cell */
+  justify-self: start;           /* hug fader column */
+  margin-left: clamp(-20px, -1.8vw, -20px);   /* nudge closer to fader */
+}
+[data-scheme="retro"] .mode-col .press.toggle.xs{
+  width: var(--mode-btn); height: var(--mode-btn);
+  padding: 0; display: grid; place-items: center; line-height: 1;
+}
+/* Active = green */
+[data-scheme="retro"] .mode-col .press.toggle.xs.on,
+[data-scheme="retro"] .mode-col .press.toggle.xs[aria-pressed="true"]{
   color: #071a12;
   background: linear-gradient(180deg, #1fe0b3 0%, #0fa67f 100%);
   text-shadow: 0 1px 0 rgba(255,255,255,.35);
@@ -1066,13 +864,9 @@
     0 0 14px rgba(6,214,160,.28),
     0 3px 0 rgba(0,0,0,.45),
     inset 0 1px 0 rgba(255,255,255,.35);
-  transition: filter .15s, transform .05s, box-shadow .2s, background .2s;
 }
 
-/* keep touch spacing reasonable on phones */
-@media (max-width: 640px) {
-  :root[data-scheme="retro"] .mode-col,
-  [data-scheme="retro"] .mode-col {
-    margin-left: -28px;
-  }
+/* Phone tweak: keep the nudge but not too aggressive */
+@media (max-width: 640px){
+  [data-scheme="retro"] .mode-col{ margin-left: -28px; }
 }

@@ -10,96 +10,110 @@ export default function SumBusPanel({
   lowCutOn, setLowCutOn,
   highCutOn, setHighCutOn,
 }) {
+  // Peak meter 0..100%
   const meterPct = Math.max(0, Math.min(1, (sumMeterDb + 60) / 60));
+  const meterClass = sumMeterDb > -1 ? "hot" : sumMeterDb > -6 ? "warn" : "ok";
 
   return (
     <FoldSection title="Sum Bus" show={show} onToggle={onToggle}>
-      <div
-        style={{
-          marginTop: 4,
-          padding: 12,
-          borderRadius: 10,
-          background: "rgba(255,255,255,.04)",
-          border: "1px solid rgba(255,255,255,.08)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", opacity: 0.9 }}>
-            Sum Bus
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, opacity: 0.9 }}>
-            <input type="checkbox" checked={limiterOn} onChange={(e)=>setLimiterOn(e.target.checked)} />
+      <div className="sbus-card">
+        <div className="sbus-header">
+          <div className="sbus-title">Sum Bus</div>
+
+          <button
+            type="button"
+            className={`toggle-chip ${limiterOn ? "on" : ""}`}
+            aria-pressed={limiterOn}
+            onClick={() => setLimiterOn(v => !v)}
+            title="Brickwall limiter on master"
+          >
             Limiter
-          </label>
+          </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: 16, marginTop: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Peak Meter</div>
-            <div style={{ height: 12, background: "rgba(255,255,255,.08)", borderRadius: 6, overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${meterPct * 100}%`,
-                background: sumMeterDb > -1 ? "#b91c1c" : sumMeterDb > -6 ? "#d97706" : "#10b981",
-                transition: "width 50ms linear"
-              }} />
+        <div className="sbus-grid">
+          {/* Peak meter */}
+          <div className="sbus-block">
+            <div className="fx-sublabel">PEAK</div>
+            <div className="sbus-meter" aria-label="Peak meter">
+              <div
+                className={`sbus-meter__bar ${meterClass}`}
+                style={{ width: `${meterPct * 100}%` }}
+              />
             </div>
-            <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+            <div className="sbus-lcd">
               {Number.isFinite(sumMeterDb) ? `${sumMeterDb.toFixed(1)} dBFS` : "—"}
             </div>
           </div>
 
-          <div>
-            <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Compressor</div>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
-                <span style={{ opacity: .75 }}>Thresh</span>
-                <input type="range" min={-60} max={0} step={1}
-                  value={sumComp.threshold}
-                  onChange={(e)=>setSumComp(s=>({...s, threshold: parseFloat(e.target.value)}))}
-                />
-              </label>
-              <label style={{ display: "grid", gridTemplateColumns: "58px 1fr", alignItems: "center", gap: 8 }}>
-                <span style={{ opacity: .75 }}>Ratio</span>
-                <input type="range" min={1} max={20} step={0.1}
-                  value={sumComp.ratio}
-                  onChange={(e)=>setSumComp(s=>({...s, ratio: parseFloat(e.target.value)}))}
-                />
-              </label>
-            </div>
+          {/* Compressor */}
+          <div className="sbus-block">
+            <div className="fx-sublabel">COMP</div>
+
+            <label className="sbus-row">
+              <span>THRESH</span>
+              <input
+                className="slider slider-fx"
+                type="range" min={-60} max={0} step={1}
+                value={sumComp.threshold}
+                onChange={(e)=> setSumComp(s => ({ ...s, threshold: parseFloat(e.target.value) }))}
+                title="Compressor threshold (dB)"
+              />
+            </label>
+
+            <label className="sbus-row">
+              <span>RATIO</span>
+              <input
+                className="slider slider-fx"
+                type="range" min={1} max={20} step={0.1}
+                value={sumComp.ratio}
+                onChange={(e)=> setSumComp(s => ({ ...s, ratio: parseFloat(e.target.value) }))}
+                title="Compressor ratio"
+              />
+            </label>
           </div>
 
-          <div>
-            <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>Makeup</div>
-            <input type="range" min={-24} max={12} step={0.1}
-              value={sumGainDb}
-              onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}
-            />
-            <div className="row" style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <button
-  className={`btn press ${lowCutOn ? "on" : ""}`}
-  aria-pressed={lowCutOn}
-  title="Low Cut 230 Hz (Q≈1.0)"
-  onClick={() => setLowCutOn(v => !v)}
->
-  Low Cut 230Hz
-</button>
+          {/* Makeup + Cuts */}
+          <div className="sbus-head">
+  <span className="fx-sublabel">MAKEUP</span>
+  <span className="sbus-readout">
+    {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
+  </span>
+</div>
 
-<button
-  className={`btn press ${highCutOn ? "on" : ""}`}
-  aria-pressed={highCutOn}
-  title="High Cut 3 kHz (Q≈1.0)"
-  onClick={() => setHighCutOn(v => !v)}
->
-  High Cut 3k
-</button>
-     </div>
-            <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
-              {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
+<input
+  className="slider slider-fx"
+  type="range" min={-24} max={12} step={0.1}
+  value={sumGainDb}
+  onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}
+  title="Makeup gain (dB)"
+/>
+
+            <div className="sbus-toggles">
+              <button
+                type="button"
+                className={`revlen-btn ${lowCutOn ? "on" : ""}`}
+                aria-pressed={lowCutOn}
+                onClick={() => setLowCutOn(v => !v)}
+                title="Low Cut 230 Hz (Q≈1.0)"
+              >
+                Low Cut 230Hz
+              </button>
+              <button
+                type="button"
+                className={`revlen-btn ${highCutOn ? "on" : ""}`}
+                aria-pressed={highCutOn}
+                onClick={() => setHighCutOn(v => !v)}
+                title="High Cut 3 kHz (Q≈1.0)"
+              >
+                High Cut 3k
+              </button>
             </div>
+
+            
           </div>
         </div>
-      </div>
+     
     </FoldSection>
   );
 }

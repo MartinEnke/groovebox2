@@ -230,196 +230,346 @@
   -webkit-backdrop-filter: blur(10px) saturate(1.2);
 }
 
-/* =======================================================
-   PACKBAR — NEO layout
-   ======================================================= */
-:root[data-scheme="neo"] .packbar-retro,
-[data-scheme="neo"] .packbar-retro { display:grid; gap:12px; }
+/* =========================
+   NEO — Pack & Session (clean)
+   ========================= */
 
-:root[data-scheme="neo"] .packbar-retro .packbar-line1,
-[data-scheme="neo"] .packbar-retro .packbar-line1 {
-  display:grid; grid-template-columns: auto minmax(220px,1fr) auto; gap:12px; align-items:center;
-}
-:root[data-scheme="neo"] .packbar-retro .packbar-line1::before,
-[data-scheme="neo"] .packbar-retro .packbar-line1::before {
-  content:"Pack";
-  font: 800 12px/1 "Sora",var(--font-ui); letter-spacing:.14em; color: var(--neo-text); opacity:.9;
-}
+/* Kill any legacy pseudo labels */
+[data-scheme="neo"] .gb-row--packs::before,
+[data-scheme="neo"] .gb-row--session::before,
+[data-scheme="neo"] .gb-row--session > *::before { content:none !important; }
 
-:root[data-scheme="neo"] .packbar-retro .packbar-line2,
-[data-scheme="neo"] .packbar-retro .packbar-line2 {
-  display:grid; grid-template-columns: auto 1fr auto; gap:12px; align-items:center;
-}
-:root[data-scheme="neo"] .packbar-retro .bpm-label { font: 800 12px/1 "Sora",var(--font-ui); letter-spacing:.14em; opacity:.9; }
-:root[data-scheme="neo"] .packbar-retro .bpm-readout {
-  min-width: 56px; text-align:right; font: 800 12px/1 "Sora",var(--font-ui); letter-spacing:.06em;
-  color:#c9ffef; padding:6px 8px; border-radius:12px;
-  border:1px solid var(--neo-stroke);
-  background: linear-gradient(180deg, rgba(34,211,238,.12), rgba(34,211,238,.06));
-  box-shadow: inset 0 1px 0 var(--neo-inner), 0 0 16px rgba(34,211,238,.16);
+/* Shared label (real text nodes like <span class="bar-label">) */
+[data-scheme="neo"] .bar-label{
+  font: 800 12px/1 "Sora", var(--font-ui);
+  letter-spacing:.14em;
+  text-transform: uppercase;
+  color: var(--neo-text);
+  opacity:.9;
+  text-shadow: 0 0 12px rgba(34,211,238,.18);
 }
 
-/* Pack/session selects (same look as inputs) */
-:root[data-scheme="neo"] .packbar-retro select,
-[data-scheme="neo"] .packbar-retro select {
-  min-height: var(--tap); padding: 0 12px; border-radius: 12px;
+/* Shared Neo input look (selects) */
+[data-scheme="neo"] .packbar-neo .pack-select,
+[data-scheme="neo"] .sessionbar-neo .session-select{
+  min-height: var(--tap);
+  padding: 0 12px;
+  border-radius: 12px;
   color: var(--neo-text);
   background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
   border: 1px solid var(--neo-stroke);
   box-shadow: inset 0 1px 0 var(--neo-inner);
   backdrop-filter: blur(10px) saturate(1.2);
   -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  min-width: 0;
 }
 
-/* =======================================================
-   SESSION — same structure, glassy buttons
-   ======================================================= */
-:root[data-scheme="neo"] .gb-row--session > *,
-[data-scheme="neo"] .gb-row--session > * {
-  display:flex !important; align-items:center; gap:10px; flex-wrap:wrap; max-width:100%; min-width:0;
-}
-:root[data-scheme="neo"] .gb-row--session > *::before,
-[data-scheme="neo"] .gb-row--session > *::before {
-  content:"Session";
-  font: 800 12px/1 "Sora",var(--font-ui); letter-spacing:.14em; color: var(--neo-text); opacity:.9;
-}
-:root[data-scheme="neo"] .gb-row--session > *::after,
-[data-scheme="neo"] .gb-row--session > *::after { content:""; flex:0 0 100%; }
-
-:root[data-scheme="neo"] .gb-row--session > * select:first-of-type,
-[data-scheme="neo"] .gb-row--session > * select:first-of-type {
-  order:0; flex:1 1 auto; min-width:220px; max-width:100%;
-  min-height: var(--tap); padding: 0 12px; border-radius:12px;
-  color: var(--neo-text);
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-  border: 1px solid var(--neo-stroke); box-shadow: inset 0 1px 0 var(--neo-inner);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-}
-:root[data-scheme="neo"] .gb-row--session > * :where(button, .btn) {
-  display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  min-height: 40px; padding: 0 14px; border-radius: 12px; white-space: nowrap;
-  font: 800 11px/1 "Sora",var(--font-ui); letter-spacing:.10em;
-  color: var(--neo-text);
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-  border: 1px solid var(--neo-stroke);
-  box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 1px 0 var(--neo-inner);
-  backdrop-filter: blur(10px) saturate(1.2);
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
-  transition: transform var(--t-fast), filter var(--t-med);
-}
-:root[data-scheme="neo"] .gb-row--session > * :where(button, .btn):hover { filter:brightness(1.08); }
-:root[data-scheme="neo"] .gb-row--session > * :where(button, .btn):active { transform: translateY(1px); }
-
-@media (max-width: 640px) {
-  :root[data-scheme="neo"] .gb-row--session > * { gap:8px; }
-  :root[data-scheme="neo"] .gb-row--session > * select:first-of-type { min-width:0; flex:1 1 60%; }
-  :root[data-scheme="neo"] .gb-row--session > * :where(button, .btn) { min-height:38px; padding:0 12px; }
+/* -------------------------
+   PACKBAR (2 rows like Retro)
+   ------------------------- */
+[data-scheme="neo"] .packbar-neo{
+  display:grid;
+  gap:12px;
+  min-width:0;
 }
 
-/* =======================================================
-   METRONOME (3 states)
-   ======================================================= */
-:root[data-scheme="neo"] .metro-btn,
-[data-scheme="neo"] .metro-btn {
-  min-width: 120px; border-radius: 12px; font-weight:800; letter-spacing:.08em;
-  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-  color: var(--neo-text); border:1px solid var(--neo-stroke);
-  box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 0 1px 0 var(--neo-inner);
-  transition: background var(--t-med), box-shadow var(--t-med), color var(--t-med), transform var(--t-fast), filter var(--t-med);
-}
-:root[data-scheme="neo"] .metro-btn:hover { filter:brightness(1.08); }
-:root[data-scheme="neo"] .metro-btn:active { transform: translateY(1px); }
-
-:root[data-scheme="neo"] .metro-btn.mode-all {
-  background: linear-gradient(180deg, rgba(34,211,238,.35), rgba(34,211,238,.18));
-  color:#031217;
-  box-shadow: 0 0 20px var(--neo-halo-2), inset 0 1px 0 rgba(255,255,255,.35);
-}
-:root[data-scheme="neo"] .metro-btn.mode-beats {
-  background: linear-gradient(180deg, rgba(255,200,107,.45), rgba(255,200,107,.20));
-  color:#0b0b10; text-shadow: 0 1px 0 rgba(255,255,255,.25);
-  box-shadow: 0 0 20px var(--neo-amber-halo), inset 0 1px 0 rgba(255,255,255,.35);
-}
-:root[data-scheme="neo"] .metro-btn.mode-off {
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-  color:#b8c3d6; box-shadow: inset 0 1px 0 var(--neo-inner);
+/* Row 1: [Pack][select][Met] */
+[data-scheme="neo"] .packbar-neo .packbar-line1{
+  display:grid;
+  grid-template-columns: auto minmax(220px,1fr) auto;
+  align-items:center;
+  gap:12px;
+  min-width:0;
 }
 
-/* =======================================================
-   BPM SLIDER (holo rail)
-   ======================================================= */
-:root[data-scheme="neo"] .slider-bpm,
-[data-scheme="neo"] .slider-bpm { height: 44px; background: transparent; }
+/* Row 2: [BPM][slider][readout] */
+[data-scheme="neo"] .packbar-neo .packbar-line2{
+  display:grid;
+  grid-template-columns: auto minmax(0,1fr) auto; /* slider truly fluid */
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
 
-:root[data-scheme="neo"] .slider-bpm::-webkit-slider-runnable-track,
-:root[data-scheme="neo"] .vfader::-webkit-slider-runnable-track,
-:root[data-scheme="neo"] .slider.slider-fx::-webkit-slider-runnable-track {
-  height: 8px; border-radius: 999px;
+/* Keep slider inside its cell */
+[data-scheme="neo"] .packbar-neo .packbar-line2 .slider-bpm{
+  display:block; width:100%; min-width:0; margin:0; box-sizing:border-box;
+}
+
+/* BPM styling */
+[data-scheme="neo"] .packbar-neo .bpm-label{
+  font:800 12px/1 "Sora",var(--font-ui); letter-spacing:.14em; opacity:.9;
+}
+[data-scheme="neo"] .packbar-neo .bpm-readout{
+  min-width:56px; text-align:right; padding:6px 8px; border-radius:12px;
+  font:800 12px/1 "Sora",var(--font-ui); letter-spacing:.06em; color:#c9ffef;
+  border:1px solid var(--neo-stroke);
+  background: linear-gradient(180deg, rgba(34,211,238,.12), rgba(34,211,238,.06));
+  box-shadow: inset 0 1px 0 var(--neo-inner), 0 0 16px rgba(34,211,238,.16);
+}
+
+/* Slider (Neo holo rail) */
+[data-scheme="neo"] .slider-bpm{ height:44px; background:transparent; }
+[data-scheme="neo"] .slider-bpm::-webkit-slider-runnable-track{
+  height:8px; border-radius:999px;
   background: linear-gradient(90deg, rgba(139,92,246,.35), rgba(34,211,238,.35));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 18px rgba(139,92,246,.18);
 }
-:root[data-scheme="neo"] .slider-bpm::-moz-range-track,
-:root[data-scheme="neo"] .vfader::-moz-range-track,
-:root[data-scheme="neo"] .slider.slider-fx::-moz-range-track {
-  height: 8px; border-radius: 999px;
+[data-scheme="neo"] .slider-bpm::-moz-range-track{
+  height:8px; border-radius:999px;
   background: linear-gradient(90deg, rgba(139,92,246,.35), rgba(34,211,238,.35));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 18px rgba(139,92,246,.18);
 }
-
-/* thumbs */
-:root[data-scheme="neo"] .slider-bpm::-webkit-slider-thumb{
-  -webkit-appearance:none; width:18px;height:28px;margin-top:-10px;border-radius:8px;
+[data-scheme="neo"] .slider-bpm::-webkit-slider-thumb{
+  -webkit-appearance:none; width:18px; height:28px; margin-top:-10px; border-radius:8px;
   border:1px solid var(--neo-stroke);
   background: linear-gradient(180deg, #f2f6ff, #dfe7ff);
   box-shadow: 0 0 16px var(--neo-halo-2), inset 0 1px 0 rgba(255,255,255,.65);
   transition: transform var(--t-fast);
 }
-:root[data-scheme="neo"] .slider-bpm::-webkit-slider-thumb:active{ transform: translateY(1px); }
-:root[data-scheme="neo"] .slider-bpm::-moz-range-thumb{
-  width:18px;height:28px;border-radius:8px;border:1px solid var(--neo-stroke);
+[data-scheme="neo"] .slider-bpm::-webkit-slider-thumb:active{ transform: translateY(1px); }
+[data-scheme="neo"] .slider-bpm::-moz-range-thumb{
+  width:18px; height:28px; border-radius:8px; border:1px solid var(--neo-stroke);
   background: linear-gradient(180deg, #f2f6ff, #dfe7ff);
   box-shadow: 0 0 16px var(--neo-halo-2), inset 0 1px 0 rgba(255,255,255,.65);
 }
 
-/* =======================================================
-   Responsive headings
-   ======================================================= */
-@media (max-width:640px){
-  :root[data-scheme="neo"] .gb-wordmark { font-size: clamp(28px,8vw,40px); }
-  :root[data-scheme="neo"] .gb-theme-btn { min-width:72px; height:30px; }
+/* Met button (Neo glass) */
+[data-scheme="neo"] .metro-btn{
+  min-width:112px; border-radius:12px; font-weight:800; letter-spacing:.08em;
+  color: var(--neo-text);
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  border:1px solid var(--neo-stroke);
+  box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 0 1px 0 var(--neo-inner);
+  transition: background var(--t-med), box-shadow var(--t-med), transform var(--t-fast), filter var(--t-med);
+}
+[data-scheme="neo"] .metro-btn:hover{ filter:brightness(1.08); }
+[data-scheme="neo"] .metro-btn:active{ transform:translateY(1px); }
+[data-scheme="neo"] .metro-btn.mode-all{
+  background: linear-gradient(180deg, rgba(34,211,238,.35), rgba(34,211,238,.18));
+  color:#031217; box-shadow: 0 0 20px var(--neo-halo-2), inset 0 1px 0 rgba(255,255,255,.35);
+}
+[data-scheme="neo"] .metro-btn.mode-beats{
+  background: linear-gradient(180deg, rgba(255,200,107,.45), rgba(255,200,107,.20));
+  color:#0b0b10; text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  box-shadow: 0 0 20px var(--neo-amber-halo), inset 0 1px 0 rgba(255,255,255,.35);
+}
+[data-scheme="neo"] .metro-btn.mode-off{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  color:#b8c3d6; box-shadow: inset 0 1px 0 var(--neo-inner);
 }
 
-/* ===== Tinted glass for Packbar & Session ===== */
-:root[data-scheme="neo"] {
-  --pack-tint-1: rgba(34,211,238,.14);
-  --pack-tint-2: rgba(34,211,238,.08);
-  --sess-tint-1: rgba(139,92,246,.14);
-  --sess-tint-2: rgba(139,92,246,.08);
+/* Phone tweak: keep 2-row structure, relax min widths */
+@media (max-width:640px){
+  [data-scheme="neo"] .packbar-neo .packbar-line1{ grid-template-columns:auto 1fr auto; }
+  [data-scheme="neo"] .packbar-neo .packbar-line2{ grid-template-columns:auto 1fr auto; }
 }
-:root[data-scheme="neo"] .gb-row--packs,
-[data-scheme="neo"] .gb-row--packs {
+
+/* Neo Pack — plain text label, no chip/pseudo */
+[data-scheme="neo"] .packbar-neo .packbar-line1::before { content:none !important; }
+
+/* Row 1 = [Pack label][select][Met] */
+[data-scheme="neo"] .packbar-neo .packbar-line1{
+  display:grid;
+  grid-template-columns: auto minmax(220px,1fr) auto;
+  align-items:center;
+  gap:12px;
+}
+
+/* Row 2 = [BPM][slider][readout] */
+[data-scheme="neo"] .packbar-neo .packbar-line2{
+  display:grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+}
+
+/* Ensure slider never spills right */
+[data-scheme="neo"] .packbar-neo .packbar-line2 .slider-bpm{
+  width:100%; min-width:0; margin:0; box-sizing:border-box;
+}
+
+/* Optional: let select shrink if tight */
+@media (max-width:640px){
+  [data-scheme="neo"] .packbar-neo .packbar-line1{
+    grid-template-columns: auto 1fr auto;
+  }
+}
+
+
+/* -------------------------
+   SESSION (2 rows; buttons in ONE row)
+   ------------------------- */
+[data-scheme="neo"] .sessionbar-neo{
+  display:grid;
+  gap:12px;
+  min-width:0;
+}
+
+/* Row 1: [Session label][select] */
+[data-scheme="neo"] .sessionbar-neo .session-row--top{
+  display:grid;
+  grid-template-columns: auto minmax(220px,1fr);
+  align-items:center;
+  gap:10px;
+}
+
+/* Row 2: buttons — single row, shrink to fit */
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap: nowrap;          /* stay on one row */
+  min-width:0;
+}
+
+/* Buttons compact so all fit */
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button,.btn){
+  flex: 0 1 auto;             /* allow slight shrink if needed */
+  min-height:34px;
+  padding:0 10px;
+  border-radius:10px;
+  white-space:nowrap;
+  font:700 11px/1 "Sora",var(--font-ui);
+  letter-spacing:.08em;
+  color: var(--neo-text);
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  border:1px solid var(--neo-stroke);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 1px 0 var(--neo-inner);
+  transition: transform var(--t-fast), filter var(--t-med);
+}
+
+/* Center text inside ALL session buttons (includes <label class="btn">) */
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button, .btn){
+  display: flex;                 /* was inline/inline-block before */
+  align-items: center;           /* vertical center */
+  justify-content: center;       /* horizontal center */
+  height: 34px;                  /* exact match across all */
+  padding: 0 10px;               /* a bit more breathing room */
+  box-sizing: border-box;
+  line-height: 1;                /* prevent font metrics from shifting baseline */
+  vertical-align: middle;        /* just in case */
+  gap: 4px;                      /* future-proof if you add icons */
+}
+
+/* If Safari still looks a hair high, nudge the label-only variant */
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons label.btn{
+  /* optional tiny tweak */
+  /* transform: translateY(0.5px); */
+}
+
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button,.btn):hover{ filter:brightness(1.08); }
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button,.btn):active{ transform:translateY(1px); }
+
+/* Optional: if viewport gets too tight, allow horizontal scroll rather than wrapping */
+@media (max-width:560px){
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons{
+    overflow-x:auto; scrollbar-width: thin;
+  }
+}
+
+[data-scheme="neo"] .sessionbar-neo .session-row--buttons{
+  justify-self: center;   /* center the grid item */
+  width: max-content;     /* shrink row to its content width */
+}
+
+/* NEO — color-transparent film on the ROW cards (like Groove) */
+[data-scheme="neo"] .gb-row.gb-row--packs,
+[data-scheme="neo"] .gb-row.gb-row--session{
+  position: relative;    /* ensure the pseudo is positioned correctly */
+  overflow: hidden;      /* keep the tint clipped to the rounded card */
+}
+
+/* PACK row film (violet/cyan with a hint of pink) */
+[data-scheme="neo"] .gb-row.gb-row--packs::after{
+  content:"";
+  position:absolute; inset:0; border-radius: inherit; pointer-events:none;
   background:
-    radial-gradient(140% 180% at 0% -20%, var(--pack-tint-1), transparent 60%),
-    linear-gradient(90deg, var(--pack-tint-2), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
-  border-color: rgba(34,211,238,.28);
-  box-shadow:
-    inset 0 1px 0 var(--neo-inner),
-    0 10px 22px rgba(0,0,0,.35),
-    0 0 0 1px rgba(34,211,238,.10);
+    radial-gradient(100% 270% at -10% -20%, rgba(205, 20, 193, 0.6), transparent 50%),
+    radial-gradient(140% 180% at 110% -20%, rgba(109, 213, 229, 0.2), transparent 60%),
+    linear-gradient(90deg, rgba(123, 114, 244, 0.06), transparent 40%);
+  /* optional overall strength */
+  opacity: .9; /* try .8 if still strong */
 }
-:root[data-scheme="neo"] .gb-row--session,
-[data-scheme="neo"] .gb-row--session {
+
+/* SESSION row film (mint/pink with a whisper of cyan) */
+[data-scheme="neo"] .gb-row.gb-row--session::after{
+  content:"";
+  position:absolute; inset:0; border-radius: inherit; pointer-events:none;
   background:
-    radial-gradient(140% 180% at 100% -20%, var(--sess-tint-1), transparent 60%),
-    linear-gradient(270deg, var(--sess-tint-2), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
-  border-color: rgba(139,92,246,.28);
-  box-shadow:
-    inset 0 1px 0 var(--neo-inner),
-    0 10px 22px rgba(0,0,0,.35),
-    0 0 0 1px rgba(139,92,246,.10);
+    radial-gradient(100% 200% at -20% 30%, rgba(88, 219, 171, 0.80), transparent 50%),
+    radial-gradient(140% 270% at 120% -20%, rgba(244,114,182,.10), transparent 60%),
+    linear-gradient(90deg, rgba(34,211,238,.06), transparent 30%);
+  opacity: .9;
 }
+
+/* If you added any earlier packbar/sessionbar ::before/::after effects, disable them */
+[data-scheme="neo"] .packbar-neo::before,
+[data-scheme="neo"] .packbar-neo::after,
+[data-scheme="neo"] .sessionbar-neo::before,
+[data-scheme="neo"] .sessionbar-neo::after{ content:none !important; }
+
+
+/* NEO — Pack/Session row film styled like FX panels */
+:root[data-scheme="neo"]{
+  /* reuse FX palette + give per-row knobs */
+  --pack-t1: var(--fx-dly-1);   /* cyan primary */
+  --pack-t2: var(--fx-dly-2);
+  --pack-border: rgba(34,211,238,.35);
+  --pack-outline: rgba(34,211,238,.12);
+
+  --sess-t1: var(--fx-rev-1);   /* violet primary */
+  --sess-t2: var(--fx-rev-2);
+  --sess-border: rgba(139,92,246,.35);
+  --sess-outline: rgba(139,92,246,.12);
+
+  --bar-film-op: .9;            /* overall film strength */
+}
+
+/* Ensure rows can host the film */
+[data-scheme="neo"] .gb-row.gb-row--packs,
+[data-scheme="neo"] .gb-row.gb-row--session{
+  position: relative;
+  overflow: hidden;
+}
+
+/* PACK row — matches Delay FX tint */
+[data-scheme="neo"] .gb-row.gb-row--packs{
+  border-color: var(--pack-border);
+  /* keep your existing shadows, add the colored 1px outline like FX */
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.4),
+    inset 0 1px 0 var(--neo-inner),
+    0 0 0 1px var(--pack-outline);
+}
+[data-scheme="neo"] .gb-row.gb-row--packs::after{
+  content:"";
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:
+    radial-gradient(140% 180% at 0% -20%, var(--pack-t1), transparent 60%),
+    linear-gradient(90deg, var(--pack-t2), transparent 60%);
+  opacity: var(--bar-film-op);
+}
+
+/* SESSION row — matches Reverb FX tint */
+[data-scheme="neo"] .gb-row.gb-row--session{
+  border-color: var(--sess-border);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.4),
+    inset 0 1px 0 var(--neo-inner),
+    0 0 0 1px var(--sess-outline);
+}
+[data-scheme="neo"] .gb-row.gb-row--session::after{
+  content:"";
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:
+    radial-gradient(140% 180% at 50% -20%, var(--sess-t1), transparent 60%),
+    linear-gradient(90deg, var(--sess-t2), transparent 60%);
+  opacity: var(--bar-film-op);
+}
+
+/* If you prefer *no* colored outline, comment the last box-shadow layer on each row */
+
 
 /* =========================
    Instruments — NEO finish

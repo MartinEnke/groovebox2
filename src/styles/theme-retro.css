@@ -436,6 +436,133 @@
   }
 }
 
+
+
+/* RETRO Session — reset the earlier pseudo label/breaker */
+:root[data-scheme="retro"] .gb-row--session > *::before,
+:root[data-scheme="retro"] .gb-row--session > *::after{
+  content: none !important;
+}
+
+/* use the REAL label from JSX */
+:root[data-scheme="retro"] .gb-row--session .bar-label{
+  display: inline !important;
+  font: 800 12px/1 "Orbitron"
+}
+
+/* 2-row frame, compact vertical spacing */
+:root[data-scheme="retro"] .gb-row--session .sessionbar-neo{
+  display: grid;
+  grid-template-rows: auto auto;
+  row-gap: 8px;     /* tighter than before */
+  width: 100%;
+}
+
+/* Row 1 = [Label][Select] */
+:root[data-scheme="retro"] .gb-row--session .session-row--top{
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr);
+  align-items: center;
+  column-gap: 10px;
+}
+
+:root[data-scheme="retro"] .gb-row--session .session-row--top .session-select{
+  min-width: 0;     /* prevents overflow on narrow widths */
+}
+
+/* Row 2 = buttons, spread across the row */
+:root[data-scheme="retro"] .gb-row--session .session-row--buttons{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;  /* ⬅ spreads the group */
+  gap: 8px;
+  flex-wrap: wrap;                 /* wrap if it gets tight */
+  width: 100%;                     /* span full row */
+}
+
+/* Center button contents (incl. <label class="btn">Import) */
+:root[data-scheme="retro"] .gb-row--session .session-row--buttons :where(button, .btn){
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 12px;
+  line-height: 1;
+  flex: 0 1 auto;                  /* don't stretch; spacing handles spread */
+}
+
+/* Small screens: left-align + scroll if necessary */
+@media (max-width: 560px){
+  :root[data-scheme="retro"] .gb-row--session .session-row--buttons{
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+/* RETRO Session — match Packbar label + center buttons */
+
+/* kill any previously injected pseudo label/break */
+:root[data-scheme="retro"] .gb-row--session > *::before,
+:root[data-scheme="retro"] .gb-row--session > *::after{
+  content: none !important;
+}
+
+/* Row 1 = [label][select] — same grid as Packbar */
+:root[data-scheme="retro"] .gb-row--session .session-row--top{
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+/* Label styled like Packbar label (Orbitron, uppercase feel) */
+:root[data-scheme="retro"] .gb-row--session .session-row--top .bar-label{
+  font: 800 12px/1 "Orbitron", var(--font-ui);
+  letter-spacing: .12em;
+  color: #eaeaf0;
+  opacity: .95;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Let the select shrink on tight widths */
+:root[data-scheme="retro"] .gb-row--session .session-row--top .session-select{
+  min-width: 0;
+}
+
+/* Row 2 = buttons, centered within the frame */
+:root[data-scheme="retro"] .gb-row--session .session-row--buttons{
+  display: flex;
+  justify-content: center;   /* ⬅ center the whole cluster */
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;           /* wrap if needed */
+  width: 100%;
+}
+
+/* Button internals centered (includes <label class="btn">Import) */
+:root[data-scheme="retro"] .gb-row--session .session-row--buttons :where(button, .btn){
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 12px;
+  line-height: 1;
+  flex: 0 1 auto;            /* don't stretch; just wrap */
+}
+
+/* Narrow screens: left align to allow natural horizontal scroll */
+@media (max-width: 560px){
+  :root[data-scheme="retro"] .gb-row--session .session-row--buttons{
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
 /* =======================================================
    METRONOME (3 states)
    ======================================================= */

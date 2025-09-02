@@ -219,14 +219,33 @@ function makeSatCurve(k = 0, mode = "tape", blend = 1) {
     metClickRef.current.hi = createClickBuffer(ctx, 2000, 0.002);
     metClickRef.current.lo = createClickBuffer(ctx, 1200, 0.002);
 
-    // iOS unlock
-    const resume = () => ctx.resume();
-    window.addEventListener("pointerdown", resume, { once: true });
+    // --- iOS / mobile AudioContext unlock (robust) ---
+const tryResume = () => {
+  if (ctx.state !== "running") {
+    ctx.resume().catch(() => {});
+  }
+};
 
-    return () => {
-      try { window.removeEventListener("pointerdown", resume); } catch {}
-      try { ctx.close(); } catch {}
-    };
+// capture + non-passive so nothing can block it
+const opts = { capture: true, passive: false };
+const onVis = () => { if (!document.hidden) tryResume(); };
+
+document.addEventListener("touchstart",  tryResume, opts);
+document.addEventListener("pointerdown", tryResume, opts);
+document.addEventListener("keydown",     tryResume, opts);
+document.addEventListener("visibilitychange", onVis);
+
+return () => {
+  // …your existing teardown…
+  try { document.removeEventListener("touchstart",  tryResume, opts); } catch {}
+  try { document.removeEventListener("pointerdown", tryResume, opts); } catch {}
+  try { document.removeEventListener("keydown",     tryResume, opts); } catch {}
+  try { document.removeEventListener("visibilitychange", onVis); } catch {}
+  try { ctx.close(); } catch {}
+};
+
+
+   
   }, []);
 
   // ---------- helpers ----------

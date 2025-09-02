@@ -900,11 +900,21 @@ function getRecordingStepIndex() {
 
 // ===== UI handlers =====
 function togglePlay() {
-  if (!engine.getCtx()) return;
+  const ctx = engine.getCtx();
+  if (!ctx) return;
+
+  // Make sure the context is unlocked on iOS
+  if (ctx.state !== "running") {
+    try { ctx.resume(); } catch {}
+  }
+
   const next = !isPlaying;
   if (next) {
+    // (optional) ensure clean start aligned to now
     currentStepRef.current = 0;
     actions.transport.setStep(0);
+    loopStartRef.current = ctx.currentTime;
+    nextNoteTimeRef.current = ctx.currentTime + 0.05;
   }
   actions.transport.setIsPlaying(next);
 }

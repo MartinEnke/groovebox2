@@ -14,15 +14,16 @@ export default function TransportBar({
   return (
     <div className="transport">
       {/* Play / Stop (triangle / square) */}
+      // TransportBar.jsx
       <button
-        onClick={togglePlay}
-        className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
-        aria-pressed={isPlaying}
-        title={isPlaying ? "Stop" : "Play"}
-      >
-        <span className="tri" aria-hidden="true"></span>
-        <span className="sq" aria-hidden="true"></span>
-      </button>
+  onPointerDown={togglePlay}            // ← instead of onClick
+  className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
+  aria-pressed={isPlaying}
+  title={isPlaying ? "Stop" : "Play"}
+>
+  <span className="tri" aria-hidden="true"></span>
+  <span className="sq" aria-hidden="true"></span>
+</button>
 
       {/* Record (dot only) */}
       <button

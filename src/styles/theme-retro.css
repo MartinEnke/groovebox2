@@ -475,7 +475,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;  /* ⬅ spreads the group */
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;                 /* wrap if it gets tight */
   width: 100%;                     /* span full row */
 }
@@ -537,7 +537,7 @@
   display: flex;
   justify-content: center;   /* ⬅ center the whole cluster */
   align-items: center;
-  gap: 13px;
+  gap: 8px;
   flex-wrap: wrap;           /* wrap if needed */
   width: 100%;
 }

@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
+
+const PERSIST_TRIED_KEY = "gb-persist-tried";
 
 export default function SessionBar({
   sessions,
@@ -15,6 +17,31 @@ export default function SessionBar({
     .sort((a, b) => (b[1]?.updatedAt || 0) - (a[1]?.updatedAt || 0))
     .map(([name]) => name);
 
+    useEffect(() => {
+      let done = false;
+      (async () => {
+        if (done) return;
+        if (!("storage" in navigator) || !("persist" in navigator.storage)) return;
+  
+        try {
+          // skip if we've tried already (avoid spamming the API)
+          if (localStorage.getItem(PERSIST_TRIED_KEY)) return;
+  
+          const already = await navigator.storage.persisted?.();
+          if (!already) {
+            await navigator.storage.persist();
+          }
+          localStorage.setItem(PERSIST_TRIED_KEY, "1");
+        } catch (e) {
+          // harmless if it fails; just continue
+          console.debug("Storage persist request failed:", e);
+        }
+      })();
+      return () => { done = true; };
+    }, []);
+
+
+    
   return (
     <div className="sessionbar-neo">
       {/* Row 1: Session label + select */}

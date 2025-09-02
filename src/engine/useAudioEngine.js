@@ -494,43 +494,53 @@ return () => {
   }
 
   
-  const api = useMemo(() => ({
-    getCtx: () => ctxRef.current,
-    getAnalyser: () => analyserRef.current,
+  // near the bottom of src/engine/useAudioEngine.js
 
-    // packs
-    selectPack,
-    getBuffer,
+const api = useMemo(() => ({
+  getCtx: () => ctxRef.current,
 
-    // tempo & sum bus
-    updateTempo,
-    setSumComp,
-    setLimiterOn,
-    setSumGainDb,
-    setSumFilters,
-    setSumLowCut,
-    setSumHighCut,
+  // ✅ add this helper:
+  ensureRunning: async () => {
+    const ctx = ctxRef.current;
+    if (ctx && ctx.state !== "running") {
+      try { await ctx.resume(); } catch {}
+    }
+  },
 
-    // fx per instrument
-    setDelayWet,
-    setDelayMode,
-    setReverbWet,
-    setReverbMode,
-    setSaturationWet,
-    setSaturationMode,
+  // packs
+  selectPack,
+  getBuffer,
 
-    // instrument gain/mute
-    updateInstrumentGain,
-    setInstrumentPitch,
+  // tempo & sum bus
+  updateTempo,
+  setSumComp,
+  setLimiterOn,
+  setSumGainDb,
+  setSumFilters,
+  setSumLowCut,
+  setSumHighCut,
 
-    // playback
-    playSample,
-    choke,
-    duckFromTrigger,
-    click,
-  }), []);
+  // fx per instrument
+  setDelayWet,
+  setDelayMode,
+  setReverbWet,
+  setReverbMode,
+  setSaturationWet,
+  setSaturationMode,
 
-  return api;
+  // instrument gain/mute
+  updateInstrumentGain,
+  setInstrumentPitch,
+
+  // playback
+  playSample,
+  choke,
+  duckFromTrigger,
+  click,
+}), []);
+
+return api;
+
 }
 
 export default useAudioEngine;

@@ -496,48 +496,51 @@ return () => {
   
   // near the bottom of src/engine/useAudioEngine.js
 
-const api = useMemo(() => ({
-  getCtx: () => ctxRef.current,
-
-  // ✅ add this helper:
-  ensureRunning: async () => {
-    const ctx = ctxRef.current;
-    if (ctx && ctx.state !== "running") {
-      try { await ctx.resume(); } catch {}
-    }
-  },
-
-  // packs
-  selectPack,
-  getBuffer,
-
-  // tempo & sum bus
-  updateTempo,
-  setSumComp,
-  setLimiterOn,
-  setSumGainDb,
-  setSumFilters,
-  setSumLowCut,
-  setSumHighCut,
-
-  // fx per instrument
-  setDelayWet,
-  setDelayMode,
-  setReverbWet,
-  setReverbMode,
-  setSaturationWet,
-  setSaturationMode,
-
-  // instrument gain/mute
-  updateInstrumentGain,
-  setInstrumentPitch,
-
-  // playback
-  playSample,
-  choke,
-  duckFromTrigger,
-  click,
-}), []);
+  const api = useMemo(() => ({
+    // context + analyser accessors
+    getCtx: () => ctxRef.current,
+    getAnalyser: () => analyserRef.current,   // ← add this back
+  
+    // iOS helper
+    ensureRunning: async () => {
+      const ctx = ctxRef.current;
+      if (ctx && ctx.state !== "running") {
+        try { await ctx.resume(); } catch {}
+      }
+    },
+  
+    // packs
+    selectPack,
+    getBuffer,
+  
+    // tempo & sum bus
+    updateTempo,
+    setSumComp,
+    setLimiterOn,
+    setSumGainDb,
+    setSumFilters,
+    setSumLowCut,
+    setSumHighCut,
+  
+    // fx per instrument
+    setDelayWet,
+    setDelayMode,
+    setReverbWet,
+    setReverbMode,
+    setSaturationWet,
+    setSaturationMode,
+  
+    // instrument gain/mute
+    updateInstrumentGain,
+    setInstrumentPitch,
+  
+    // playback
+    playSample,
+    choke,
+    duckFromTrigger,
+    click,
+  }), []);
+  
 
 return api;
 

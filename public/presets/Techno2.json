@@ -1,0 +1,776 @@
+{
+  "v": 1,
+  "selectedPack": "two",
+  "bpm": 143,
+  "metMode": "off",
+  "patterns": {
+    "kick": {
+      "A": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "snare": {
+      "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "clap": {
+      "A": [
+        0,
+        0.45,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.6,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "tom1": {
+      "A": [
+        0,
+        0.45,
+        0,
+        1,
+        0,
+        0,
+        0.45,
+        0.45,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "tom2": {
+      "A": [
+        0,
+        0.45,
+        0.75,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0.6
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "rim": {
+      "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.45,
+        0.75,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "tam": {
+      "A": [
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45
+      ],
+      "B": [
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.6,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45,
+        0.45
+      ]
+    },
+    "hihat": {
+      "A": [
+        0,
+        0,
+        0.6,
+        0,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0.75,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "openhihat": {
+      "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.45
+      ]
+    },
+    "ride": {
+      "A": [
+        0,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0,
+        0.45,
+        0,
+        0,
+        0.45
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "rowActive": {
+    "kick": {
+      "A": true,
+      "B": false
+    },
+    "snare": {
+      "A": true,
+      "B": false
+    },
+    "clap": {
+      "A": true,
+      "B": false
+    },
+    "tom1": {
+      "A": true,
+      "B": false
+    },
+    "tom2": {
+      "A": true,
+      "B": false
+    },
+    "rim": {
+      "A": true,
+      "B": false
+    },
+    "tam": {
+      "A": true,
+      "B": true
+    },
+    "hihat": {
+      "A": true,
+      "B": false
+    },
+    "openhihat": {
+      "A": false,
+      "B": true
+    },
+    "ride": {
+      "A": true,
+      "B": false
+    }
+  },
+  "instGainsDb": {
+    "kick": 1.9,
+    "snare": 0,
+    "clap": -9.4,
+    "tom1": 0,
+    "tom2": 4.4,
+    "rim": -13.5,
+    "tam": 0,
+    "hihat": 0,
+    "openhihat": 0,
+    "ride": 0
+  },
+  "mutes": {
+    "kick": false,
+    "snare": false,
+    "clap": true,
+    "tom1": false,
+    "tom2": false,
+    "rim": false,
+    "tam": false,
+    "hihat": false,
+    "openhihat": true,
+    "ride": true
+  },
+  "soloActive": false,
+  "instSwingType": {
+    "kick": "none",
+    "snare": "none",
+    "clap": "16",
+    "tom1": "16",
+    "tom2": "16",
+    "rim": "16",
+    "tam": "16",
+    "hihat": "8",
+    "openhihat": "16",
+    "ride": "16"
+  },
+  "instSwingAmt": {
+    "kick": 0,
+    "snare": 0,
+    "clap": 37,
+    "tom1": 37,
+    "tom2": 43,
+    "rim": 41,
+    "tam": 28,
+    "hihat": 4,
+    "openhihat": 29,
+    "ride": 36
+  },
+  "globalSwingPct": 100,
+  "instDelayWet": {
+    "kick": 0,
+    "snare": 0,
+    "clap": 67,
+    "tom1": 0,
+    "tom2": 26,
+    "rim": 100,
+    "tam": 0,
+    "hihat": 29,
+    "openhihat": 37,
+    "ride": 0
+  },
+  "instDelayMode": {
+    "kick": "N8",
+    "snare": "N8",
+    "clap": "N3_4",
+    "tom1": "N8",
+    "tom2": "N8",
+    "rim": "N16",
+    "tam": "N8",
+    "hihat": "N16",
+    "openhihat": "N3_4",
+    "ride": "N8"
+  },
+  "instReverbWet": {
+    "kick": 29,
+    "snare": 0,
+    "clap": 100,
+    "tom1": 74,
+    "tom2": 33,
+    "rim": 100,
+    "tam": 0,
+    "hihat": 37,
+    "openhihat": 71,
+    "ride": 0
+  },
+  "instRevMode": {
+    "kick": "M",
+    "snare": "M",
+    "clap": "M",
+    "tom1": "M",
+    "tom2": "M",
+    "rim": "L",
+    "tam": "M",
+    "hihat": "L",
+    "openhihat": "M",
+    "ride": "M"
+  },
+  "instSatWet": {
+    "kick": 0,
+    "snare": 0,
+    "clap": 5,
+    "tom1": 8,
+    "tom2": 7,
+    "rim": 14,
+    "tam": 0,
+    "hihat": 0,
+    "openhihat": 0,
+    "ride": 0
+  },
+  "instSatMode": {
+    "kick": "tape",
+    "snare": "tape",
+    "clap": "hard",
+    "tom1": "warm",
+    "tom2": "warm",
+    "rim": "tape",
+    "tam": "tape",
+    "hihat": "tape",
+    "openhihat": "tape",
+    "ride": "tape"
+  },
+  "scMatrix": {
+    "kick": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "snare": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "clap": {
+      "kick": false,
+      "snare": true,
+      "clap": false,
+      "tom1": true,
+      "tom2": true,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": true,
+      "ride": false
+    },
+    "tom1": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "tom2": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "rim": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "tam": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "hihat": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "openhihat": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    },
+    "ride": {
+      "kick": false,
+      "snare": false,
+      "clap": false,
+      "tom1": false,
+      "tom2": false,
+      "rim": false,
+      "tam": false,
+      "hihat": false,
+      "openhihat": false,
+      "ride": false
+    }
+  },
+  "scAmtDb": {
+    "kick": 6,
+    "snare": 6,
+    "clap": 24,
+    "tom1": 6,
+    "tom2": 6,
+    "rim": 6,
+    "tam": 6,
+    "hihat": 6,
+    "openhihat": 6,
+    "ride": 6
+  },
+  "scAtkMs": {
+    "kick": 12,
+    "snare": 12,
+    "clap": 0,
+    "tom1": 12,
+    "tom2": 12,
+    "rim": 12,
+    "tam": 12,
+    "hihat": 12,
+    "openhihat": 12,
+    "ride": 12
+  },
+  "scRelMs": {
+    "kick": 180,
+    "snare": 180,
+    "clap": 115,
+    "tom1": 180,
+    "tom2": 180,
+    "rim": 180,
+    "tam": 180,
+    "hihat": 180,
+    "openhihat": 180,
+    "ride": 180
+  },
+  "sumComp": {
+    "threshold": -21,
+    "ratio": 6.2,
+    "attack": 0.003,
+    "release": 0.25,
+    "knee": 3
+  },
+  "sumGainDb": 3.1,
+  "limiterOn": true,
+  "sumLowCut": false,
+  "sumHighCut": false,
+  "rowExpanded": {
+    "kick": {
+      "A": false,
+      "B": false
+    },
+    "snare": {
+      "A": false,
+      "B": false
+    },
+    "clap": {
+      "A": false,
+      "B": false
+    },
+    "tom1": {
+      "A": false,
+      "B": false
+    },
+    "tom2": {
+      "A": false,
+      "B": false
+    },
+    "rim": {
+      "A": false,
+      "B": false
+    },
+    "tam": {
+      "A": false,
+      "B": false
+    },
+    "hihat": {
+      "A": false,
+      "B": false
+    },
+    "openhihat": {
+      "A": false,
+      "B": false
+    },
+    "ride": {
+      "A": false,
+      "B": false
+    }
+  },
+  "selected": "ride",
+  "instPitchSemi": {
+    "kick": 0,
+    "snare": 12,
+    "clap": 1,
+    "tom1": 0,
+    "tom2": -8,
+    "rim": -9,
+    "tam": 6,
+    "hihat": 9,
+    "openhihat": 4,
+    "ride": 3
+  }
+}

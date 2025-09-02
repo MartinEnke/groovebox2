@@ -540,15 +540,25 @@ useEffect(() => {
     };
   }
 
-  const {
-    sessions,
-    currentSessionName,
-    saveNamedSession,
-    loadNamedSession,
-    deleteNamedSession,
-    exportSessionToFile,
-    importSessionFromFile,
-  } = useSessions({ buildSession, applySession });
+  // after calling your useSessions hook:
+const {
+  sessions,
+  presets,               // <— NEW
+  currentSessionName,
+  currentPresetName,     // <— NEW
+  isPresetActive,        // <— NEW
+  saveNamedSession,
+  loadNamedSession,
+  loadPreset,            // <— NEW
+  deleteNamedSession,
+  exportSessionToFile,
+  importSessionFromFile,
+} = useSessions({ buildSession, applySession, autoLoadLast: true });
+
+// ...
+
+
+
   
   async function applySession(raw) {
     if (!raw || typeof raw !== "object") return;
@@ -1272,6 +1282,10 @@ return (
           deleteNamedSession={deleteNamedSession}
           exportSessionToFile={exportSessionToFile}
           importSessionFromFile={importSessionFromFile}
+          presets={presets}
+  currentPresetName={currentPresetName}
+  loadPreset={loadPreset}
+  isPresetActive={isPresetActive}
           onNewSession={() => {
             // your existing "New" logic (unchanged)
             clearAllPatternsAndLevels();
@@ -1292,6 +1306,8 @@ return (
             setShowFX(false);
             setShowSwingUI(false);
             setShowSum(false);
+            
+            
           }}
         />
       </div>

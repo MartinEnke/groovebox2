@@ -1,7 +1,7 @@
 {
   "v": 1,
   "selectedPack": "three",
-  "bpm": 127,
+  "bpm": 133,
   "metMode": "off",
   "patterns": {
     "kick": {
@@ -120,24 +120,25 @@
     },
     "tom1": {
       "A": [
+        0.75,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.45,
         0.6,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0.6,
-        0,
-        0.6,
+        0.45,
         0.6,
         0.6
       ],
       "B": [
+        0.75,
         0,
         0,
         0,
@@ -152,8 +153,7 @@
         0,
         0,
         0,
-        0,
-        0
+        0.75
       ]
     },
     "tom2": {
@@ -196,18 +196,18 @@
     },
     "rim": {
       "A": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0.45,
         0,
         0,
         0,
         0,
-        0,
-        0.75,
-        0,
-        0,
-        0,
-        0,
-        0.6,
+        0.45,
         0,
         0,
         0,
@@ -225,7 +225,7 @@
         0,
         0,
         0,
-        0,
+        0.45,
         0,
         0,
         0,
@@ -400,7 +400,7 @@
     },
     "tom1": {
       "A": true,
-      "B": false
+      "B": true
     },
     "tom2": {
       "A": true,
@@ -408,7 +408,7 @@
     },
     "rim": {
       "A": true,
-      "B": false
+      "B": true
     },
     "tam": {
       "A": false,
@@ -430,10 +430,10 @@
   "instGainsDb": {
     "kick": 0,
     "snare": 0,
-    "clap": 0,
+    "clap": -7.3,
     "tom1": -10.9,
     "tom2": 1,
-    "rim": 0,
+    "rim": -5.5,
     "tam": 3.2,
     "hihat": 0,
     "openhihat": 0,
@@ -482,7 +482,7 @@
     "snare": 0,
     "clap": 0,
     "tom1": 88,
-    "tom2": 0,
+    "tom2": 22,
     "rim": 28,
     "tam": 0,
     "hihat": 0,
@@ -504,10 +504,10 @@
   "instReverbWet": {
     "kick": 70,
     "snare": 0,
-    "clap": 0,
+    "clap": 66,
     "tom1": 91,
     "tom2": 0,
-    "rim": 0,
+    "rim": 80,
     "tam": 100,
     "hihat": 0,
     "openhihat": 0,
@@ -531,7 +531,7 @@
     "clap": 0,
     "tom1": 0,
     "tom2": 0,
-    "rim": 23,
+    "rim": 92,
     "tam": 0,
     "hihat": 0,
     "openhihat": 0,
@@ -760,14 +760,14 @@
       "B": false
     }
   },
-  "selected": "snare",
+  "selected": "tom1",
   "instPitchSemi": {
     "kick": -3,
     "snare": 12,
     "clap": -1,
     "tom1": 10,
     "tom2": 0,
-    "rim": 8,
+    "rim": 9,
     "tam": -2,
     "hihat": -3,
     "openhihat": 4,

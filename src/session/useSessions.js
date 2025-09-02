@@ -20,7 +20,7 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
   const [presets, setPresets] = useState({});   // { [name]: presetSnapshot }
   const [currentPresetName, setCurrentPresetName] = useState("");
 
-  // Load sessions dict (+ optionally auto-load last user session)
+  // ---- Load sessions dict (+ optionally auto-load last user session) ----
   useEffect(() => {
     let dict = {};
     try { dict = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch {}
@@ -30,34 +30,56 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
       const last = localStorage.getItem(CURRENT_SESSION_KEY);
       if (last && dict[last] && typeof applySession === "function") {
         // Defer to allow audio engine to mount
-        queueMicrotask(() => applySession(dict[last]));
+        queueMicrotask?.(() => applySession(dict[last]));
       }
       if (last && dict[last]) setCurrentSessionName(last);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load presets from /public/presets
+  // ---- Load presets from /public/presets (base-aware for Vite/CRA) ----
   useEffect(() => {
     let alive = true;
+
+    // Build an asset URL that respects Vite's BASE_URL or CRA's PUBLIC_URL
+    const asset = (p) => {
+      const base =
+        (typeof import !== "undefined" && import.meta?.env?.BASE_URL) ||
+        (typeof process !== "undefined" && process.env?.PUBLIC_URL) ||
+        "/";
+      return base.replace(/\/+$/,"") + "/" + String(p).replace(/^\/+/,"");
+    };
+
     (async () => {
       try {
-        // index.json = [{ "name": "DR-11 Starter", "file": "dr11_starter.json" }, ...]
-        const list = await fetch("/presets/index.json").then(r => (r.ok ? r.json() : []));
+        const idxUrl = asset("presets/index.json");
+        const res = await fetch(idxUrl);
+        if (!res.ok) {
+          console.warn("Presets index not found:", idxUrl, res.status);
+          return;
+        }
+        const list = await res.json(); // [{ name, file }, ...]
+
         const map = {};
         for (const { name, file } of list) {
           try {
-            const data = await fetch(`/presets/${file}`).then(r => r.json());
-            // data should be the same shape as buildSession() returns
-            map[name] = data;
-          } catch {}
+            const fileUrl = asset(`presets/${file}`);
+            const r = await fetch(fileUrl);
+            if (!r.ok) {
+              console.warn("Preset file missing:", fileUrl, r.status);
+              continue;
+            }
+            map[name] = await r.json(); // must match buildSession() shape
+          } catch (e) {
+            console.warn("Failed to load preset:", file, e);
+          }
         }
         if (alive) setPresets(map);
       } catch (e) {
-        // No presets shipped; that's fine.
-        console.warn("No presets found:", e);
+        console.warn("Preset load failed:", e);
       }
     })();
+
     return () => { alive = false; };
   }, []);
 
@@ -115,7 +137,7 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     if (typeof applySession === "function") applySession(presets[trimmed]);
   }, [presets, applySession]);
 
-  // ---- Export / Import (always export the live UI state) ----
+  // ---- Export / Import (export current UI state, regardless of source) ----
   const exportSessionToFile = useCallback(() => {
     if (typeof buildSession !== "function") return;
     const data = buildSession();

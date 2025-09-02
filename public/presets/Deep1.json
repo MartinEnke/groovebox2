@@ -198,7 +198,7 @@
       "A": [
         0,
         0,
-        0.45,
+        0,
         0,
         0,
         0,
@@ -214,20 +214,20 @@
         0
       ],
       "B": [
+        0.6,
         0,
         0,
         0,
         0,
         0,
+        0.45,
         0,
         0,
         0,
+        0.6,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
+        0.45,
         0,
         0
       ]
@@ -408,7 +408,7 @@
     },
     "rim": {
       "A": true,
-      "B": false
+      "B": true
     },
     "tam": {
       "A": false,
@@ -430,10 +430,10 @@
   "instGainsDb": {
     "kick": 0,
     "snare": 0,
-    "clap": 0,
+    "clap": -8.2,
     "tom1": -4.6,
     "tom2": -1,
-    "rim": -4.9,
+    "rim": -4,
     "tam": 0,
     "hihat": 0,
     "openhihat": 2.9,
@@ -504,10 +504,10 @@
   "instReverbWet": {
     "kick": 0,
     "snare": 88,
-    "clap": 50,
+    "clap": 89,
     "tom1": 0,
     "tom2": 35,
-    "rim": 0,
+    "rim": 72,
     "tam": 0,
     "hihat": 0,
     "openhihat": 70,
@@ -531,7 +531,7 @@
     "clap": 0,
     "tom1": 22,
     "tom2": 62,
-    "rim": 0,
+    "rim": 100,
     "tam": 0,
     "hihat": 0,
     "openhihat": 94,
@@ -714,7 +714,7 @@
     "release": 0.25,
     "knee": 3
   },
-  "sumGainDb": 1.6,
+  "sumGainDb": 3.7,
   "limiterOn": true,
   "sumLowCut": false,
   "sumHighCut": false,

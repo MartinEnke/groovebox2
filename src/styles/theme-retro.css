@@ -1,5 +1,5 @@
 /* =========================
-   THEME: RETRO (full file)
+   THEME: RETRO 
    ========================= */
 
 /* Fonts */
@@ -1837,7 +1837,7 @@
    [data-scheme="retro"] .transport .lcd{
      justify-self: center;
      min-width: 90px;
-     height: 26px;
+     height: 40px;
      display: grid;
      place-items: center;
      padding: 0 10px;
@@ -1857,7 +1857,7 @@
    :root[data-scheme="retro"] .transport .btn.press,
    [data-scheme="retro"] .transport .btn.press{
      min-width: 44px;
-     height: 32px;
+     height: 40px;
      padding: 0 12px;
      border-radius: 2px;
      border: 1px solid rgba(0,0,0,.6);

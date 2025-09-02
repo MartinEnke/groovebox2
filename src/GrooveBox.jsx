@@ -28,7 +28,6 @@ import useSessions from "./session/useSessions";
 
 
 
-
 function LogoResetHotspot({ targetRef, active, onReset }) {
   const portalRef = React.useRef(null);
 
@@ -113,11 +112,9 @@ export default function GrooveBox() {
     }, [scheme]);
 
   
-  
   // --- central store ---
   const { state, actions } = useSessionStore();
 
-  
 
   const bpm         = state.transport.bpm;
   const isPlaying   = state.transport.isPlaying;
@@ -129,7 +126,6 @@ export default function GrooveBox() {
 
   // --- audio engine (WebAudio graph) ---
   const engine = useAudioEngine();
-
 
 
 // put near your other refs
@@ -162,8 +158,6 @@ useEffect(() => {
   el.addEventListener("pointerdown", handler, { capture: true });
   return () => el.removeEventListener("pointerdown", handler, { capture: true });
 }, [reloadLikeShiftCmdR]);
-
-
 
 
   useEffect(() => {
@@ -285,9 +279,6 @@ useEffect(() => {
   useEffect(() => { instDelayModeRef.current = instDelayMode; }, [instDelayMode]);
   useEffect(() => { instReverbWetRef.current = instReverbWet; }, [instReverbWet]);
   useEffect(() => { instRevModeRef.current = instRevMode; }, [instRevMode]);
-
-
-  
 
 
   // ===== Sidechain =====
@@ -746,7 +737,6 @@ useEffect(() => {
   }
   
 
-
 // ===== Scheduling =====
 useEffect(() => {
   if (!isPlaying || !engine.getCtx()) return;
@@ -1092,7 +1082,6 @@ function clearAllPatternsAndLevels() {
 }
 
 
-
 // replace your RetroLogo with this version
 const RetroLogo = React.forwardRef(function RetroLogo({ onActivate }, ref) {
   return (
@@ -1221,10 +1210,6 @@ function ThemeButtons({ scheme, setScheme }) {
   );
 }
 
-
-
-
-  
 // ===== Render =====
 return (
   <div
@@ -1404,8 +1389,6 @@ return (
   lowCutOn={sumLowCut} setLowCutOn={setSumLowCut}
   highCutOn={sumHighCut} setHighCutOn={setSumHighCut}
 />
-
-
 
     {/* Divider */}
 <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "24px 0" }} />

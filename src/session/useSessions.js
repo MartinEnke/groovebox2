@@ -2,6 +2,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { SESSIONS_KEY, CURRENT_SESSION_KEY } from "../constants/session";
 
+/** Resolve a public asset path (works with CRA PUBLIC_URL or plain /). */
+function asset(p) {
+  var base = "/";
+  try {
+    if (typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
+      base = process.env.PUBLIC_URL; // CRA sets this
+    }
+  } catch (e) {}
+  return String(base).replace(/\/+$/, "") + "/" + String(p || "").replace(/^\/+/, "");
+}
+
 /**
  * Manages:
  *  - User sessions in localStorage (save/load/delete/export/import)
@@ -29,26 +40,17 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     if (autoLoadLast) {
       const last = localStorage.getItem(CURRENT_SESSION_KEY);
       if (last && dict[last] && typeof applySession === "function") {
-        // Defer to allow audio engine to mount
-        queueMicrotask?.(() => applySession(dict[last]));
+        // Defer a tick so the audio engine has mounted
+        Promise.resolve().then(() => applySession(dict[last]));
       }
       if (last && dict[last]) setCurrentSessionName(last);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- Load presets from /public/presets (base-aware for Vite/CRA) ----
+  // ---- Load presets from /public/presets ----
   useEffect(() => {
     let alive = true;
-
-    // Build an asset URL that respects Vite's BASE_URL or CRA's PUBLIC_URL
-    const asset = (p) => {
-      const base =
-        (typeof import !== "undefined" && import.meta?.env?.BASE_URL) ||
-        (typeof process !== "undefined" && process.env?.PUBLIC_URL) ||
-        "/";
-      return base.replace(/\/+$/,"") + "/" + String(p).replace(/^\/+/,"");
-    };
 
     (async () => {
       try {
@@ -61,18 +63,15 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
         const list = await res.json(); // [{ name, file }, ...]
 
         const map = {};
-        for (const { name, file } of list) {
-          try {
-            const fileUrl = asset(`presets/${file}`);
-            const r = await fetch(fileUrl);
-            if (!r.ok) {
-              console.warn("Preset file missing:", fileUrl, r.status);
-              continue;
-            }
-            map[name] = await r.json(); // must match buildSession() shape
-          } catch (e) {
-            console.warn("Failed to load preset:", file, e);
+        for (const item of list) {
+          if (!item || !item.name || !item.file) continue;
+          const fileUrl = asset("presets/" + item.file);
+          const r = await fetch(fileUrl);
+          if (!r.ok) {
+            console.warn("Preset file missing:", fileUrl, r.status);
+            continue;
           }
+          map[item.name] = await r.json(); // must match buildSession() shape
         }
         if (alive) setPresets(map);
       } catch (e) {
@@ -93,8 +92,8 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     const trimmed = (name || "").trim();
     if (!trimmed) return;
     if (typeof buildSession !== "function") return;
-    const payload = { ...buildSession(), updatedAt: Date.now() };
 
+    const payload = { ...buildSession(), updatedAt: Date.now() };
     const next = { ...sessions, [trimmed]: payload };
     persistSessions(next);
 

@@ -8,16 +8,16 @@
       "A": [
         1,
         0,
-        0.6,
-        0,
-        0,
-        0,
-        0.6,
-        0,
-        0,
-        0.6,
-        0,
         0.45,
+        0,
+        0,
+        0,
+        0.6,
+        0,
+        0,
+        0.6,
+        0,
+        1,
         0,
         0.45,
         0,
@@ -196,7 +196,7 @@
     },
     "rim": {
       "A": [
-        0,
+        0.45,
         0,
         0,
         0,
@@ -433,7 +433,7 @@
     "clap": -8.2,
     "tom1": -4.6,
     "tom2": -1,
-    "rim": -4,
+    "rim": -6.6,
     "tam": 0,
     "hihat": 0,
     "openhihat": 2.9,
@@ -442,10 +442,10 @@
   "mutes": {
     "kick": false,
     "snare": false,
-    "clap": false,
+    "clap": true,
     "tom1": false,
     "tom2": false,
-    "rim": false,
+    "rim": true,
     "tam": false,
     "hihat": false,
     "openhihat": false,
@@ -455,7 +455,7 @@
   "instSwingType": {
     "kick": "16",
     "snare": "none",
-    "clap": "none",
+    "clap": "16",
     "tom1": "16",
     "tom2": "16",
     "rim": "16",
@@ -465,9 +465,9 @@
     "ride": "16"
   },
   "instSwingAmt": {
-    "kick": 70,
+    "kick": 73,
     "snare": 0,
-    "clap": 0,
+    "clap": 78,
     "tom1": 73,
     "tom2": 74,
     "rim": 74,
@@ -476,9 +476,9 @@
     "openhihat": 79,
     "ride": 73
   },
-  "globalSwingPct": 100,
+  "globalSwingPct": 126,
   "instDelayWet": {
-    "kick": 0,
+    "kick": 27,
     "snare": 0,
     "clap": 22,
     "tom1": 13,
@@ -487,7 +487,7 @@
     "tam": 0,
     "hihat": 0,
     "openhihat": 23,
-    "ride": 0
+    "ride": 41
   },
   "instDelayMode": {
     "kick": "N8",
@@ -502,7 +502,7 @@
     "ride": "N8"
   },
   "instReverbWet": {
-    "kick": 0,
+    "kick": 43,
     "snare": 88,
     "clap": 89,
     "tom1": 0,
@@ -514,7 +514,7 @@
     "ride": 0
   },
   "instRevMode": {
-    "kick": "M",
+    "kick": "S",
     "snare": "M",
     "clap": "L",
     "tom1": "M",
@@ -526,7 +526,7 @@
     "ride": "M"
   },
   "instSatWet": {
-    "kick": 91,
+    "kick": 66,
     "snare": 88,
     "clap": 0,
     "tom1": 22,
@@ -660,7 +660,7 @@
     },
     "ride": {
       "kick": true,
-      "snare": false,
+      "snare": true,
       "clap": false,
       "tom1": false,
       "tom2": false,
@@ -705,7 +705,7 @@
     "tam": 145,
     "hihat": 180,
     "openhihat": 180,
-    "ride": 190
+    "ride": 310
   },
   "sumComp": {
     "threshold": -19,
@@ -760,7 +760,7 @@
       "B": false
     }
   },
-  "selected": "rim",
+  "selected": "kick",
   "instPitchSemi": {
     "kick": 0,
     "snare": 12,

@@ -543,13 +543,13 @@ useEffect(() => {
   // after calling your useSessions hook:
 const {
   sessions,
-  presets,               // <— NEW
+  presets,               // NEW
   currentSessionName,
-  currentPresetName,     // <— NEW
-  isPresetActive,        // <— NEW
+  currentPresetName,     // NEW
+  isPresetActive,        // NEW
   saveNamedSession,
   loadNamedSession,
-  loadPreset,            // <— NEW
+  loadPreset,            // NEW
   deleteNamedSession,
   exportSessionToFile,
   importSessionFromFile,
@@ -1220,6 +1220,35 @@ function ThemeButtons({ scheme, setScheme }) {
   );
 }
 
+// 1) define a handler (above the return in GrooveBox.jsx)
+const handleNewSession = () => {
+  // your existing "New" logic (unchanged)
+  clearAllPatternsAndLevels();
+  setGlobalSwingPct(100);
+  setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
+  setInstRevMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "M"])));
+  setScMatrix(Object.fromEntries(INSTRUMENTS.map(t => [t.id, Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))])));
+  setScAmtDb(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));
+  setScAtkMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));
+  setScRelMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));
+  setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
+  setSumGainDb(0);
+  setLimiterOn(true);
+
+  // clear current selection if you were tracking it
+  // (keep this if you actually have setCurrentSessionName in scope)
+  try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
+  // if you *do* have setCurrentSessionName available, also do:
+  // setCurrentSessionName("");
+
+  setShowPads(true);
+  setShowSC(false);
+  setShowFX(false);
+  setShowSwingUI(false);
+  setShowSum(false);
+};
+
+
 // ===== Render =====
 return (
   <div
@@ -1274,42 +1303,24 @@ return (
 
       {/* ROW 2: Session */}
       <div className="gb-row gb-row--session">
-        <SessionBar
-          sessions={sessions}
-          currentSessionName={currentSessionName}
-          loadNamedSession={loadNamedSession}
-          saveNamedSession={saveNamedSession}
-          deleteNamedSession={deleteNamedSession}
-          exportSessionToFile={exportSessionToFile}
-          importSessionFromFile={importSessionFromFile}
-          presets={presets}
+      <SessionBar
+  sessions={sessions}
+  currentSessionName={currentSessionName}
+  loadNamedSession={loadNamedSession}
+  saveNamedSession={saveNamedSession}
+  deleteNamedSession={deleteNamedSession}
+  exportSessionToFile={exportSessionToFile}
+  importSessionFromFile={importSessionFromFile}
+
+  // presets (read-only)
+  presets={presets}
   currentPresetName={currentPresetName}
   loadPreset={loadPreset}
   isPresetActive={isPresetActive}
-          onNewSession={() => {
-            // your existing "New" logic (unchanged)
-            clearAllPatternsAndLevels();
-            setGlobalSwingPct(100);
-            setInstDelayMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "N8"])));
-            setInstRevMode(Object.fromEntries(INSTRUMENTS.map(i => [i.id, "M"])));
-            setScMatrix(Object.fromEntries(INSTRUMENTS.map(t => [t.id, Object.fromEntries(INSTRUMENTS.map(s => [s.id, false]))])));
-            setScAmtDb(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 6])));
-            setScAtkMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 12])));
-            setScRelMs(Object.fromEntries(INSTRUMENTS.map(i => [i.id, 180])));
-            setSumComp({ threshold: -12, ratio: 3, attack: 0.003, release: 0.25, knee: 3 });
-            setSumGainDb(0);
-            setLimiterOn(true);
-            setCurrentSessionName("");
-            try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
-            setShowPads(true);
-            setShowSC(false);
-            setShowFX(false);
-            setShowSwingUI(false);
-            setShowSum(false);
-            
-            
-          }}
-        />
+
+  // new handler
+  onNewSession={handleNewSession}
+/>
       </div>
     
 

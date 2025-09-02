@@ -2,21 +2,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { SESSIONS_KEY, CURRENT_SESSION_KEY } from "../constants/session";
 
-/** Resolve a public asset path (works with CRA PUBLIC_URL or plain /). */
-function asset(p) {
-  var base = "/";
-  try {
-    if (typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
-      base = process.env.PUBLIC_URL; // CRA sets this
-    }
-  } catch (e) {}
-  return String(base).replace(/\/+$/, "") + "/" + String(p || "").replace(/^\/+/, "");
-}
-
 /**
  * Manages:
  *  - User sessions in localStorage (save/load/delete/export/import)
- *  - Read-only presets loaded from /public/presets (Option B)
+ *  - Read-only presets bundled under src/presets (no network)
  *
  * Expects:
  *  - buildSession(): object   -> current app state snapshot
@@ -24,11 +13,11 @@ function asset(p) {
  */
 export default function useSessions({ buildSession, applySession, autoLoadLast = true } = {}) {
   // User sessions (persistent)
-  const [sessions, setSessions] = useState({}); // { [name]: sessionObjWithUpdatedAt }
+  const [sessions, setSessions] = useState({});
   const [currentSessionName, setCurrentSessionName] = useState("");
 
-  // Read-only presets (bundled, not persisted)
-  const [presets, setPresets] = useState({});   // { [name]: presetSnapshot }
+  // Read-only presets (bundled)
+  const [presets, setPresets] = useState({});
   const [currentPresetName, setCurrentPresetName] = useState("");
 
   // ---- Load sessions dict (+ optionally auto-load last user session) ----
@@ -40,46 +29,28 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     if (autoLoadLast) {
       const last = localStorage.getItem(CURRENT_SESSION_KEY);
       if (last && dict[last] && typeof applySession === "function") {
-        // Defer a tick so the audio engine has mounted
         Promise.resolve().then(() => applySession(dict[last]));
       }
       if (last && dict[last]) setCurrentSessionName(last);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- Load presets from /public/presets ----
+  // ---- Load presets via Vite glob (no network) ----
   useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      try {
-        const idxUrl = asset("presets/index.json");
-        const res = await fetch(idxUrl);
-        if (!res.ok) {
-          console.warn("Presets index not found:", idxUrl, res.status);
-          return;
-        }
-        const list = await res.json(); // [{ name, file }, ...]
-
-        const map = {};
-        for (const item of list) {
-          if (!item || !item.name || !item.file) continue;
-          const fileUrl = asset("presets/" + item.file);
-          const r = await fetch(fileUrl);
-          if (!r.ok) {
-            console.warn("Preset file missing:", fileUrl, r.status);
-            continue;
-          }
-          map[item.name] = await r.json(); // must match buildSession() shape
-        }
-        if (alive) setPresets(map);
-      } catch (e) {
-        console.warn("Preset load failed:", e);
-      }
-    })();
-
-    return () => { alive = false; };
+    // NOTE: this path is RELATIVE to THIS FILE (src/session/useSessions.js):
+    // ../presets/*.json  ->  src/presets/*.json
+    const modules = import.meta.glob("../presets/*.json", {
+      eager: true,
+      import: "default", // get the parsed JSON directly
+    });
+    const map = {};
+    for (const [path, jsonObj] of Object.entries(modules)) {
+      const file = path.split("/").pop() || "";
+      const name = file.replace(/\.json$/i, ""); // Disco1.json -> Disco1
+      map[name] = jsonObj;
+    }
+    setPresets(map);
   }, []);
 
   const persistSessions = useCallback((next) => {
@@ -119,7 +90,7 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     const trimmed = (name || "").trim();
     if (!trimmed || !sessions[trimmed]) return;
 
-    setCurrentPresetName(""); // leaving preset mode
+    setCurrentPresetName("");
     setCurrentSessionName(trimmed);
     try { localStorage.setItem(CURRENT_SESSION_KEY, trimmed); } catch {}
     if (typeof applySession === "function") applySession(sessions[trimmed]);
@@ -130,13 +101,13 @@ export default function useSessions({ buildSession, applySession, autoLoadLast =
     const trimmed = (name || "").trim();
     if (!trimmed || !presets[trimmed]) return;
 
-    setCurrentSessionName(""); // no user session selected
+    setCurrentSessionName("");
     setCurrentPresetName(trimmed);
     try { localStorage.removeItem(CURRENT_SESSION_KEY); } catch {}
     if (typeof applySession === "function") applySession(presets[trimmed]);
   }, [presets, applySession]);
 
-  // ---- Export / Import (export current UI state, regardless of source) ----
+  // ---- Export / Import ----
   const exportSessionToFile = useCallback(() => {
     if (typeof buildSession !== "function") return;
     const data = buildSession();

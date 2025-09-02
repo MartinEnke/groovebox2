@@ -1476,7 +1476,7 @@
    /* Base transport buttons */
    :root[data-scheme="neo"] .transport .btn.press,
    [data-scheme="neo"] .transport .btn.press{
-     min-width: 44px; height: 32px; padding: 0 12px; border-radius: 10px;
+     min-width: 44px; height: 40px; padding: 0 12px; border-radius: 10px;
      border: 1px solid var(--neo-stroke);
      color: var(--neo-text);
      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));

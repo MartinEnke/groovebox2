@@ -7,9 +7,11 @@
 
 
 
+.gb-retro-header { position: relative; z-index: 2147483647; pointer-events: auto; }
+.gb-retro-header, .gb-retro-header * { pointer-events: auto; }
 
-
-
+.gb-retro-header { position: relative; z-index: 2147483646; }
+.gb-brand, .gb-wordmark { position: relative; z-index: 2147483646; pointer-events: auto; }
 
 
 

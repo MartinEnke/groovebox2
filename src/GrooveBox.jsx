@@ -1,5 +1,5 @@
 // src/GrooveBox.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { SAMPLE_PACKS, PACK_IDS } from "./constants/packs";
 import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
@@ -29,20 +29,91 @@ import useSessions from "./session/useSessions";
 
 
 
+function LogoResetHotspot({ targetRef, active, onReset }) {
+  const portalRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    if (!active || !targetRef.current) {
+      if (portalRef.current) { portalRef.current.remove(); portalRef.current = null; }
+      return;
+    }
+
+    const box = document.createElement("div");
+    portalRef.current = box;
+    document.body.appendChild(box);
+
+    const styleBase = {
+      position: "fixed",
+      zIndex: "2147483647",      // above everything
+      pointerEvents: "auto",
+      background: "transparent",
+      cursor: "pointer",
+    };
+
+    const place = () => {
+      const r = targetRef.current?.getBoundingClientRect();
+      if (!r) return;
+      Object.assign(box.style, styleBase, {
+        left: r.left + "px",
+        top: r.top + "px",
+        width: r.width + "px",
+        height: r.height + "px",
+      });
+    };
+
+    const onDown = (e) => {
+      e.preventDefault?.();
+      e.stopPropagation?.();
+      e.stopImmediatePropagation?.();
+      onReset();
+    };
+
+    place();
+    box.addEventListener("pointerdown", onDown, { capture: true, passive: false });
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+
+    const ro = new ResizeObserver(place);
+    ro.observe(document.documentElement);
+    if (targetRef.current) ro.observe(targetRef.current);
+
+    return () => {
+      try { box.removeEventListener("pointerdown", onDown, { capture: true }); } catch {}
+      try { window.removeEventListener("resize", place); } catch {}
+      try { window.removeEventListener("scroll", place, true); } catch {}
+      try { ro.disconnect(); } catch {}
+      try { box.remove(); } catch {}
+      portalRef.current = null;
+    };
+  }, [active, targetRef, onReset]);
+
+  return null;
+}
 
 
 
 export default function GrooveBox() {
 
   // Visual scheme (retro = original look, neo = modern)
-const [scheme, setScheme] = useState(() => {
-  try { return localStorage.getItem("gb-scheme") || "retro"; } catch { return "retro"; }
-});
-useEffect(() => {
-  try { localStorage.setItem("gb-scheme", scheme); } catch {}
-  document.documentElement.setAttribute("data-scheme", scheme);
-}, [scheme]);
+  const [scheme, setScheme] = useState(() => {
+      try {
+        const saved = localStorage.getItem("gb-scheme");
+        return (saved === "neo" || saved === "retro") ? saved : "neo"; // default = NEO
+      } catch {
+        return "neo";
+      }
+    });
+    // Apply scheme BEFORE paint so it never lags behind during playback
+    useLayoutEffect(() => {
+      const root = document.documentElement;
+      if (root.getAttribute("data-scheme") !== scheme) {
+        root.setAttribute("data-scheme", scheme);
+      }
+      try { localStorage.setItem("gb-scheme", scheme); } catch {}
+    }, [scheme]);
 
+  
+  
   // --- central store ---
   const { state, actions } = useSessionStore();
 
@@ -60,7 +131,39 @@ useEffect(() => {
   const engine = useAudioEngine();
 
 
-  
+
+// put near your other refs
+const logoRef = useRef(null);
+
+// strongest reload that mimics ⌘⇧R without touching sessions/scheme
+const reloadLikeShiftCmdR = React.useCallback(() => {
+  try { engine.getCtx()?.suspend(); } catch {}
+  try { if (timerIdRef.current) { clearInterval(timerIdRef.current); timerIdRef.current = null; } } catch {}
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("_r", Date.now().toString()); // cache-bust like a hard refresh
+  // no RAF — do it *now*, while we're still in the trusted input event
+  window.location.replace(url.toString());
+}, [engine]);
+
+// attach a *native* capture listener so it wins even while playing
+useEffect(() => {
+  const el = logoRef.current;
+  if (!el) return;
+
+  const handler = (e) => {
+    // grab it before React / other handlers
+    e.preventDefault();
+    e.stopPropagation();
+    reloadLikeShiftCmdR();
+  };
+
+  // capture phase + non-passive so preventDefault works
+  el.addEventListener("pointerdown", handler, { capture: true });
+  return () => el.removeEventListener("pointerdown", handler, { capture: true });
+}, [reloadLikeShiftCmdR]);
+
+
 
 
   useEffect(() => {
@@ -182,6 +285,10 @@ useEffect(() => {
   useEffect(() => { instDelayModeRef.current = instDelayMode; }, [instDelayMode]);
   useEffect(() => { instReverbWetRef.current = instReverbWet; }, [instReverbWet]);
   useEffect(() => { instRevModeRef.current = instRevMode; }, [instRevMode]);
+
+
+  
+
 
   // ===== Sidechain =====
   const [scMatrix, setScMatrix] = useState(
@@ -640,7 +747,6 @@ useEffect(() => {
   
 
 
-
 // ===== Scheduling =====
 useEffect(() => {
   if (!isPlaying || !engine.getCtx()) return;
@@ -986,39 +1092,135 @@ function clearAllPatternsAndLevels() {
 }
 
 
+
+// replace your RetroLogo with this version
+const RetroLogo = React.forwardRef(function RetroLogo({ onActivate }, ref) {
+  return (
+    <h1
+      ref={ref}
+      className="gb-wordmark"
+      aria-label="GrooveBox"
+      role="button"
+      tabIndex={0}
+      onClick={onActivate} // still keep React handler as a fallback
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onActivate?.(); }
+      }}
+      style={{ cursor: "pointer" }}
+    >
+      GrooveBox
+    </h1>
+  );
+});
+
+
+// attach native listeners so reset still works while playing
 useEffect(() => {
-  document.documentElement.setAttribute("data-scheme", scheme);
-}, [scheme]);
+  const el = logoRef.current;
+  if (!el) return;
+
+  const fireReset = (e) => {
+    // keep it a trusted user gesture
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    e.stopImmediatePropagation?.();
+    reloadLikeShiftCmdR();
+  };
+
+  // Element-level capture (still keep it; cheap and works when no overlay)
+  el.addEventListener("pointerdown", fireReset, { capture: true, passive: false });
+
+  // Window capture fallback using coordinate hit-test (works even if a cover blocks hit-testing/path)
+  const hitTestAt = (x, y) => {
+    const r = el.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+
+  const onWindowAny = (e) => {
+    // pointerdown / mousedown
+    const x = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+    const y = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+    if (x == null || y == null) return;
+    if (hitTestAt(x, y)) fireReset(e);
+  };
+
+  // Listen to several starters to dodge other handlers
+  const opts = { capture: true, passive: false };
+  window.addEventListener("pointerdown", onWindowAny, opts);
+  window.addEventListener("mousedown", onWindowAny, opts);
+  window.addEventListener("touchstart", onWindowAny, opts);
+
+  return () => {
+    el.removeEventListener("pointerdown", fireReset, { capture: true });
+    window.removeEventListener("pointerdown", onWindowAny, { capture: true });
+    window.removeEventListener("mousedown", onWindowAny, { capture: true });
+    window.removeEventListener("touchstart", onWindowAny, { capture: true });
+  };
+}, [reloadLikeShiftCmdR]);
 
 
-
-function RetroLogo() {
-  return <h1 className="gb-wordmark" aria-label="GrooveBox">GrooveBox</h1>;
-}
-
-
+// === GrooveBox.jsx ===
 function ThemeButtons({ scheme, setScheme }) {
+  const retroRef = React.useRef(null);
+  const neoRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const rr = retroRef.current;
+    const nn = neoRef.current;
+    if (!rr || !nn) return;
+
+    const makeHandler = (value) => (e) => {
+      // Win the race: run before any bubbling transport handlers
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") {
+        e.stopImmediatePropagation();
+      }
+      setScheme(value);
+    };
+
+    const onRetro = makeHandler("retro");
+    const onNeo = makeHandler("neo");
+
+    // capture + non-passive so preventDefault actually works on touch
+    rr.addEventListener("pointerdown", onRetro, { capture: true, passive: false });
+    nn.addEventListener("pointerdown", onNeo, { capture: true, passive: false });
+
+    return () => {
+      rr.removeEventListener("pointerdown", onRetro, { capture: true });
+      nn.removeEventListener("pointerdown", onNeo, { capture: true });
+    };
+  }, [setScheme]);
+
   return (
     <div className="gb-theme-switch" role="tablist" aria-label="Theme switch">
       <button
+        ref={retroRef}
         type="button"
         className={`gb-theme-btn ${scheme === "retro" ? "is-active" : ""}`}
         aria-pressed={scheme === "retro"}
+        // Fallback if nothing is intercepting
         onClick={() => setScheme("retro")}
+        // Bonus: React capture also helps in many cases
+        onPointerDownCapture={(e) => { /* harmless backup */ }}
       >
         RETRO
       </button>
+
       <button
+        ref={neoRef}
         type="button"
         className={`gb-theme-btn ${scheme === "neo" ? "is-active" : ""}`}
         aria-pressed={scheme === "neo"}
         onClick={() => setScheme("neo")}
+        onPointerDownCapture={(e) => { /* harmless backup */ }}
       >
         NEO
       </button>
     </div>
   );
 }
+
 
 
 
@@ -1037,10 +1239,23 @@ return (
       {/* ROW 0: Logo (left) + Theme Toggle (right) */}
       <header className="gb-retro-header">
   <div className="gb-brand">
-    <RetroLogo />
+    <RetroLogo ref={logoRef} onActivate={reloadLikeShiftCmdR} />
   </div>
   <ThemeButtons scheme={scheme} setScheme={setScheme} />
 </header>
+<LogoResetHotspot
+  targetRef={logoRef}
+  active={isPlaying}   // hotspot only while playing
+  onReset={() => {
+    try { actions.transport.setIsPlaying(false); } catch {}
+    try { engine.getCtx()?.suspend(); } catch {}
+    try { if (timerIdRef.current) { clearInterval(timerIdRef.current); timerIdRef.current = null; } } catch {}
+    // hard refresh (cache-busted)
+    const url = new URL(window.location.href);
+    url.searchParams.set("_r", Date.now().toString());
+    window.location.replace(url.toString());
+  }}
+/>
 <div style={{ height: 3, background: "rgba(255,255,255,.1)", margin: "8px 0" }} />
 
       {/* ROW 1: Pack + Metronome + BPM */}

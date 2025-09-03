@@ -15,7 +15,12 @@ button,
 .press,
 [role="button"],
 .gb-theme-btn,
-
+.transport .btn {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 .inst-btn,
 .mute-btn {
   touch-action: manipulation;

@@ -29,6 +29,8 @@ import useAudioEngine from "./engine/useAudioEngine";
 
 import useSessions from "./session/useSessions";
 
+import useNoPageZoom from "./hooks/useNoPageZoom";
+
 
 
 function LogoResetHotspot({ targetRef, active, onReset }) {
@@ -95,6 +97,7 @@ function LogoResetHotspot({ targetRef, active, onReset }) {
 
 
 export default function GrooveBox() {
+  useNoPageZoom();
 
   // Visual scheme (retro = original look, neo = modern)
   const [scheme, setScheme] = useState(() => {

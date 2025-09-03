@@ -526,7 +526,7 @@
     "ride": "M"
   },
   "instSatWet": {
-    "kick": 0,
+    "kick": 38,
     "snare": 0,
     "clap": 0,
     "tom1": 0,
@@ -760,7 +760,7 @@
       "B": false
     }
   },
-  "selected": "snare",
+  "selected": "kick",
   "instPitchSemi": {
     "kick": 0,
     "snare": 12,

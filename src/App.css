@@ -10,39 +10,29 @@
 
 
 
-/* Make the app a fixed, non-scrolling surface */
-html, body, #root {
-  height: 100%;
-}
 
+/* Make sure the page can scroll normally */
 html, body {
+  height: 100%;
   margin: 0;
-  /* Prevent page scrolling and rubber-band bounce */
-  overflow: hidden;
-  overscroll-behavior: none;
-  /* On iOS, keep the page “stable” */
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  /* Don't let iOS auto-resize text (which can look like zooming) */
-  -webkit-text-size-adjust: 100%;
+  overflow: auto;                /* allow page scrolling */
+  -webkit-text-size-adjust: 100%;/* prevent iOS auto text zooming */
 }
 
-/* Your app container — disable browser pan/zoom gestures on the surface */
+/* Your top-level app wrapper */
 .gb-root {
-  /* Prevent UA touch panning/zooming, but still deliver pointer/touch events to React */
-  touch-action: none;
-  -ms-touch-action: none; /* legacy Edge */
-  -webkit-touch-callout: none;
-  /* Remove the blue tap highlight on iOS */
+  min-height: 100dvh;            /* full viewport height; scroll still allowed */
+  touch-action: pan-y;           /* allow vertical pan; omit pinch-zoom */
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Keep controls comfortably sized so iOS never “focus-zooms” them */
+/* If you also need horizontal scrolling globally, use: touch-action: pan-x pan-y; */
+
+/* Prevent iOS “focus zoom” on form controls by keeping font-size >=16px */
 .gb-root button,
 .gb-root [role="button"],
 .gb-root select,
 .gb-root input,
 .gb-root textarea {
-  font-size: 16px; /* >=16px prevents focus zoom on iOS */
+  font-size: 16px;
 }

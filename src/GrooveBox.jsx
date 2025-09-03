@@ -29,12 +29,15 @@ import useAudioEngine from "./engine/useAudioEngine";
 
 import useSessions from "./session/useSessions";
 
-import useNoPageZoom from "./hooks/useNoPageZoom";
+
+
+import useDisableZoomKeepScroll from "./hooks/useDisableZoomKeepScroll";
 
 
 
 function LogoResetHotspot({ targetRef, active, onReset }) {
   const portalRef = React.useRef(null);
+  
 
   React.useLayoutEffect(() => {
     if (!active || !targetRef.current) {
@@ -97,7 +100,8 @@ function LogoResetHotspot({ targetRef, active, onReset }) {
 
 
 export default function GrooveBox() {
-  useNoPageZoom();
+
+  useDisableZoomKeepScroll();
 
   // Visual scheme (retro = original look, neo = modern)
   const [scheme, setScheme] = useState(() => {

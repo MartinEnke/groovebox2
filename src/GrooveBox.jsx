@@ -32,6 +32,7 @@ import useSessions from "./session/useSessions";
 
 
 import useDisableZoomKeepScroll from "./hooks/useDisableZoomKeepScroll";
+import useNoHorizontalWheel from "./hooks/useNoHorizontalWheel";
 
 
 
@@ -102,7 +103,8 @@ function LogoResetHotspot({ targetRef, active, onReset }) {
 export default function GrooveBox() {
 
   useDisableZoomKeepScroll();
-
+  useNoHorizontalWheel();
+  
   // Visual scheme (retro = original look, neo = modern)
   const [scheme, setScheme] = useState(() => {
       try {

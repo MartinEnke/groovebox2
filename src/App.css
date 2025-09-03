@@ -12,18 +12,32 @@
 
 
 /* Make sure the page can scroll normally */
+/* App.css */
 html, body {
-  height: 100%;
   margin: 0;
-  overflow: auto;                /* allow page scrolling */
-  -webkit-text-size-adjust: 100%;/* prevent iOS auto text zooming */
+  height: 100%;
+  overflow-y: auto;     /* vertical scroll works */
+  overflow-x: hidden;   /* horizontal scroll disabled */
+  -webkit-text-size-adjust: 100%;
 }
 
+/* Helpful, optional */
+html, body, #root { max-width: 100%; }
+
 /* Your top-level app wrapper */
+/* App.css */
 .gb-root {
-  min-height: 100dvh;            /* full viewport height; scroll still allowed */
-  touch-action: pan-y;           /* allow vertical pan; omit pinch-zoom */
+  /* allow vertical scroll, block horizontal pan + pinch */
+  touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
+
+
+.gb-root img, .gb-root canvas, .gb-root svg, .gb-root video { max-width: 100%; }
+
+  /* never be wider than the viewport */
+  width: 100%;         /* avoid 100vw to prevent accidental horizontal overflow */
+  max-width: 100%;
+  overflow-x: hidden;  /* kill horizontal scrollbars just in case */
 }
 
 /* If you also need horizontal scrolling globally, use: touch-action: pan-x pan-y; */

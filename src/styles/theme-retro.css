@@ -722,7 +722,110 @@
 
 
   
+  /* ===== Pack row mobile fit ===== */
+@media (max-width: 640px) {
+    /* Grid: [Pack label] [select flexes] [Met button fits content] */
+    :root[data-scheme="retro"] .packbar-retro .packbar-line1,
+    [data-scheme="retro"] .packbar-retro .packbar-line1 {
+      grid-template-columns: auto minmax(0, 1fr) max-content;
+      align-items: center;
+    }
   
+    /* Let the native select actually shrink inside CSS Grid */
+    :root[data-scheme="retro"] .packbar-retro .packbar-line1 select,
+    [data-scheme="retro"] .packbar-retro .packbar-line1 select {
+      min-width: 0;               /* crucial for grid shrinking */
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;     /* long pack names won't push layout */
+      white-space: nowrap;
+    }
+  
+    /* Keep the Metronome button from demanding too much width */
+    :root[data-scheme="retro"] .metro-btn,
+    [data-scheme="retro"] .metro-btn {
+      min-width: 104px;            /* was 112px; a touch leaner on phones */
+      padding: 0 10px;
+      flex: 0 0 auto;
+    }
+  }
+
+  /* ===== BPM row elasticity ===== */
+@media (max-width: 640px) {
+    /* Grid stays [label][slider][readout], but allow slider cell to shrink */
+    :root[data-scheme="retro"] .packbar-retro .packbar-line2,
+    [data-scheme="retro"] .packbar-retro .packbar-line2 {
+      grid-template-columns: auto minmax(0, 1fr) max-content;
+      align-items: center;
+      column-gap: 12px;
+    }
+  
+    /* Ensure the slider itself can shrink in its grid cell */
+    :root[data-scheme="retro"] .packbar-retro .packbar-line2 input[type="range"].slider-bpm,
+    [data-scheme="retro"] .packbar-retro .packbar-line2 input[type="range"].slider-bpm {
+      min-width: 0;     /* the magic for Grid children */
+      width: 100%;
+    }
+  
+    /* Keep the numeric readout compact and non-wrapping */
+    :root[data-scheme="retro"] .packbar-retro .bpm-readout,
+    [data-scheme="retro"] .packbar-retro .bpm-readout {
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+  }
+
+  
+
+  /* ===== Session buttons: 2 rows × 3 on phones ===== */
+@media (max-width: 640px) {
+    :root[data-scheme="retro"] .gb-row--session .session-row--buttons,
+    [data-scheme="retro"] .gb-row--session .session-row--buttons {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;                     /* even spacing in both directions */
+      justify-items: stretch;       /* each button spans full cell width */
+      align-items: stretch;
+    }
+  
+    /* Make each control fill its grid cell cleanly */
+    :root[data-scheme="retro"] .gb-row--session .session-row--buttons :where(button, .btn),
+    [data-scheme="retro"] .gb-row--session .session-row--buttons :where(button, .btn) {
+      width: 100%;
+      min-width: 0;
+      white-space: nowrap;          /* keep labels tidy; grid handles wrapping */
+      height: 36px;
+      padding: 0 10px;
+      text-align: center;
+    }
+  }
+  
+
+  /* Make label-based buttons identical to real buttons */
+:root[data-scheme="retro"] .session-row--buttons :where(button, label.btn),
+[data-scheme="retro"] .session-row--buttons :where(button, label.btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;          /* match your mobile button height */
+  padding: 0 12px;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  vertical-align: middle;
+  min-width: 0;          /* allows shrinking in tight grids */
+}
+
+/* Properly hide the file input without layout side effects */
+.visually-hidden-file {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
 /* =========================
    Instruments — Retro finish
    ========================= */

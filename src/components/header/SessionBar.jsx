@@ -144,15 +144,23 @@ export default function SessionBar({
           Export
         </button>
 
-        <label className="btn" title="Import session from file" style={{ cursor: "pointer" }}>
-          Import
-          <input
-            type="file"
-            accept="application/json"
-            onChange={(e) => importSessionFromFile(e.target.files?.[0])}
-            style={{ display: "none" }}
-          />
-        </label>
+        {/* Hidden file input */}
+<input
+  id="gb-import"
+  type="file"
+  accept="application/json"
+  onChange={(e) => importSessionFromFile(e.target.files?.[0])}
+  className="visually-hidden-file"
+/>
+
+{/* Button-looking label */}
+<label
+  className="btn import-btn"
+  htmlFor="gb-import"
+  title="Import session from file"
+>
+  Import
+</label>
 
         <button className="btn" title="Clear current session" onClick={onNewSession}>
           New

@@ -15,7 +15,7 @@ button,
 .press,
 [role="button"],
 .gb-theme-btn,
-.transport .btn,
+
 .inst-btn,
 .mute-btn {
   touch-action: manipulation;

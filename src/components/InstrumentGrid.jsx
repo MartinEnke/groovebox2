@@ -1,6 +1,14 @@
-// src/components/InstrumentGrid.jsx
 import React, { memo } from "react";
 import { INSTRUMENTS } from "../constants/instruments";
+
+const btnTouchProps = {
+  style: {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+};
 
 export function InstrumentGrid({
   selected,
@@ -83,7 +91,8 @@ const InstrumentRow = memo(function InstrumentRow({
 const InstrumentButton = memo(function InstrumentButton({ inst, isSelected, onSelect }) {
   return (
     <button
-      onClick={onSelect}
+      {...btnTouchProps}
+      onPointerDown={onSelect}
       className={`btn inst-btn ${isSelected ? "is-selected" : ""}`}
       title={`Select ${inst.label}`}
     >
@@ -96,7 +105,8 @@ const InstrumentButton = memo(function InstrumentButton({ inst, isSelected, onSe
 const MuteButton = memo(function MuteButton({ inst, muted, onToggle }) {
   return (
     <button
-      onClick={onToggle}
+      {...btnTouchProps}
+      onPointerDown={onToggle}
       className={`btn mute-btn ${muted ? "is-muted" : ""}`}
       title={`Mute ${inst.label}`}
     >

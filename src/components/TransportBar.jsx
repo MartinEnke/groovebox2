@@ -2,32 +2,42 @@ import React from "react";
 import { pad } from "../utils/misc";
 import { STEPS_PER_BAR } from "../constants/sequencer";
 
+const btnTouchProps = {
+  style: {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+};
+
 export default function TransportBar({
-  isPlaying,        // boolean
-  togglePlay,       // () => void
-  isRecording,      // boolean
-  toggleRecord,     // () => void
-  step,             // number (0-based)
-  clearSelectedPattern,          // () => void
-  clearAllPatternsAndLevels,     // () => void
+  isPlaying,                // boolean
+  togglePlay,               // () => void
+  isRecording,              // boolean
+  toggleRecord,             // () => void
+  step,                     // number (0-based)
+  clearSelectedPattern,     // () => void
+  clearAllPatternsAndLevels // () => void
 }) {
   return (
     <div className="transport">
       {/* Play / Stop (triangle / square) */}
-      // TransportBar.jsx
       <button
-  onPointerDown={togglePlay}            // ← instead of onClick
-  className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
-  aria-pressed={isPlaying}
-  title={isPlaying ? "Stop" : "Play"}
->
-  <span className="tri" aria-hidden="true"></span>
-  <span className="sq" aria-hidden="true"></span>
-</button>
+        {...btnTouchProps}
+        onPointerDown={togglePlay}
+        className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
+        aria-pressed={isPlaying}
+        title={isPlaying ? "Stop" : "Play"}
+      >
+        <span className="tri" aria-hidden="true"></span>
+        <span className="sq" aria-hidden="true"></span>
+      </button>
 
       {/* Record (dot only) */}
       <button
-        onClick={toggleRecord}
+        {...btnTouchProps}
+        onPointerDown={toggleRecord}
         className={`btn press rec ${isRecording ? "on" : ""}`}
         aria-pressed={isRecording}
         title="Record"
@@ -40,7 +50,8 @@ export default function TransportBar({
 
       {/* Clear selected (Del Pat) */}
       <button
-        onClick={clearSelectedPattern}
+        {...btnTouchProps}
+        onPointerDown={clearSelectedPattern}
         className="btn press clear-btn pat"
         title="Clear selected instrument"
       >
@@ -49,7 +60,8 @@ export default function TransportBar({
 
       {/* Clear all (Del All) */}
       <button
-        onClick={clearAllPatternsAndLevels}
+        {...btnTouchProps}
+        onPointerDown={clearAllPatternsAndLevels}
         className="btn press clear-btn all"
         title="Clear all"
       >

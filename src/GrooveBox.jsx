@@ -1,6 +1,9 @@
 // src/GrooveBox.jsx
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import SoundGate from "./components/SoundGate";
+
+
 import { SAMPLE_PACKS, PACK_IDS } from "./constants/packs";
 import { INSTRUMENTS, CHOKE_GROUPS } from "./constants/instruments";
 import { VELS, STEP_CYCLE_ORDER, PPQ, STEPS_PER_BAR, LOOKAHEAD_MS, SCHEDULE_AHEAD_TIME } from "./constants/sequencer";
@@ -1264,8 +1267,10 @@ return (
   <div
     style={{ color: "white" }}
     className={scheme === "neo" ? "gb-root" : undefined}
-    data-scheme={scheme} // lets CSS target retro cleanly
+    data-scheme={scheme}
   >
+    
+    <SoundGate engine={engine} onlyOnIOS />
 
     {/* RETRO PANEL: Brand row + controls */}
     

@@ -15,7 +15,8 @@ button,
 .press,
 [role="button"],
 .gb-theme-btn,
-.transport .btn {
+.transport .btn,
+.transport button {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;

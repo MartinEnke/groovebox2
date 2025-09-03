@@ -18,51 +18,71 @@ export default function TransportBar({
   clearSelectedPattern,     // () => void
   clearAllPatternsAndLevels // () => void
 }) {
-  // refs to attach native capture listeners
-  const playRef  = useRef(null);
-  const recRef   = useRef(null);
-  const delPatRef= useRef(null);
-  const delAllRef= useRef(null);
+  // container + button refs
+  const wrapRef   = useRef(null);
+  const playRef   = useRef(null);
+  const recRef    = useRef(null);
+  const delPatRef = useRef(null);
+  const delAllRef = useRef(null);
 
-  // attach capture-phase handlers so they still fire while playing
+  // Window-capture router: even if an overlay steals the event, we grab it first,
+  // hit-test against our buttons, and invoke the right action.
   useEffect(() => {
-    const add = (el, fn) => {
-      if (!el) return () => {};
-      const handler = (e) => {
-        // win the race; stop anything else from eating the tap
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-        try { fn(); } catch {}
-      };
-      const opts = { capture: true, passive: false };
-      el.addEventListener("pointerdown", handler, opts);
-      el.addEventListener("click", handler, opts); // belt & suspenders on iOS
-      return () => {
-        el.removeEventListener("pointerdown", handler, opts);
-        el.removeEventListener("click", handler, opts);
-      };
+    const container = wrapRef.current;
+    if (!container) return;
+
+    const within = (r, x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const hit = (el, x, y) => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return within(r, x, y);
     };
 
-    const cleanups = [
-      add(playRef.current,  togglePlay),
-      add(recRef.current,   toggleRecord),
-      add(delPatRef.current,clearSelectedPattern),
-      add(delAllRef.current,clearAllPatternsAndLevels),
-    ];
-    return () => cleanups.forEach((off) => off && off());
+    const handler = (e) => {
+      // capture-phase, before anyone else
+      const x = e.clientX;
+      const y = e.clientY;
+
+      const cr = container.getBoundingClientRect();
+      if (!within(cr, x, y)) return; // outside transport — ignore
+
+      // This *is* our transport region → don't let overlays consume it
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+
+      // Route to the specific control by geometry
+      if (hit(playRef.current, x, y))       { try { togglePlay(); } catch {} return; }
+      if (hit(recRef.current, x, y))        { try { toggleRecord(); } catch {} return; }
+      if (hit(delPatRef.current, x, y))     { try { clearSelectedPattern(); } catch {} return; }
+      if (hit(delAllRef.current, x, y))     { try { clearAllPatternsAndLevels(); } catch {} return; }
+      // If you later add more buttons, add them here.
+    };
+
+    const opts = { capture: true, passive: false };
+    window.addEventListener("pointerdown", handler, opts);
+    window.addEventListener("click", handler, opts); // iOS belt & suspenders
+    return () => {
+      window.removeEventListener("pointerdown", handler, opts);
+      window.removeEventListener("click", handler, opts);
+    };
   }, [togglePlay, toggleRecord, clearSelectedPattern, clearAllPatternsAndLevels]);
 
   return (
     <div
+      ref={wrapRef}
       className="transport"
-      style={{ pointerEvents: "auto" }} // ensure not disabled by any ancestor
+      style={{
+        position: "relative",       // create stacking context
+        zIndex: 100000,             // sit above any accidental overlay
+        pointerEvents: "auto",
+      }}
     >
       {/* Play / Stop (triangle / square) */}
       <button
         ref={playRef}
         style={btnTouchStyle}
-        onPointerDown={togglePlay} // fallback
+        onPointerDown={togglePlay} // fallback if nothing overlays
         className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
         aria-pressed={isPlaying}
         title={isPlaying ? "Stop" : "Play"}

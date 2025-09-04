@@ -1231,6 +1231,59 @@
   }
   
 
+  /* ===========================================
+   Buttons: solid inactive styles on phones only
+   =========================================== */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    /* Make sure iOS doesn’t impose native rounded/white look */
+    [data-scheme="retro"] .mode-col .press.toggle.xs,
+    [data-scheme="retro"] .solo-btn.edge {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+  
+    /* Vol / Pitch — INACTIVE (square + grey-ish) */
+    [data-scheme="retro"] .mode-col .press.toggle.xs:not(.on):not([aria-pressed="true"]) {
+      border-radius: 6px; /* edgy */
+      border: 1px solid rgba(0,0,0,.6);
+      color: #e6e7eb;
+      background: linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+      box-shadow: 0 2px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+      transition: transform .05s ease, filter .15s ease, box-shadow .2s ease;
+    }
+    [data-scheme="retro"] .mode-col .press.toggle.xs:not(.on):not([aria-pressed="true"]):hover {
+      filter: brightness(1.06);
+    }
+    [data-scheme="retro"] .mode-col .press.toggle.xs:not(.on):not([aria-pressed="true"]):active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+  
+    /* Solo — INACTIVE (edgy + grey-ish) */
+    [data-scheme="retro"] .solo-btn.edge:not(.solo-on):not([aria-pressed="true"]) {
+      border-radius: 6px; /* edgy */
+      border: 1px solid rgba(0,0,0,.6);
+      color: #dddfe6;
+      background: linear-gradient(180deg, #2e2f34 0%, #222329 100%);
+      box-shadow: 0 2px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);
+      transition: transform .05s ease, filter .15s ease, box-shadow .2s ease;
+    }
+    [data-scheme="retro"] .solo-btn.edge:not(.solo-on):not([aria-pressed="true"]):hover {
+      filter: brightness(1.06);
+    }
+    [data-scheme="retro"] .solo-btn.edge:not(.solo-on):not([aria-pressed="true"]):active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+  
+    /* (Optional) If you show "Volume"/"Pitch" text, keep them compact on phones */
+    [data-scheme="retro"] .mode-col .press.toggle.xs {
+      font-size: 12px;
+      line-height: 1;
+      /* if you added V/P abbreviation spans earlier, they’ll still work */
+    }
+  }
+  
 
 /* =========================
    SIDECCHAIN — Retro match

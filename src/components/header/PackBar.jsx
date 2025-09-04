@@ -1,5 +1,6 @@
-// PackBar.jsx
-import React from "react";
+// src/components/header/PackBar.jsx
+import React, { useMemo } from "react";
+import useTapGesture from "../../hooks/useTapGesture";
 
 export default function PackBar({
   selectedPack, setSelectedPack, packLoading,
@@ -8,14 +9,37 @@ export default function PackBar({
   bpm, setBpm,
   scheme = "retro",
 }) {
-  const isRetro = scheme === "retro";
+  // Tap-vs-scroll guard for the metronome button (one-tap even while playing)
+  const metTap = useTapGesture(() => cycleMetronomeMode?.(), { pan: "y", slop: 10 });
 
-  if (isRetro) {
-    // (your existing Retro return stays exactly as-is)
+  // shared mobile-friendly touch props for inputs
+  const inputTouchProps = useMemo(
+    () => ({
+      style: {
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+      },
+    }),
+    []
+  );
+
+  const metTitle =
+    metMode === "beats"
+      ? "Metronome: 4 downbeats (tap for 16th)"
+      : metMode === "all"
+      ? "Metronome: all 16th (tap for off)"
+      : "Metronome: off (tap for 4 downbeats)";
+
+  const metLabel = metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF";
+
+  if (scheme === "retro") {
     return (
       <div className="packbar-retro">
         <div className="packbar-line packbar-line1">
           <select
+            {...inputTouchProps}
             value={selectedPack}
             onChange={(e) => setSelectedPack(e.target.value)}
             disabled={packLoading}
@@ -29,24 +53,20 @@ export default function PackBar({
           </select>
 
           <button
+            type="button"
+            {...metTap}
             className={`metro-btn mode-${metMode}`}
-            onClick={cycleMetronomeMode}
             aria-pressed={metMode !== "off"}
-            title={
-              metMode === "beats"
-                ? "Metronome: 4 downbeats (click for 16th)"
-                : metMode === "all"
-                ? "Metronome: all 16th (click for off)"
-                : "Metronome: off (click for 4 downbeats)"
-            }
+            title={metTitle}
           >
-            {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
+            {metLabel}
           </button>
         </div>
 
         <div className="packbar-line packbar-line2">
           <span className="bpm-label">BPM</span>
           <input
+            {...inputTouchProps}
             className="slider slider-bpm"
             type="range"
             min={60}
@@ -61,12 +81,14 @@ export default function PackBar({
     );
   }
 
-  // NEO — exact order: [Pack label][select][Met] on row 1, BPM row 2
+  // NEO — [Pack label][select][Met] on row 1, BPM row 2
   return (
     <div className="packbar-neo">
       <div className="packbar-line1">
         <span className="bar-label">Pack</span>
+
         <select
+          {...inputTouchProps}
           className="pack-select"
           value={selectedPack}
           onChange={(e) => setSelectedPack(e.target.value)}
@@ -81,24 +103,20 @@ export default function PackBar({
         </select>
 
         <button
+          type="button"
+          {...metTap}
           className={`metro-btn mode-${metMode}`}
-          onClick={cycleMetronomeMode}
           aria-pressed={metMode !== "off"}
-          title={
-            metMode === "beats"
-              ? "Metronome: 4 downbeats (click for 16th)"
-              : metMode === "all"
-              ? "Metronome: all 16th (click for off)"
-              : "Metronome: off (click for 4 downbeats)"
-          }
+          title={metTitle}
         >
-          {metMode === "beats" ? "MET 4" : metMode === "all" ? "MET 16" : "MET OFF"}
+          {metLabel}
         </button>
       </div>
 
       <div className="packbar-line2">
         <span className="bpm-label">BPM</span>
         <input
+          {...inputTouchProps}
           className="slider slider-bpm"
           type="range"
           min={60}

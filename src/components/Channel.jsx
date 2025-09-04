@@ -1,24 +1,9 @@
-// Channel.jsx
 import React, { useState, useMemo } from "react";
 import FoldSection from "./ui/FoldSection.jsx";
 import PadButton from "./PadButton";
 import { VELS } from "../constants/sequencer";
 import { INSTRUMENTS } from "../constants/instruments";
-
-// same fast-tap props you use in InstrumentGrid
-const btnTouchProps = {
-  style: {
-    touchAction: "manipulation",
-    WebkitTapHighlightColor: "transparent",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-  },
-};
-
-// keyboard fallback so buttons still work without a pointer
-const onKeyActivate = (fn) => (e) => {
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
-};
+import useTapGesture from "../hooks/useTapGesture";
 
 export default function Channel({
   show, onToggle,
@@ -46,6 +31,11 @@ export default function Channel({
     [mode, volumeDb, pitchSemi]
   );
 
+  // tap-vs-scroll guards (allow vertical page scroll)
+  const soloTap  = useTapGesture(onToggleSolo,             { pan: "y", slop: 10 });
+  const volTap   = useTapGesture(() => setMode("vol"),     { pan: "y", slop: 10 });
+  const pitchTap = useTapGesture(() => setMode("pitch"),   { pan: "y", slop: 10 });
+
   return (
     <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
       <div className="channel-block three-cols pads-left">
@@ -57,7 +47,7 @@ export default function Channel({
                 key={`pad-${r}-${c}`}
                 label="PAD"
                 sub={`vel ${VELS[r][c].toFixed(2)}`}
-                onPress={() => onPadPress(r, c)}   // PadButton already uses fast pointer handlers
+                onPress={() => onPadPress(r, c)}
               />
             ))
           )}
@@ -79,49 +69,44 @@ export default function Channel({
                 else onPitchChange?.(v);
               }}
               aria-label={mode === "vol" ? "Volume" : "Pitch"}
-              style={{ touchAction: "manipulation" }}   // prevents odd gesture delays on iOS
+              style={{ touchAction: "manipulation" }}
             />
           </div>
 
           <div className="lcd-compact">{numericDisplay}</div>
 
-          {/* SOLO — pointerdown + keyboard fallback */}
           <button
-            {...btnTouchProps}
+            type="button"
+            {...soloTap}
             className={`press solo-btn edge ${soloActive ? "solo-on" : ""}`}
             aria-pressed={soloActive}
             title="Solo"
-            onPointerDown={onToggleSolo}
-            onKeyDown={onKeyActivate(onToggleSolo)}
           >
             Solo
           </button>
         </div>
 
-        {/* Vol / Pitch — pointerdown + keyboard fallback */}
+        {/* Vol / Pitch */}
         <div className="mode-col">
           <button
-            {...btnTouchProps}
+            type="button"
+            {...volTap}
             className={`press toggle xs ${mode === "vol" ? "on" : ""}`}
             aria-pressed={mode === "vol"}
             title="Volume mode"
-            onPointerDown={() => setMode("vol")}
-            onKeyDown={onKeyActivate(() => setMode("vol"))}
           >
             <span className="label-full">Vol</span>
-            
+            <span className="label-abbr" aria-hidden="true">V</span>
           </button>
-
           <button
-            {...btnTouchProps}
+            type="button"
+            {...pitchTap}
             className={`press toggle xs ${mode === "pitch" ? "on" : ""}`}
             aria-pressed={mode === "pitch"}
             title="Pitch mode"
-            onPointerDown={() => setMode("pitch")}
-            onKeyDown={onKeyActivate(() => setMode("pitch"))}
           >
             <span className="label-full">Pitch</span>
-            
+            <span className="label-abbr" aria-hidden="true">P</span>
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 // src/components/SessionBar.jsx
 import React, { useEffect, useRef } from "react";
-import useTapGesture from "../hooks/useTapGesture";
+import useTapGesture from "../../hooks/useTapGesture";
 
 const PERSIST_TRIED_KEY = "gb-persist-tried";
 

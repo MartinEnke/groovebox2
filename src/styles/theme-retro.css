@@ -1285,6 +1285,45 @@
   }
   
 
+  /* Make the input visually identical to the LCD */
+[data-scheme="retro"] .lcd-input {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: none;
+    color: #c4ffd8;
+    text-align: center;
+    width: 72px;                 /* desktop width */
+    min-width: 58px;             /* matches your current LCD min */
+    caret-color: #90ffc0;
+  }
+  
+  /* Hide number spinners if you ever switch to type=number */
+  [data-scheme="retro"] .lcd-input::-webkit-outer-spin-button,
+  [data-scheme="retro"] .lcd-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  [data-scheme="retro"] .lcd-input[type="number"] { -moz-appearance: textfield; }
+  
+  /* Focus ring consistent with your theme */
+  [data-scheme="retro"] .lcd-input:focus-visible {
+    outline: 2px solid var(--retro-a3);      /* greenish focus */
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(6,214,160,.18);
+    border-radius: 6px;                       /* match the LCD corners */
+  }
+  
+  /* Phones: narrower so it never pushes the right column off-screen */
+  @media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    [data-scheme="retro"] .lcd-compact { min-width: 40px; padding: 0 4px; }
+    [data-scheme="retro"] .lcd-input   { width: 48px; min-width: 40px; font-size: 12px; }
+  }
+  
+  /* Ultra-tight phones */
+  @media (max-width: 360px) and (any-hover: none) and (any-pointer: coarse) {
+    [data-scheme="retro"] .lcd-compact { min-width: 36px; padding: 0 3px; }
+    [data-scheme="retro"] .lcd-input   { width: 44px; min-width: 36px; font-size: 11px; }
+  }
+  
+
 /* =========================
    SIDECCHAIN — Retro match
    ========================= */

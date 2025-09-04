@@ -2363,9 +2363,9 @@
     /* Wider bar with comfy inner padding */
     :root[data-scheme="retro"] .transport,
     [data-scheme="retro"] .transport {
-      margin-left:  max(4px, env(safe-area-inset-left));   /* a bit wider than before */
-      margin-right: max(4px, env(safe-area-inset-right));
-      padding: 12px 12px;                                   /* more inner gap to the frame */
+      margin-left:  max(2px, env(safe-area-inset-left));   /* a bit wider than before */
+      margin-right: max(2px, env(safe-area-inset-right));
+      padding: 10px 10px;                                   /* more inner gap to the frame */
       grid-template-columns: auto auto 1fr auto auto;       /* ▶  ●  [LCD flex]  Del Pat  Del All */
       column-gap: 9px;                                      /* subtle breathing room */
     }
@@ -2373,7 +2373,7 @@
     /* Make LCD exactly the same height as buttons */
     :root[data-scheme="retro"] .transport .lcd,
     [data-scheme="retro"] .transport .lcd {
-      height: 36px;               /* match buttons */
+      height: 40px;               /* match buttons */
       min-width: 54px;            /* compact */
       max-width: 84px;            /* don’t let it balloon */
       padding: 0 8px;

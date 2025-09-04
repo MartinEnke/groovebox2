@@ -1,24 +1,16 @@
+// src/components/InstrumentGrid.jsx
 import React, { memo } from "react";
 import { INSTRUMENTS } from "../constants/instruments";
-
-const btnTouchProps = {
-  style: {
-    touchAction: "manipulation",
-    WebkitTapHighlightColor: "transparent",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-  },
-};
+import useTapGesture from "../hooks/useTapGesture"; // ← ensure this path matches your tree
 
 export function InstrumentGrid({
   selected,
   selectInstrument,
   mutes,
   toggleMute,
-  instruments = INSTRUMENTS, // allows testing/custom sets if needed
+  instruments = INSTRUMENTS,
 }) {
   const rows = [instruments.slice(0, 5), instruments.slice(5, 10)];
-
   return (
     <>
       {rows.map((row, idx) => (
@@ -87,28 +79,32 @@ const InstrumentRow = memo(function InstrumentRow({
   );
 });
 
-// InstrumentButton
+// InstrumentButton — tap vs scroll
 const InstrumentButton = memo(function InstrumentButton({ inst, isSelected, onSelect }) {
+  const tap = useTapGesture(onSelect, { pan: "y", slop: 10 });
   return (
     <button
-      {...btnTouchProps}
-      onPointerDown={onSelect}
+      type="button"
+      {...tap}
       className={`btn inst-btn ${isSelected ? "is-selected" : ""}`}
       title={`Select ${inst.label}`}
+      aria-pressed={isSelected}
     >
       <div style={{ fontWeight: 600 }}>{inst.label}</div>
     </button>
   );
 });
 
-// MuteButton
+// MuteButton — tap vs scroll
 const MuteButton = memo(function MuteButton({ inst, muted, onToggle }) {
+  const tap = useTapGesture(onToggle, { pan: "y", slop: 10 });
   return (
     <button
-      {...btnTouchProps}
-      onPointerDown={onToggle}
+      type="button"
+      {...tap}
       className={`btn mute-btn ${muted ? "is-muted" : ""}`}
       title={`Mute ${inst.label}`}
+      aria-pressed={muted}
     >
       {muted ? "Mute" : "Mute"}
     </button>

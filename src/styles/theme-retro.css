@@ -1285,7 +1285,6 @@
   }
   
 
-
 /* =========================
    SIDECCHAIN — Retro match
    ========================= */
@@ -2200,6 +2199,68 @@
    }
    
 
+   /* =========================
+   TRANSPORT — phone fit only
+   ========================= */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    :root[data-scheme="retro"] .transport,
+    [data-scheme="retro"] .transport {
+      /* spread across the screen, but keep a tiny gutter & safe areas */
+      margin-left: max(6px, env(safe-area-inset-left));
+      margin-right: max(6px, env(safe-area-inset-right));
+      padding-left: 10px;
+      padding-right: 10px;
+  
+      /* one flexible middle column, others auto */
+      grid-template-columns: auto auto 1fr auto auto; /* ▶  ●  [LCD flex]  Del Pat  Del All */
+      column-gap: 8px; /* a bit tighter */
+    }
+  
+    /* Shorter LCD so buttons can breathe */
+    :root[data-scheme="retro"] .transport .lcd,
+    [data-scheme="retro"] .transport .lcd {
+      min-width: 56px;          /* was 90px */
+      max-width: 80px;          /* don’t let it balloon */
+      height: 36px;             /* slightly shorter */
+      padding: 0 6px;
+      font-size: 11px;
+      letter-spacing: .04em;
+      justify-self: center;     /* stays centered in the flexible middle column */
+    }
+  
+    /* Compact buttons on phones */
+    :root[data-scheme="retro"] .transport .btn.press,
+    [data-scheme="retro"] .transport .btn.press {
+      min-width: 40px;          /* was 44px */
+      height: 36px;             /* was 40px */
+      padding: 0 10px;
+      font-size: 10px;          /* slightly smaller label */
+      letter-spacing: .04em;
+    }
+  
+    /* Play/Stop + Record keep their look but match the height */
+    :root[data-scheme="retro"] .transport .playstop,
+    [data-scheme="retro"] .transport .playstop { width: 48px; height: 36px; }
+    :root[data-scheme="retro"] .transport .rec,
+    [data-scheme="retro"] .transport .rec { width: 40px; height: 36px; }
+  
+    /* Give the clear buttons room to fit side-by-side */
+    :root[data-scheme="retro"] .transport .clear-btn,
+    [data-scheme="retro"] .transport .clear-btn { min-width: 66px; }   /* “Del Pat” */
+    :root[data-scheme="retro"] .transport .clear-btn.all,
+    [data-scheme="retro"] .transport .clear-btn.all { min-width: 74px; }/* “Del All” */
+  
+    /* If your labels are inside <span class="sym">…</span>, tighten text a touch */
+    :root[data-scheme="retro"] .transport .clear-btn .sym,
+    [data-scheme="retro"] .transport .clear-btn .sym {
+      font-size: 10px;
+      letter-spacing: .03em;
+      white-space: nowrap;
+    }
+  }
+
+  
+  
    /* =========================
    STEP EDITOR — Retro + mobile width
    ========================= */

@@ -1,5 +1,6 @@
 // src/components/SessionBar.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import useTapGesture from "../hooks/useTapGesture";
 
 const PERSIST_TRIED_KEY = "gb-persist-tried";
 
@@ -12,10 +13,10 @@ export default function SessionBar({
   deleteNamedSession = () => {},
 
   // presets (read-only)
-  presets = {},                 // <— default
-  currentPresetName = "",       // <— default
-  loadPreset = () => {},        // <— default
-  isPresetActive = false,       // <— default
+  presets = {},
+  currentPresetName = "",
+  loadPreset = () => {},
+  isPresetActive = false,
 
   // file ops
   exportSessionToFile = () => {},
@@ -71,6 +72,40 @@ export default function SessionBar({
     }
   };
 
+  // touch-friendly styles for native inputs
+  const touchInputStyle = {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  };
+
+  // Hidden file input (tap-only trigger)
+  const fileRef = useRef(null);
+  const importTap = useTapGesture(() => fileRef.current?.click(), { pan: "y", slop: 10 });
+
+  // Button taps (one-tap while playing, swipe-safe)
+  const saveTap = useTapGesture(onClickSave, { pan: "y", slop: 10 });
+  const saveAsTap = useTapGesture(() => {
+    const name = prompt(
+      "Save As (new session name):",
+      currentSessionName || currentPresetName || "My Beat"
+    );
+    if (!name) return;
+    if (sessions[name] && !confirm(`"${name}" exists. Overwrite?`)) return;
+    saveNamedSession(name);
+  }, { pan: "y", slop: 10 });
+
+  const deleteTap = useTapGesture(() => {
+    if (!currentSessionName) return;
+    if (confirm(`Delete session "${currentSessionName}"?`)) {
+      deleteNamedSession(currentSessionName);
+    }
+  }, { pan: "y", slop: 10 });
+
+  const exportTap = useTapGesture(() => exportSessionToFile(), { pan: "y", slop: 10 });
+  const newTap    = useTapGesture(() => onNewSession(),        { pan: "y", slop: 10 });
+
   return (
     <div className="sessionbar-neo">
       <div className="session-row session-row--top">
@@ -80,6 +115,7 @@ export default function SessionBar({
           value={selectValue}
           onChange={(e) => handleChange(e.target.value)}
           title="Select session or preset"
+          style={touchInputStyle}
         >
           <option value="">— choose —</option>
 
@@ -106,63 +142,65 @@ export default function SessionBar({
       </div>
 
       <div className="session-row session-row--buttons">
-        <button className="btn" onClick={onClickSave}>
+        <button type="button" className="btn" {...saveTap}>
           {saveButtonLabel}
         </button>
 
         <button
+          type="button"
           className="btn"
           title="Save As…"
-          onClick={() => {
-            const name = prompt(
-              "Save As (new session name):",
-              currentSessionName || currentPresetName || "My Beat"
-            );
-            if (!name) return;
-            if (sessions[name] && !confirm(`"${name}" exists. Overwrite?`)) return;
-            saveNamedSession(name);
-          }}
+          {...saveAsTap}
         >
           Save As
         </button>
 
         <button
+          type="button"
           className="btn"
           title="Delete selected session"
-          onClick={() => {
-            if (!currentSessionName) return;
-            if (confirm(`Delete session "${currentSessionName}"?`)) {
-              deleteNamedSession(currentSessionName);
-            }
-          }}
+          {...deleteTap}
           disabled={!currentSessionName || isPresetActive}
         >
           Delete
         </button>
 
-        <button className="btn" onClick={exportSessionToFile} title="Export current state to file">
+        <button
+          type="button"
+          className="btn"
+          title="Export current state to file"
+          {...exportTap}
+        >
           Export
         </button>
 
         {/* Hidden file input */}
-<input
-  id="gb-import"
-  type="file"
-  accept="application/json"
-  onChange={(e) => importSessionFromFile(e.target.files?.[0])}
-  className="visually-hidden-file"
-/>
+        <input
+          ref={fileRef}
+          id="gb-import"
+          type="file"
+          accept="application/json"
+          onChange={(e) => importSessionFromFile(e.target.files?.[0])}
+          className="visually-hidden-file"
+          style={{ display: "none" }}
+        />
 
-{/* Button-looking label */}
-<label
-  className="btn import-btn"
-  htmlFor="gb-import"
-  title="Import session from file"
->
-  Import
-</label>
+        {/* Import (tap-vs-scroll guarded) */}
+        <button
+          type="button"
+          className="btn import-btn"
+          title="Import session from file"
+          {...importTap}
+        >
+          Import
+        </button>
 
-        <button className="btn" title="Clear current session" onClick={onNewSession}>
+        <button
+          type="button"
+          className="btn"
+          title="Clear current session"
+          {...newTap}
+        >
           New
         </button>
       </div>

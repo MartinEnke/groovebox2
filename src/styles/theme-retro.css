@@ -2303,6 +2303,59 @@
   }
   
 
+  /* Transport — slimmer "Del Pat" / "Del All" on phones only */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    /* tighten spacing a touch */
+    :root[data-scheme="retro"] .transport,
+    [data-scheme="retro"] .transport {
+      column-gap: 6px;
+    }
+  
+    /* base clear buttons: narrower + slightly shorter */
+    :root[data-scheme="retro"] .transport .clear-btn,
+    [data-scheme="retro"] .transport .clear-btn {
+      min-width: 58px;          /* was ~72–80 */
+      height: 34px;             /* was 40 */
+      padding: 0 8px;           /* was 0 12 */
+      box-sizing: border-box;
+    }
+  
+    /* favor "Del Pat" legibility with a hair more min width */
+    :root[data-scheme="retro"] .transport .clear-btn.pat,
+    [data-scheme="retro"] .transport .clear-btn.pat {
+      min-width: 62px;
+    }
+  
+    /* "Del All" yields width first */
+    :root[data-scheme="retro"] .transport .clear-btn.all,
+    [data-scheme="retro"] .transport .clear-btn.all {
+      min-width: 58px;          /* smaller than Pat */
+    }
+  
+    /* tighten the label so it never kisses the frame */
+    :root[data-scheme="retro"] .transport .clear-btn .sym,
+    [data-scheme="retro"] .transport .clear-btn .sym {
+      font-size: 9.8px;         /* slightly smaller text */
+      letter-spacing: .01em;    /* less tracking */
+      white-space: nowrap;
+      line-height: 1;
+      display: inline-block;    /* allows scaleX */
+      transform: scaleX(.95);   /* subtle horizontal condense */
+      transform-origin: center;
+    }
+  }
+  
+  /* Ultra-tight phones (≤360px) — one more notch slimmer */
+  @media (max-width: 360px) and (any-hover: none) and (any-pointer: coarse) {
+    :root[data-scheme="retro"] .transport .clear-btn,
+    [data-scheme="retro"] .transport .clear-btn { min-width: 54px; }
+    :root[data-scheme="retro"] .transport .clear-btn.pat,
+    [data-scheme="retro"] .transport .clear-btn.pat { min-width: 58px; }
+    :root[data-scheme="retro"] .transport .clear-btn .sym,
+    [data-scheme="retro"] .transport .clear-btn .sym { font-size: 9.4px; transform: scaleX(.92); }
+  }
+  
+
    /* =========================
    STEP EDITOR — Retro + mobile width
    ========================= */

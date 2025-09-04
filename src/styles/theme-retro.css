@@ -1279,8 +1279,81 @@
     [data-scheme="retro"] .mode-col { --mode-btn: clamp(30px, 14vw, 44px); margin-left: -6px !important; }
   }
   
-
+/* ===========================================
+   CHANNEL — rock-solid mobile fit
+   =========================================== */
+   @media (max-width: 640px) {
+    /* 1) Pull the whole channel block flush-left, keep a tiny gap */
+    [data-scheme="retro"] .channel-block.pads-left {
+      /* reclaim horizontal pixels */
+      margin-left: -12px;          /* cancels typical panel padding */
+      padding-left: 6px;           /* tiny left gap */
+      padding-right: 6px;          /* tiny right gap */
+      box-sizing: border-box;
   
+      /* ensure it never overflows the viewport */
+      width: 100vw;
+      max-width: 100vw;
+  
+      /* tighter grid & gaps; middle column yields first */
+      --pad-size: clamp(48px, 26vw, 110px);
+      --pad-gap: 8px;
+      --extra-pad-fader-gap: 10px;
+  
+      grid-template-columns:
+        minmax(0, var(--pads-col-w))   /* pads */
+        minmax(0, 1fr)                 /* fader/LCD/solo (flex valve) */
+        max-content;                   /* vol/pitch cluster */
+      column-gap: 10px;
+    }
+  
+    /* 2) Make sure pads truly start at the left edge */
+    [data-scheme="retro"] .pads-2x2.tiny-gap {
+      margin-left: 0 !important;
+      justify-self: start;
+    }
+  
+    /* 3) Let grid children actually shrink on iOS Safari */
+    [data-scheme="retro"] .channel-block.pads-left > *,
+    [data-scheme="retro"] .vfader-wrap,
+    [data-scheme="retro"] .mode-col {
+      min-width: 0 !important;
+    }
+  
+    /* 4) Slimmer fader slot + slimmer LCD */
+    [data-scheme="retro"] .vfader-slot { width: 24px; }          /* was 30px */
+    [data-scheme="retro"] .lcd-compact {
+      min-width: 40px;                                           /* was 58px */
+      padding: 0 4px;
+      font-size: 11px;
+    }
+  
+    /* 5) Vol/Pitch squares shrink elastically, never overflow */
+    [data-scheme="retro"] .mode-col {
+      --mode-btn: clamp(30px, 12vw, 44px); /* get smaller on small phones */
+      gap: 8px;
+      margin-left: -6px !important;        /* tiny nudge toward fader */
+    }
+    [data-scheme="retro"] .mode-col .press.toggle.xs {
+      width: var(--mode-btn);
+      height: var(--mode-btn);
+      font-size: 12px;                     /* keep label readable */
+    }
+  }
+  
+  /* Ultra-tight devices (<=360px) get one more squeeze */
+  @media (max-width: 360px) {
+    [data-scheme="retro"] .channel-block.pads-left {
+      --pad-size: clamp(44px, 24vw, 100px);
+      --extra-pad-fader-gap: 8px;
+      column-gap: 8px;
+    }
+    [data-scheme="retro"] .vfader-slot { width: 22px; }
+    [data-scheme="retro"] .lcd-compact { min-width: 36px; padding: 0 3px; font-size: 10px; }
+    [data-scheme="retro"] .mode-col { --mode-btn: clamp(28px, 13vw, 40px); margin-left: -4px !important; }
+  }
+  
+
 /* =========================
    SIDECCHAIN — Retro match
    ========================= */

@@ -2442,3 +2442,61 @@
     max-width: none;  /* allow full stretch */
   }
 }
+
+/* =========================
+   STEP EDITOR — phone full-bleed + comfy fit
+   ========================= */
+   @media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    /* 1) Full-bleed container that ignores parent padding but keeps tiny gutters */
+    :root[data-scheme="retro"] .step-editor,
+    [data-scheme="retro"] .step-editor{
+      /* full-bleed trick */
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      padding-left: max(6px, env(safe-area-inset-left));
+      padding-right: max(6px, env(safe-area-inset-right));
+      max-width: none;           /* allow full stretch */
+      box-sizing: border-box;
+    }
+  
+    /* 2) Ensure the steps area can actually expand on iOS (kill min-width:auto) */
+    :root[data-scheme="retro"] .step-editor .row-steps{
+      width: 100%;
+      min-width: 0 !important;
+    }
+  
+    /* 3) Tighten gaps a touch so more pixels go to the cells */
+    :root[data-scheme="retro"] .step-editor .row-steps{
+      gap: 6px;                  /* if inline sets a bigger gap, this still helps most UAs */
+    }
+    :root[data-scheme="retro"] .step-editor .row-steps button{
+      min-width: 0;
+      /* small visual tighten without changing your dynamic sizing */
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+  
+    /* 4) Shrink the header controls just a bit to free width for the grid */
+    :root[data-scheme="retro"] .btn.btn-ab,
+    [data-scheme="retro"] .btn.btn-ab{
+      min-width: 40px;
+      height: 38px;
+      font-size: 12px;
+      letter-spacing: .06em;
+    }
+    :root[data-scheme="retro"] .btn.btn-ab-chevron,
+    [data-scheme="retro"] .btn.btn-ab-chevron{
+      min-width: 40px;
+      height: 38px;
+      font-size: 18px;
+    }
+  }
+  
+  /* Ultra-tight phones (≤360px): one more squeeze */
+  @media (max-width: 360px) and (any-hover: none) and (any-pointer: coarse){
+    :root[data-scheme="retro"] .step-editor .row-steps{ gap: 4px; }
+    :root[data-scheme="retro"] .btn.btn-ab,
+    [data-scheme="retro"] .btn.btn-ab{ min-width: 36px; height: 36px; font-size: 11px; }
+    :root[data-scheme="retro"] .btn.btn-ab-chevron,
+    [data-scheme="retro"] .btn.btn-ab-chevron{ min-width: 36px; height: 36px; font-size: 16px; }
+  }
+  

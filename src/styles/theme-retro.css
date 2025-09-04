@@ -2356,6 +2356,70 @@
   }
   
 
+  /* =========================
+   TRANSPORT — phones: wider frame + equal LCD height
+   ========================= */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    /* Wider bar with comfy inner padding */
+    :root[data-scheme="retro"] .transport,
+    [data-scheme="retro"] .transport {
+      margin-left:  max(4px, env(safe-area-inset-left));   /* a bit wider than before */
+      margin-right: max(4px, env(safe-area-inset-right));
+      padding: 12px 12px;                                   /* more inner gap to the frame */
+      grid-template-columns: auto auto 1fr auto auto;       /* ▶  ●  [LCD flex]  Del Pat  Del All */
+      column-gap: 9px;                                      /* subtle breathing room */
+    }
+  
+    /* Make LCD exactly the same height as buttons */
+    :root[data-scheme="retro"] .transport .lcd,
+    [data-scheme="retro"] .transport .lcd {
+      height: 36px;               /* match buttons */
+      min-width: 54px;            /* compact */
+      max-width: 84px;            /* don’t let it balloon */
+      padding: 0 8px;
+      font-size: 11px;
+      letter-spacing: .04em;
+      justify-self: center;
+    }
+  
+    /* Button sizes (kept compact so everything fits) */
+    :root[data-scheme="retro"] .transport .btn.press,
+    [data-scheme="retro"] .transport .btn.press {
+      min-width: 40px;
+      height: 36px;               /* matches LCD */
+      padding: 0 10px;
+      font-size: 10px;
+      letter-spacing: .04em;
+    }
+  
+    /* Play/Stop + Record match height */
+    :root[data-scheme="retro"] .transport .playstop,
+    [data-scheme="retro"] .transport .playstop { width: 48px; height: 36px; }
+    :root[data-scheme="retro"] .transport .rec,
+    [data-scheme="retro"] .transport .rec { width: 40px; height: 36px; }
+  
+    /* Slimmer clear buttons so all elements fit inside the frame */
+    :root[data-scheme="retro"] .transport .clear-btn,
+    [data-scheme="retro"] .transport .clear-btn { min-width: 56px; }
+    :root[data-scheme="retro"] .transport .clear-btn.pat,
+    [data-scheme="retro"] .transport .clear-btn.pat { min-width: 60px; } /* tiny favor for "Del Pat" text */
+    :root[data-scheme="retro"] .transport .clear-btn.all,
+    [data-scheme="retro"] .transport .clear-btn.all { min-width: 56px; }
+  
+    /* Labels stay tidy and never wrap */
+    :root[data-scheme="retro"] .transport .clear-btn .sym,
+    [data-scheme="retro"] .transport .clear-btn .sym {
+      white-space: nowrap;
+      line-height: 1;
+      font-size: 10px;
+      letter-spacing: .02em;
+      display: inline-block;
+      transform: scaleX(.95);
+      transform-origin: center;
+    }
+  }
+  
+
    /* =========================
    STEP EDITOR — Retro + mobile width
    ========================= */

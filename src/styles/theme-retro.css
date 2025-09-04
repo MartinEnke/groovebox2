@@ -1157,9 +1157,9 @@
 }
 
 /* Phone tweak: keep the nudge but not too aggressive */
-@media (max-width: 640px){
-  [data-scheme="retro"] .mode-col{ margin-left: -28px; }
-}
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse){
+    [data-scheme="retro"] .mode-col{ margin-left: -28px; }
+  }
 
 
 
@@ -1168,7 +1168,7 @@
   /* ===========================================
    CHANNEL — bulletproof mobile fit
    =========================================== */
-@media (max-width: 640px) {
+   @media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
     /* 1) Make columns resolutely flexible on phones */
     [data-scheme="retro"] .channel-block.pads-left {
       /* tighten everything a bit on mobile */

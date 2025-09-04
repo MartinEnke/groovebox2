@@ -3,10 +3,10 @@ import { useRef, useMemo } from "react";
 
 /**
  * useTapGesture(onTap, {
- *   slop?: number = 10,           // px finger can move before it's a pan/scroll (only for trigger:'up')
- *   timeoutMs?: number = 600,     // max tap duration (only for trigger:'up')
- *   pan?: 'y' | 'x' | 'none' = 'y',   // which axis is considered scrolling (only for trigger:'up')
- *   trigger?: 'down' | 'up' = 'down', // fire on pointerdown (fast) or pointerup (swipe-safe)
+ *   slop?: number = 10,            // only used when trigger:'up'
+ *   timeoutMs?: number = 600,      // only used when trigger:'up'
+ *   pan?: 'y'|'x'|'none' = 'y',    // only used when trigger:'up'
+ *   trigger?: 'down'|'up' = 'down' // 'down' = fastest; 'up' = swipe-safe
  * })
  */
 export default function useTapGesture(onTap, opts = {}) {
@@ -17,8 +17,7 @@ export default function useTapGesture(onTap, opts = {}) {
     trigger = "down",
   } = opts;
 
-  const touchAction =
-    pan === "y" ? "pan-y" : pan === "x" ? "pan-x" : "manipulation";
+  const touchAction = pan === "y" ? "pan-y" : pan === "x" ? "pan-x" : "manipulation";
 
   const st = useRef({
     active: false,
@@ -29,12 +28,15 @@ export default function useTapGesture(onTap, opts = {}) {
     canceled: false,
     t: 0,
     id: null,
-    firedDown: false, // used to suppress synthetic click after pointerdown
+    firedDown: false,
   });
+
+  const isExempt = (target) =>
+    !!target?.closest?.("[data-tap-exempt]") || !!target?.closest?.(".pad-btn");
 
   return useMemo(() => {
     const onPointerDown = (e) => {
-      // Only primary button for mouse
+      if (isExempt(e.target)) return;                  // ⬅️ never guard pads/exempt
       if (e.pointerType === "mouse" && e.button !== 0) return;
 
       st.current.active = true;
@@ -45,20 +47,13 @@ export default function useTapGesture(onTap, opts = {}) {
       st.current.startY = e.clientY ?? 0;
 
       st.current.startScrollX =
-        window.scrollX ??
-        window.pageXOffset ??
-        document.documentElement.scrollLeft ??
-        0;
+        window.scrollX ?? window.pageXOffset ?? document.documentElement.scrollLeft ?? 0;
       st.current.startScrollY =
-        window.scrollY ??
-        window.pageYOffset ??
-        document.documentElement.scrollTop ??
-        0;
+        window.scrollY ?? window.pageYOffset ?? document.documentElement.scrollTop ?? 0;
 
       st.current.t = performance.now();
 
       if (trigger === "down") {
-        // Immediate, snappy tap
         e.preventDefault();
         st.current.firedDown = true;
         onTap?.(e);
@@ -66,9 +61,10 @@ export default function useTapGesture(onTap, opts = {}) {
     };
 
     const onPointerMove = (e) => {
-      if (trigger !== "up") return; // only needed for swipe-safe mode
+      if (trigger !== "up") return;
       if (!st.current.active || st.current.canceled) return;
       if (st.current.id != null && e.pointerId !== st.current.id) return;
+      if (isExempt(e.target)) return;                  // ⬅️ ignore moves from pads
 
       const dx = Math.abs((e.clientX ?? 0) - st.current.startX);
       const dy = Math.abs((e.clientY ?? 0) - st.current.startY);
@@ -86,9 +82,9 @@ export default function useTapGesture(onTap, opts = {}) {
 
     const onPointerUp = (e) => {
       if (st.current.id != null && e.pointerId !== st.current.id) return;
+      if (isExempt(e.target)) return;                  // ⬅️ never guard pads/exempt
 
       if (trigger === "down") {
-        // We already fired on pointerdown; just reset state
         st.current.active = false;
         st.current.id = null;
         return;
@@ -97,15 +93,9 @@ export default function useTapGesture(onTap, opts = {}) {
       const dt = performance.now() - st.current.t;
 
       const curScrollX =
-        window.scrollX ??
-        window.pageXOffset ??
-        document.documentElement.scrollLeft ??
-        0;
+        window.scrollX ?? window.pageXOffset ?? document.documentElement.scrollLeft ?? 0;
       const curScrollY =
-        window.scrollY ??
-        window.pageYOffset ??
-        document.documentElement.scrollTop ??
-        0;
+        window.scrollY ?? window.pageYOffset ?? document.documentElement.scrollTop ?? 0;
 
       const scx = Math.abs(curScrollX - st.current.startScrollX) || 0;
       const scy = Math.abs(curScrollY - st.current.startScrollY) || 0;
@@ -120,8 +110,9 @@ export default function useTapGesture(onTap, opts = {}) {
       if (wasTap) onTap?.(e);
     };
 
-    // Suppress the synthetic click that may follow pointerdown on some browsers
+    // prevent synthetic click after pointerdown trigger
     const onClick = (e) => {
+      if (isExempt(e.target)) return;
       if (trigger === "down" && st.current.firedDown) {
         st.current.firedDown = false;
         e.preventDefault?.();

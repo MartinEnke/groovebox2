@@ -96,7 +96,7 @@ export default function Channel({
             title="Volume mode"
           >
             <span className="label-full">Vol</span>
-            <span className="label-abbr" aria-hidden="true">V</span>
+            
           </button>
           <button
             type="button"
@@ -106,7 +106,7 @@ export default function Channel({
             title="Pitch mode"
           >
             <span className="label-full">Pitch</span>
-            <span className="label-abbr" aria-hidden="true">P</span>
+            
           </button>
         </div>
       </div>

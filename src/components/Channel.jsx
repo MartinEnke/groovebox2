@@ -109,7 +109,7 @@ export default function Channel({
             onKeyDown={onKeyActivate(() => setMode("vol"))}
           >
             <span className="label-full">Vol</span>
-            <span className="label-abbr" aria-hidden="true">V</span>
+            
           </button>
 
           <button
@@ -121,7 +121,7 @@ export default function Channel({
             onKeyDown={onKeyActivate(() => setMode("pitch"))}
           >
             <span className="label-full">Pitch</span>
-            <span className="label-abbr" aria-hidden="true">P</span>
+            
           </button>
         </div>
       </div>

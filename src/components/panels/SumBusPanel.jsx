@@ -1,5 +1,19 @@
+// SumBusPanel.jsx
 import React from "react";
 import FoldSection from "../ui/FoldSection";
+
+const btnTouchProps = {
+  style: {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+};
+
+const onKeyActivate = (fn) => (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+};
 
 export default function SumBusPanel({
   show, onToggle,
@@ -20,12 +34,15 @@ export default function SumBusPanel({
         <div className="sbus-header">
           <div className="sbus-title">Sum Bus</div>
 
+          {/* Limiter — fast tap + keyboard */}
           <button
             type="button"
+            {...btnTouchProps}
             className={`toggle-chip ${limiterOn ? "on" : ""}`}
             aria-pressed={limiterOn}
-            onClick={() => setLimiterOn(v => !v)}
             title="Brickwall limiter on master"
+            onPointerDown={() => setLimiterOn((v) => !v)}
+            onKeyDown={onKeyActivate(() => setLimiterOn((v) => !v))}
           >
             Limiter
           </button>
@@ -54,10 +71,16 @@ export default function SumBusPanel({
               <span>THRESH</span>
               <input
                 className="slider slider-fx"
-                type="range" min={-60} max={0} step={1}
+                type="range"
+                min={-60}
+                max={0}
+                step={1}
                 value={sumComp.threshold}
-                onChange={(e)=> setSumComp(s => ({ ...s, threshold: parseFloat(e.target.value) }))}
+                onChange={(e) =>
+                  setSumComp((s) => ({ ...s, threshold: parseFloat(e.target.value) }))
+                }
                 title="Compressor threshold (dB)"
+                style={{ touchAction: "manipulation" }}
               />
             </label>
 
@@ -65,55 +88,69 @@ export default function SumBusPanel({
               <span>RATIO</span>
               <input
                 className="slider slider-fx"
-                type="range" min={1} max={20} step={0.1}
+                type="range"
+                min={1}
+                max={20}
+                step={0.1}
                 value={sumComp.ratio}
-                onChange={(e)=> setSumComp(s => ({ ...s, ratio: parseFloat(e.target.value) }))}
+                onChange={(e) =>
+                  setSumComp((s) => ({ ...s, ratio: parseFloat(e.target.value) }))
+                }
                 title="Compressor ratio"
+                style={{ touchAction: "manipulation" }}
               />
             </label>
           </div>
 
           {/* Makeup + Cuts */}
           <div className="sbus-head">
-  <span className="fx-sublabel">MAKEUP</span>
-  <span className="sbus-readout">
-    {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
-  </span>
-</div>
+            <span className="fx-sublabel">MAKEUP</span>
+            <span className="sbus-readout">
+              {sumGainDb >= 0 ? `+${sumGainDb.toFixed(1)} dB` : `${sumGainDb.toFixed(1)} dB`}
+            </span>
+          </div>
 
-<input
-  className="slider slider-fx"
-  type="range" min={-24} max={12} step={0.1}
-  value={sumGainDb}
-  onChange={(e)=>setSumGainDb(parseFloat(e.target.value))}
-  title="Makeup gain (dB)"
-/>
+          <input
+            className="slider slider-fx"
+            type="range"
+            min={-24}
+            max={12}
+            step={0.1}
+            value={sumGainDb}
+            onChange={(e) => setSumGainDb(parseFloat(e.target.value))}
+            title="Makeup gain (dB)"
+            style={{ touchAction: "manipulation" }}
+          />
 
-            <div className="sbus-toggles">
-              <button
-                type="button"
-                className={`revlen-btn ${lowCutOn ? "on" : ""}`}
-                aria-pressed={lowCutOn}
-                onClick={() => setLowCutOn(v => !v)}
-                title="Low Cut 230 Hz (Q≈1.0)"
-              >
-                Low Cut 230Hz
-              </button>
-              <button
-                type="button"
-                className={`revlen-btn ${highCutOn ? "on" : ""}`}
-                aria-pressed={highCutOn}
-                onClick={() => setHighCutOn(v => !v)}
-                title="High Cut 3 kHz (Q≈1.0)"
-              >
-                High Cut 3k
-              </button>
-            </div>
+          <div className="sbus-toggles">
+            {/* Low Cut — fast tap + keyboard */}
+            <button
+              type="button"
+              {...btnTouchProps}
+              className={`revlen-btn ${lowCutOn ? "on" : ""}`}
+              aria-pressed={lowCutOn}
+              title="Low Cut 230 Hz (Q≈1.0)"
+              onPointerDown={() => setLowCutOn((v) => !v)}
+              onKeyDown={onKeyActivate(() => setLowCutOn((v) => !v))}
+            >
+              Low Cut 230Hz
+            </button>
 
-            
+            {/* High Cut — fast tap + keyboard */}
+            <button
+              type="button"
+              {...btnTouchProps}
+              className={`revlen-btn ${highCutOn ? "on" : ""}`}
+              aria-pressed={highCutOn}
+              title="High Cut 3 kHz (Q≈1.0)"
+              onPointerDown={() => setHighCutOn((v) => !v)}
+              onKeyDown={onKeyActivate(() => setHighCutOn((v) => !v))}
+            >
+              High Cut 3k
+            </button>
           </div>
         </div>
-     
+      </div>
     </FoldSection>
   );
 }

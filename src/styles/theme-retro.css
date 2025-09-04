@@ -2259,8 +2259,50 @@
     }
   }
 
+  /* Transport: give "Del Pat" a bit more room by slimming "Del All" (phones only) */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+    :root[data-scheme="retro"] .transport,
+    [data-scheme="retro"] .transport {
+      column-gap: 6px; /* a touch tighter spacing */
+    }
   
+    /* Keep LCD just a bit slimmer to free global space */
+    :root[data-scheme="retro"] .transport .lcd,
+    [data-scheme="retro"] .transport .lcd {
+      min-width: 54px;       /* was 56–90; tiny trim */
+      max-width: 72px;
+      height: 34px;
+      padding: 0 6px;
+      font-size: 10.5px;
+    }
   
+    /* Favor "Del Pat": give it a hair more min-width */
+    :root[data-scheme="retro"] .transport .clear-btn.pat,
+    [data-scheme="retro"] .transport .clear-btn.pat {
+      min-width: 78px;       /* was ~72; gives breathing room */
+      padding: 0 10px;
+      box-sizing: border-box;
+    }
+  
+    /* Slim "Del All" so it yields first */
+    :root[data-scheme="retro"] .transport .clear-btn.all,
+    [data-scheme="retro"] .transport .clear-btn.all {
+      min-width: 66px;       /* was 74–88; smaller to help Pat */
+      padding: 0 8px;
+      font-size: 9.8px;      /* slightly tighter label */
+      letter-spacing: .02em;
+      box-sizing: border-box;
+    }
+  
+    /* Ensure labels don't wrap or overhang */
+    :root[data-scheme="retro"] .transport .clear-btn .sym,
+    [data-scheme="retro"] .transport .clear-btn .sym {
+      white-space: nowrap;
+      line-height: 1;        /* prevents vertical clipping */
+    }
+  }
+  
+
    /* =========================
    STEP EDITOR — Retro + mobile width
    ========================= */

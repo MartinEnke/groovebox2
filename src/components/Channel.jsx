@@ -1,8 +1,24 @@
-import React, { useState } from "react";
+// Channel.jsx
+import React, { useState, useMemo } from "react";
 import FoldSection from "./ui/FoldSection.jsx";
 import PadButton from "./PadButton";
 import { VELS } from "../constants/sequencer";
 import { INSTRUMENTS } from "../constants/instruments";
+
+// same fast-tap props you use in InstrumentGrid
+const btnTouchProps = {
+  style: {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+};
+
+// keyboard fallback so buttons still work without a pointer
+const onKeyActivate = (fn) => (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+};
 
 export default function Channel({
   show, onToggle,
@@ -13,16 +29,22 @@ export default function Channel({
   onPadPress,
 }) {
   const [mode, setMode] = useState("vol");
-  const label = INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected;
+  const label = useMemo(
+    () => INSTRUMENTS.find((i) => i.id === selected)?.label ?? selected,
+    [selected]
+  );
 
   const sliderMin   = mode === "vol" ? -24 : -12;
   const sliderMax   = mode === "vol" ? 6   : 12;
   const sliderStep  = mode === "vol" ? 0.1 : 1;
   const sliderValue = mode === "vol" ? volumeDb : pitchSemi;
 
-  const numericDisplay =
-    mode === "vol" ? Number(volumeDb).toFixed(1)
-                   : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`;
+  const numericDisplay = useMemo(
+    () => (mode === "vol"
+      ? Number(volumeDb).toFixed(1)
+      : `${pitchSemi > 0 ? "+" : ""}${Math.trunc(pitchSemi)}`),
+    [mode, volumeDb, pitchSemi]
+  );
 
   return (
     <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
@@ -35,7 +57,7 @@ export default function Channel({
                 key={`pad-${r}-${c}`}
                 label="PAD"
                 sub={`vel ${VELS[r][c].toFixed(2)}`}
-                onPress={() => onPadPress(r, c)}
+                onPress={() => onPadPress(r, c)}   // PadButton already uses fast pointer handlers
               />
             ))
           )}
@@ -57,38 +79,49 @@ export default function Channel({
                 else onPitchChange?.(v);
               }}
               aria-label={mode === "vol" ? "Volume" : "Pitch"}
+              style={{ touchAction: "manipulation" }}   // prevents odd gesture delays on iOS
             />
           </div>
 
           <div className="lcd-compact">{numericDisplay}</div>
 
+          {/* SOLO — pointerdown + keyboard fallback */}
           <button
+            {...btnTouchProps}
             className={`press solo-btn edge ${soloActive ? "solo-on" : ""}`}
             aria-pressed={soloActive}
-            onClick={onToggleSolo}
             title="Solo"
+            onPointerDown={onToggleSolo}
+            onKeyDown={onKeyActivate(onToggleSolo)}
           >
             Solo
           </button>
         </div>
 
-        {/* Vol / Pitch */}
+        {/* Vol / Pitch — pointerdown + keyboard fallback */}
         <div className="mode-col">
           <button
+            {...btnTouchProps}
             className={`press toggle xs ${mode === "vol" ? "on" : ""}`}
             aria-pressed={mode === "vol"}
-            onClick={() => setMode("vol")}
             title="Volume mode"
+            onPointerDown={() => setMode("vol")}
+            onKeyDown={onKeyActivate(() => setMode("vol"))}
           >
-            Vol
+            <span className="label-full">Vol</span>
+            <span className="label-abbr" aria-hidden="true">V</span>
           </button>
+
           <button
+            {...btnTouchProps}
             className={`press toggle xs ${mode === "pitch" ? "on" : ""}`}
             aria-pressed={mode === "pitch"}
-            onClick={() => setMode("pitch")}
             title="Pitch mode"
+            onPointerDown={() => setMode("pitch")}
+            onKeyDown={onKeyActivate(() => setMode("pitch"))}
           >
-            Pitch
+            <span className="label-full">Pitch</span>
+            <span className="label-abbr" aria-hidden="true">P</span>
           </button>
         </div>
       </div>

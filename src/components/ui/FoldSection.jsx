@@ -1,4 +1,6 @@
+// src/components/ui/FoldSection.jsx
 import React from "react";
+import useTapGesture from "../../hooks/useTapGesture";
 
 export default function FoldSection({
   title,
@@ -7,6 +9,9 @@ export default function FoldSection({
   centerAlways = false,
   children,
 }) {
+  // Guard against swipe; only treat a clean tap as a toggle
+  const tapChevron = useTapGesture(onToggle, { pan: "y", slop: 10, trigger: "up" });
+
   return (
     <>
       <div
@@ -46,10 +51,10 @@ export default function FoldSection({
 
         <button
           type="button"
-          onClick={onToggle}
-          aria-expanded={!!show}
-          title={show ? `Collapse ${title}` : `Expand ${title}`}
+          {...tapChevron}
+          // merge our styles so we keep touch-action etc.
           style={{
+            ...(tapChevron.style || {}),
             background: "transparent",
             border: "none",
             color: "rgba(255,255,255,.7)",
@@ -57,7 +62,11 @@ export default function FoldSection({
             padding: "2px 4px",
             lineHeight: 0,
             zIndex: 2,
+            minWidth: 28,
+            minHeight: 28,
           }}
+          aria-expanded={!!show}
+          title={show ? `Collapse ${title}` : `Expand ${title}`}
         >
           <span
             aria-hidden="true"
@@ -67,7 +76,6 @@ export default function FoldSection({
               transition: "transform 120ms ease",
             }}
           >
-            {/* Consistent chevron (no font variance) */}
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path
                 d="M9 6l6 6-6 6"

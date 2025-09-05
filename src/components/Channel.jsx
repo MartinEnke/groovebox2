@@ -37,7 +37,7 @@ export default function Channel({
   const pitchTap = useTapGesture(() => setMode("pitch"),   { pan: "y", slop: 10 });
 
   return (
-    <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle}>
+    <FoldSection title={`Channel · ${label}`} show={show} onToggle={onToggle} centerAlways>
       <div className="channel-block three-cols pads-left">
         {/* Pads */}
         <div className="pads-2x2 tiny-gap">

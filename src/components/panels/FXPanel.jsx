@@ -35,7 +35,7 @@ export default function FXPanel({
   };
 
   return (
-    <FoldSection title="FX" show={show} onToggle={onToggle}>
+    <FoldSection title="FX" show={show} onToggle={onToggle} centerAlways>
       <div className="fx-row fx-panel three">
         {/* Delay */}
         <div className="fx-block">

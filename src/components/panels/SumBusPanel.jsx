@@ -21,7 +21,7 @@ export default function SumBusPanel({
   const highCutTap = useTapGesture(() => setHighCutOn(v => !v), { pan: "y", slop: 10 });
 
   return (
-    <FoldSection title="Sum Bus" show={show} onToggle={onToggle}>
+    <FoldSection title="Sum Bus" show={show} onToggle={onToggle} centerAlways>
       <div className="sbus-card">
         <div className="sbus-header">
           <div className="sbus-title">Sum Bus</div>

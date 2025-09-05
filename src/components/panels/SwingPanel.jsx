@@ -23,7 +23,7 @@ export default function SwingPanel({
   };
 
   return (
-    <FoldSection title="Groove" show={show} onToggle={onToggle}>
+    <FoldSection title="Groove" show={show} onToggle={onToggle} centerAlways>
       <div className="swing-card compact">
         {/* INLINE selector (Off · 8 · 16 · 32) */}
         <div className="swing-grid-inline">

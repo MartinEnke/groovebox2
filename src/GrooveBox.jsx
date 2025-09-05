@@ -101,42 +101,34 @@ function LogoResetHotspot({ targetRef, active, onReset }) {
 
 
 export default function GrooveBox() {
-
+  // keep vertical scroll, kill zoom
   useDisableZoomKeepScroll();
   useNoHorizontalWheel();
 
-  // Visual scheme (retro = original look, neo = modern)
+  // visual scheme (persist to localStorage)
   const [scheme, setScheme] = useState(() => {
-      try {
-        const saved = localStorage.getItem("gb-scheme");
-        return (saved === "neo" || saved === "retro") ? saved : "neo"; // default = NEO
-      } catch {
-        return "neo";
-      }
-    });
-    // Apply scheme BEFORE paint so it never lags behind during playback
-    useLayoutEffect(() => {
-      const root = document.documentElement;
-      if (root.getAttribute("data-scheme") !== scheme) {
-        root.setAttribute("data-scheme", scheme);
-      }
-      try { localStorage.setItem("gb-scheme", scheme); } catch {}
-    }, [scheme]);
+    try {
+      const saved = localStorage.getItem("gb-scheme");
+      return saved === "neo" || saved === "retro" ? saved : "neo";
+    } catch {
+      return "neo";
+    }
+  });
 
-  
-  // --- central store ---
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (root.getAttribute("data-scheme") !== scheme) {
+      root.setAttribute("data-scheme", scheme);
+    }
+    try { localStorage.setItem("gb-scheme", scheme); } catch {}
+  }, [scheme]);
+
+  // state store
   const { state, actions } = useSessionStore();
+  const { bpm, isPlaying, isRecording, step, metMode } = state.transport;
+  const selected = state.instrumentMix.selected;
 
-
-  const bpm         = state.transport.bpm;
-  const isPlaying   = state.transport.isPlaying;
-  const isRecording = state.transport.isRecording;
-  const step        = state.transport.step;
-  const metMode     = state.transport.metMode;
-
-  const selected    = state.instrumentMix.selected;
-
-  // --- audio engine (WebAudio graph) ---
+  // audio engine
   const engine = useAudioEngine();
 
   // 🔊 WebAudio unlock on first user gesture anywhere

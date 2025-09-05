@@ -36,6 +36,9 @@ import useNoHorizontalWheel from "./hooks/useNoHorizontalWheel";
 
 
 
+
+
+
 function LogoResetHotspot({ targetRef, active, onReset }) {
   const portalRef = React.useRef(null);
   
@@ -104,7 +107,7 @@ export default function GrooveBox() {
 
   useDisableZoomKeepScroll();
   useNoHorizontalWheel();
-  
+
   // Visual scheme (retro = original look, neo = modern)
   const [scheme, setScheme] = useState(() => {
       try {

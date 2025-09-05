@@ -50,3 +50,23 @@ html, body, #root { max-width: 100%; }
 .gb-root textarea {
   font-size: 16px;
 }
+
+
+/* Prevent root scroll from triggering pull-to-refresh */
+html, body {
+  height: 100%;
+  overflow: hidden;                /* body no longer scrolls */
+  overscroll-behavior-y: none;     /* Chrome/Android */
+  overscroll-behavior-x: none;
+}
+
+/* Our dedicated scroll container */
+.app-scroll {
+  height: 100dvh;                  /* respects mobile address bar */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;  /* smooth iOS scrolling */
+  overscroll-behavior-y: contain;  /* keep bounces inside */
+  overscroll-behavior-x: none;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}

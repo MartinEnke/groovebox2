@@ -3,10 +3,10 @@ import { useRef, useMemo } from "react";
 
 /**
  * useTapGesture(onTap, {
- *   slop?: number = 10,            // only used when trigger:'up'
- *   timeoutMs?: number = 600,      // only used when trigger:'up'
- *   pan?: 'y'|'x'|'none' = 'y',    // only used when trigger:'up'
- *   trigger?: 'down'|'up' = 'down' // 'down' = fastest; 'up' = swipe-safe
+ *   slop?: number = 10,
+ *   timeoutMs?: number = 600,
+ *   pan?: 'y'|'x'|'none' = 'y',
+ *   trigger?: 'down'|'up' = 'up'   // <-- default UP (scroll-safe)
  * })
  */
 export default function useTapGesture(onTap, opts = {}) {
@@ -14,10 +14,11 @@ export default function useTapGesture(onTap, opts = {}) {
     slop = 10,
     timeoutMs = 600,
     pan = "y",
-    trigger = "down",
+    trigger = "up",                // <-- changed
   } = opts;
 
-  const touchAction = pan === "y" ? "pan-y" : pan === "x" ? "pan-x" : "manipulation";
+  const touchAction =
+    pan === "y" ? "pan-y" : pan === "x" ? "pan-x" : "manipulation";
 
   const st = useRef({
     active: false,
@@ -36,24 +37,22 @@ export default function useTapGesture(onTap, opts = {}) {
 
   return useMemo(() => {
     const onPointerDown = (e) => {
-      if (isExempt(e.target)) return;                  // ⬅️ never guard pads/exempt
+      if (isExempt(e.target)) return;                          // let pads do their own thing
       if (e.pointerType === "mouse" && e.button !== 0) return;
 
       st.current.active = true;
       st.current.canceled = false;
       st.current.id = e.pointerId ?? null;
-
       st.current.startX = e.clientX ?? 0;
       st.current.startY = e.clientY ?? 0;
-
       st.current.startScrollX =
         window.scrollX ?? window.pageXOffset ?? document.documentElement.scrollLeft ?? 0;
       st.current.startScrollY =
         window.scrollY ?? window.pageYOffset ?? document.documentElement.scrollTop ?? 0;
-
       st.current.t = performance.now();
 
       if (trigger === "down") {
+        // Instant fire: cancels scroll for this gesture
         e.preventDefault();
         st.current.firedDown = true;
         onTap?.(e);
@@ -64,13 +63,13 @@ export default function useTapGesture(onTap, opts = {}) {
       if (trigger !== "up") return;
       if (!st.current.active || st.current.canceled) return;
       if (st.current.id != null && e.pointerId !== st.current.id) return;
-      if (isExempt(e.target)) return;                  // ⬅️ ignore moves from pads
+      if (isExempt(e.target)) return;
 
       const dx = Math.abs((e.clientX ?? 0) - st.current.startX);
       const dy = Math.abs((e.clientY ?? 0) - st.current.startY);
       const moved =
         pan === "y" ? dy > slop : pan === "x" ? dx > slop : Math.hypot(dx, dy) > slop;
-      if (moved) st.current.canceled = true;
+      if (moved) st.current.canceled = true; // treat as scroll/drag
     };
 
     const onPointerCancel = () => {
@@ -82,7 +81,7 @@ export default function useTapGesture(onTap, opts = {}) {
 
     const onPointerUp = (e) => {
       if (st.current.id != null && e.pointerId !== st.current.id) return;
-      if (isExempt(e.target)) return;                  // ⬅️ never guard pads/exempt
+      if (isExempt(e.target)) return;
 
       if (trigger === "down") {
         st.current.active = false;
@@ -110,7 +109,6 @@ export default function useTapGesture(onTap, opts = {}) {
       if (wasTap) onTap?.(e);
     };
 
-    // prevent synthetic click after pointerdown trigger
     const onClick = (e) => {
       if (isExempt(e.target)) return;
       if (trigger === "down" && st.current.firedDown) {

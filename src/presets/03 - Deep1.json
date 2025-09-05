@@ -708,13 +708,13 @@
     "ride": 105
   },
   "sumComp": {
-    "threshold": -17,
-    "ratio": 8.4,
+    "threshold": -16,
+    "ratio": 5.6,
     "attack": 0.003,
     "release": 0.25,
     "knee": 3
   },
-  "sumGainDb": 2.5,
+  "sumGainDb": 5.6,
   "limiterOn": true,
   "sumLowCut": false,
   "sumHighCut": false,
@@ -760,7 +760,7 @@
       "B": false
     }
   },
-  "selected": "tom1",
+  "selected": "kick",
   "instPitchSemi": {
     "kick": -3,
     "snare": 12,

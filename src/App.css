@@ -11,62 +11,39 @@
 
 
 
-/* Make sure the page can scroll normally */
 /* App.css */
 html, body {
   margin: 0;
   height: 100%;
-  overflow-y: auto;     /* vertical scroll works */
-  overflow-x: hidden;   /* horizontal scroll disabled */
+  overflow-y: auto;
+  overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
 }
 
-/* Helpful, optional */
 html, body, #root { max-width: 100%; }
 
-/* Your top-level app wrapper */
-/* App.css */
+/* Top-level wrapper */
 .gb-root {
-  /* allow vertical scroll, block horizontal pan + pinch */
-  touch-action: pan-y;
+  touch-action: pan-y;                 /* allow vertical scrolling */
   -webkit-tap-highlight-color: transparent;
-
-
-.gb-root img, .gb-root canvas, .gb-root svg, .gb-root video { max-width: 100%; }
-
-  /* never be wider than the viewport */
-  width: 100%;         /* avoid 100vw to prevent accidental horizontal overflow */
+  width: 100%;
   max-width: 100%;
-  overflow-x: hidden;  /* kill horizontal scrollbars just in case */
+  overflow-x: hidden;
 }
 
-/* If you also need horizontal scrolling globally, use: touch-action: pan-x pan-y; */
+/* separate rule (not nested) */
+.gb-root img,
+.gb-root canvas,
+.gb-root svg,
+.gb-root video {
+  max-width: 100%;
+}
 
-/* Prevent iOS “focus zoom” on form controls by keeping font-size >=16px */
+/* Keep form controls ≥16px to avoid iOS focus zoom */
 .gb-root button,
 .gb-root [role="button"],
 .gb-root select,
 .gb-root input,
 .gb-root textarea {
   font-size: 16px;
-}
-
-
-/* Prevent root scroll from triggering pull-to-refresh */
-html, body {
-  height: 100%;
-  overflow: hidden;                /* body no longer scrolls */
-  overscroll-behavior-y: none;     /* Chrome/Android */
-  overscroll-behavior-x: none;
-}
-
-/* Our dedicated scroll container */
-.app-scroll {
-  height: 100dvh;                  /* respects mobile address bar */
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;  /* smooth iOS scrolling */
-  overscroll-behavior-y: contain;  /* keep bounces inside */
-  overscroll-behavior-x: none;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }

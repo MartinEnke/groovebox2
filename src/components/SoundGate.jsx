@@ -1,9 +1,10 @@
+// src/components/SoundGate.jsx
 import React, { useEffect, useMemo, useState } from "react";
 
 export default function SoundGate({ engine, onlyOnIOS = true }) {
-  const [ready, setReady] = useState(() => engine.getCtx()?.state === "running");
+  const [ready, setReady] = useState(() => engine.getCtx?.()?.state === "running");
 
-  // iOS (incl. iPadOS on MacIntel)
+  // Detect iOS (incl. iPadOS on MacIntel)
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent || "";
     const iThing = /iPhone|iPad|iPod/i.test(ua);
@@ -27,12 +28,10 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
     return () => { if (ctx) ctx.onstatechange = null; };
   }, [engine]);
 
-  // If already running, or not iOS (and we only show on iOS), render nothing
   if (ready || (onlyOnIOS && !isIOS)) return null;
 
   const nudgeMedia = async () => {
     try {
-      // tiny silent WAV to "prime" media routing on some iOS builds
       const a = new Audio(
         "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       );
@@ -42,53 +41,42 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
     } catch {}
   };
 
-  const tryUnlock = async (e) => {
-    // make *sure* this gesture is used for audio
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
+  const onContinue = async (e) => {
+    // Let the event bubble so any document-level unlock also runs
+    e.preventDefault?.();
 
+    // Try to unlock explicitly
     await engine.ensureRunning?.();
     await nudgeMedia();
 
-    // re-check after microtask and a tick; iOS sometimes flips to "running" slightly later
+    // Re-check shortly; if still suspended we still dismiss (your choice)
     requestAnimationFrame(() => {
       const okNow = engine.getCtx?.()?.state === "running";
       if (okNow) { setReady(true); return; }
-
-      setTimeout(() => {
-        const okLater = engine.getCtx?.()?.state === "running";
-        if (okLater) setReady(true);
-        // else keep the gate visible; user can hit "Continue anyway"
-      }, 120);
+      setTimeout(() => setReady(true), 120);
     });
-  };
-
-  const dismissAnyway = (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
-    setReady(true); // let user proceed even if audio stayed suspended
   };
 
   return (
     <div
-      // full-screen overlay
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sound tip"
       style={{
         position: "fixed", inset: 0, zIndex: 99999, display: "grid", placeItems: "center",
-        background: "rgba(0,0,0,.6)",
+        background: "rgba(0,0,0,.6)"
       }}
-      // allow both pointer and click to cover all iOS cases
-      onPointerDown={tryUnlock}
-      onClick={tryUnlock}
     >
       <div
         style={{
-          background: "rgba(20,20,28,.9)",
+          background: "rgba(20,20,28,.94)",
           border: "1px solid rgba(255,255,255,.12)",
           borderRadius: 12,
           padding: "16px 18px",
           color: "#fff",
-          textAlign: "center",
-          maxWidth: 360,
+          maxWidth: 420,
+          width: "calc(100% - 32px)",
+          textAlign: "left",
           boxShadow: "0 12px 30px rgba(0,0,0,.45)",
           touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
@@ -96,18 +84,36 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
           WebkitUserSelect: "none",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-          🔊 Tap to enable sound
-        </div>
-        <div style={{ opacity: .8, fontSize: 14, lineHeight: 1.35 }}>
-          If still silent, turn <b>OFF Silent Mode</b> (ring switch).
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+          Hi there!
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center" }}>
+        <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
+          <li>Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.</li>
+        </ul>
+
+        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>
+          <div>
+            This is a learning project to explore the React framework.
+            It's a <b>Rhythm Composer</b> to create beats in a drum-computer style with
+            sidechain compression, delay, reverb, saturation, swing, and drum-bus compression.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Disclaimer</div>
+          <div>
+            Provided “as is”, without warranties. Data is stored locally in your browser; 
+            please export backups if needed. I can’t guarantee against data loss or bugs.
+            Have fun! :)
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
             type="button"
-            onPointerDown={tryUnlock}
-            onClick={tryUnlock}
+            onPointerDown={onContinue}
+            onClick={onContinue}
             style={{
               padding: "8px 12px",
               borderRadius: 8,
@@ -116,32 +122,10 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
               color: "#fff",
               cursor: "pointer",
               touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              userSelect: "none",
-              WebkitUserSelect: "none",
+              fontWeight: 700,
             }}
           >
-            Enable
-          </button>
-
-          <button
-            type="button"
-            onPointerDown={dismissAnyway}
-            onClick={dismissAnyway}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,.12)",
-              background: "transparent",
-              color: "rgba(255,255,255,.85)",
-              cursor: "pointer",
-              touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              userSelect: "none",
-              WebkitUserSelect: "none",
-            }}
-          >
-            Continue anyway
+            Continue
           </button>
         </div>
       </div>

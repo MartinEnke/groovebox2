@@ -13,19 +13,10 @@ export default function TransportBar({
   clearSelectedPattern,
   clearAllPatternsAndLevels,
 }) {
-  // Play/Stop: fire immediately on pointerdown, no swipe guard
-  const playTap = useTapGesture(() => togglePlay?.(), {
-    trigger: "down",
-    pan: "none",
-  });
+  // Swipe-safe taps (fires on pointer UP if it wasn’t a scroll)
+  const playTap = useTapGesture(() => togglePlay?.(), { trigger: "up", pan: "y", slop: 10 });
+  const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
 
-  // Record can stay instant too
-  const recTap = useTapGesture(() => toggleRecord?.(), {
-    trigger: "down",
-    pan: "none",
-  });
-
-  // (keep your existing 'up' guard on the delete buttons if you want)
   const delPatTap = useTapGesture(() => {
     if (confirm("Clear the selected instrument's pattern?")) {
       clearSelectedPattern?.();
@@ -33,47 +24,44 @@ export default function TransportBar({
   }, { trigger: "up", pan: "y", slop: 10 });
 
   const delAllTap = useTapGesture(() => {
-    if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
+    if (
+      confirm(
+        "Clear ALL patterns and levels?\n\nThis cannot be undone."
+      )
+    ) {
       clearAllPatternsAndLevels?.();
     }
   }, { trigger: "up", pan: "y", slop: 10 });
 
   return (
     <div className="transport">
-      {/* Play / Stop */}
+      {/* Play / Stop (triangle / square) */}
       <button
         type="button"
         {...playTap}
-        // hard-override touchAction for this button to avoid scroll cancellation
-        style={{ ...(playTap.style || {}), touchAction: "none" }}
         className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
         aria-pressed={isPlaying}
         title={isPlaying ? "Stop" : "Play"}
-        onContextMenu={(e) => e.preventDefault()}
       >
         <span className="tri" aria-hidden="true" />
         <span className="sq"  aria-hidden="true" />
       </button>
 
-      {/* Record */}
+      {/* Record (dot only) */}
       <button
         type="button"
         {...recTap}
-        style={{ ...(recTap.style || {}), touchAction: "none" }}
         className={`btn press rec ${isRecording ? "on" : ""}`}
         aria-pressed={isRecording}
         title="Record"
-        onContextMenu={(e) => e.preventDefault()}
       >
         <span className="rec-dot" aria-hidden="true" />
       </button>
 
-      {/* LCD */}
-      <div className="lcd">
-        {pad(step + 1)}/{STEPS_PER_BAR}
-      </div>
+      {/* Digital step display */}
+      <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
 
-      {/* Del Pat */}
+      {/* Clear selected (Del Pat) */}
       <button
         type="button"
         {...delPatTap}
@@ -83,7 +71,7 @@ export default function TransportBar({
         <span className="sym">Del Pat</span>
       </button>
 
-      {/* Del All */}
+      {/* Clear all (Del All) */}
       <button
         type="button"
         {...delAllTap}

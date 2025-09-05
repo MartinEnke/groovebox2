@@ -15,23 +15,19 @@ export default function TransportBar({
 }) {
   // Swipe-safe taps (fires on pointer UP if it wasn’t a scroll)
   const playTap = useTapGesture(() => togglePlay?.(), { trigger: "up", pan: "y", slop: 10 });
-  const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
+const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
 
-  const delPatTap = useTapGesture(() => {
-    if (confirm("Clear the selected instrument's pattern?")) {
-      clearSelectedPattern?.();
-    }
-  }, { trigger: "up", pan: "y", slop: 10 });
+const delPatTap = useTapGesture(() => {
+  if (confirm("Clear the selected instrument's pattern?")) {
+    clearSelectedPattern?.();
+  }
+}, { trigger: "up", pan: "y", slop: 10 });
 
-  const delAllTap = useTapGesture(() => {
-    if (
-      confirm(
-        "Clear ALL patterns and levels?\n\nThis cannot be undone."
-      )
-    ) {
-      clearAllPatternsAndLevels?.();
-    }
-  }, { trigger: "up", pan: "y", slop: 10 });
+const delAllTap = useTapGesture(() => {
+  if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
+    clearAllPatternsAndLevels?.();
+  }
+}, { trigger: "up", pan: "y", slop: 10 });
 
   return (
     <div className="transport">

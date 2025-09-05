@@ -1,12 +1,12 @@
-// src/hooks/useTapGesture.js
 import { useRef, useMemo } from "react";
 
 /**
  * useTapGesture(onTap, {
- *   slop?: number = 10,
- *   timeoutMs?: number = 600,
- *   pan?: 'y'|'x'|'none' = 'y',
- *   trigger?: 'down'|'up' = 'up'   // <-- default UP (scroll-safe)
+ *   slop?: number = 10,            // finger move threshold to treat as a scroll/drag
+ *   timeoutMs?: number = 600,      // max tap duration
+ *   pan?: 'y'|'x'|'none' = 'y',    // sets touch-action for the element
+ *   trigger?: 'down'|'up' = 'up',  // 'up' = swipe-safe, 'down' = ultra-fast
+ *   exemptSelector?: string        // elements that should bypass guard (e.g. pads)
  * })
  */
 export default function useTapGesture(onTap, opts = {}) {
@@ -14,7 +14,8 @@ export default function useTapGesture(onTap, opts = {}) {
     slop = 10,
     timeoutMs = 600,
     pan = "y",
-    trigger = "up",                // <-- changed
+    trigger = "up",
+    exemptSelector = "[data-tap-exempt], .pad-btn",
   } = opts;
 
   const touchAction =
@@ -24,20 +25,17 @@ export default function useTapGesture(onTap, opts = {}) {
     active: false,
     startX: 0,
     startY: 0,
-    startScrollX: 0,
-    startScrollY: 0,
     canceled: false,
     t: 0,
     id: null,
     firedDown: false,
   });
 
-  const isExempt = (target) =>
-    !!target?.closest?.("[data-tap-exempt]") || !!target?.closest?.(".pad-btn");
+  const isExempt = (target) => !!target?.closest?.(exemptSelector);
 
   return useMemo(() => {
     const onPointerDown = (e) => {
-      if (isExempt(e.target)) return;                          // let pads do their own thing
+      if (isExempt(e.target)) return;                 // never guard exempt targets
       if (e.pointerType === "mouse" && e.button !== 0) return;
 
       st.current.active = true;
@@ -45,15 +43,10 @@ export default function useTapGesture(onTap, opts = {}) {
       st.current.id = e.pointerId ?? null;
       st.current.startX = e.clientX ?? 0;
       st.current.startY = e.clientY ?? 0;
-      st.current.startScrollX =
-        window.scrollX ?? window.pageXOffset ?? document.documentElement.scrollLeft ?? 0;
-      st.current.startScrollY =
-        window.scrollY ?? window.pageYOffset ?? document.documentElement.scrollTop ?? 0;
       st.current.t = performance.now();
 
       if (trigger === "down") {
-        // Instant fire: cancels scroll for this gesture
-        e.preventDefault();
+        e.preventDefault?.();
         st.current.firedDown = true;
         onTap?.(e);
       }
@@ -69,7 +62,8 @@ export default function useTapGesture(onTap, opts = {}) {
       const dy = Math.abs((e.clientY ?? 0) - st.current.startY);
       const moved =
         pan === "y" ? dy > slop : pan === "x" ? dx > slop : Math.hypot(dx, dy) > slop;
-      if (moved) st.current.canceled = true; // treat as scroll/drag
+
+      if (moved) st.current.canceled = true;          // treat as scroll/drag
     };
 
     const onPointerCancel = () => {
@@ -90,18 +84,7 @@ export default function useTapGesture(onTap, opts = {}) {
       }
 
       const dt = performance.now() - st.current.t;
-
-      const curScrollX =
-        window.scrollX ?? window.pageXOffset ?? document.documentElement.scrollLeft ?? 0;
-      const curScrollY =
-        window.scrollY ?? window.pageYOffset ?? document.documentElement.scrollTop ?? 0;
-
-      const scx = Math.abs(curScrollX - st.current.startScrollX) || 0;
-      const scy = Math.abs(curScrollY - st.current.startScrollY) || 0;
-      const scrolled = pan === "y" ? scy > 1 : pan === "x" ? scx > 1 : scx + scy > 1;
-
-      const wasTap =
-        st.current.active && !st.current.canceled && !scrolled && dt <= timeoutMs;
+      const wasTap = st.current.active && !st.current.canceled && dt <= timeoutMs;
 
       st.current.active = false;
       st.current.id = null;
@@ -109,6 +92,7 @@ export default function useTapGesture(onTap, opts = {}) {
       if (wasTap) onTap?.(e);
     };
 
+    // Prevent synthetic click only for trigger:'down'
     const onClick = (e) => {
       if (isExempt(e.target)) return;
       if (trigger === "down" && st.current.firedDown) {
@@ -139,5 +123,5 @@ export default function useTapGesture(onTap, opts = {}) {
         WebkitUserSelect: "none",
       },
     };
-  }, [onTap, slop, timeoutMs, pan, trigger, touchAction]);
+  }, [onTap, slop, timeoutMs, pan, trigger, exemptSelector, touchAction]);
 }

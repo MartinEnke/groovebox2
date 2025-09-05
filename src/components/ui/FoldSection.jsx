@@ -9,8 +9,9 @@ export default function FoldSection({
   centerAlways = false,
   children,
 }) {
-  // Guard against swipe; only treat a clean tap as a toggle
+  // Guard taps from vertical swipes
   const tapChevron = useTapGesture(onToggle, { pan: "y", slop: 10, trigger: "up" });
+  const tapTitle   = useTapGesture(onToggle, { pan: "y", slop: 10, trigger: "up" });
 
   return (
     <>
@@ -26,9 +27,14 @@ export default function FoldSection({
         }}
       >
         {(centerAlways || !show) && (
-          <div
-            aria-hidden
+          // Title becomes a small, centered button (tap to fold/unfold)
+          <button
+            type="button"
+            {...tapTitle}
+            aria-expanded={!!show}
+            title={show ? `Collapse ${title}` : `Expand ${title}`}
             style={{
+              ...(tapTitle.style || {}),
               position: "absolute",
               left: "50%",
               transform: "translateX(-50%)",
@@ -36,23 +42,26 @@ export default function FoldSection({
               bottom: 0,
               display: "flex",
               alignItems: "center",
-              pointerEvents: "none",
+              // keep it compact so it doesn't block scroll across the whole row
+              padding: "0 10px",
+              background: "transparent",
+              border: "none",
               color: "rgba(255,255,255,.55)",
               fontSize: 13,
               fontWeight: 600,
               letterSpacing: 1.2,
               textTransform: "uppercase",
-              zIndex: 1,
+              zIndex: 2,
+              cursor: "pointer",
             }}
           >
             {title}
-          </div>
+          </button>
         )}
 
         <button
           type="button"
           {...tapChevron}
-          // merge our styles so we keep touch-action etc.
           style={{
             ...(tapChevron.style || {}),
             background: "transparent",
@@ -61,7 +70,7 @@ export default function FoldSection({
             cursor: "pointer",
             padding: "2px 4px",
             lineHeight: 0,
-            zIndex: 2,
+            zIndex: 3,
             minWidth: 28,
             minHeight: 28,
           }}

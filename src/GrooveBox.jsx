@@ -104,6 +104,7 @@ export default function GrooveBox() {
   // keep vertical scroll, kill zoom
   useDisableZoomKeepScroll();
   useNoHorizontalWheel();
+  
 
   // visual scheme (persist to localStorage)
   const [scheme, setScheme] = useState(() => {

@@ -8,10 +8,15 @@ export default function PadButton({ label, sub, onPress }) {
       type="button"
       className="pad-btn"
       data-tap-exempt
-      onPointerDown={(e) => {
-        e.preventDefault();       // keep it a single, crisp gesture
-        ensureAudioNow();         // 🔊 make sure AudioContext is running
-        onPress?.();
+      onPointerDown={async (e) => {
+        e.preventDefault();
+        const resumed = await ensureAudioNow();      // ⬅️ make sure context is running
+        if (resumed) {
+          // first tap after a suspended state—give Safari one tick
+          setTimeout(() => onPress?.(), 0);
+        } else {
+          onPress?.();
+        }
       }}
       onContextMenu={(e) => e.preventDefault()}
       style={{

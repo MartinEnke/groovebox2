@@ -4,6 +4,7 @@ import { INSTRUMENTS } from "../constants/instruments";
 import { PPQ } from "../constants/sequencer";
 import { dbToGain } from "../utils/misc";
 import { fetchAndDecode, createClickBuffer, makeImpulseResponse } from "../utils/audio";
+import { ensureAudioNow } from "../engine/unlockAudio";
 
 /**
  * Encapsulates the entire WebAudio graph:
@@ -399,31 +400,46 @@ return () => {
     return bufferCacheRef.current.get(packId)?.get(instId) ?? null;
   }
 
-  function playSample(instId, velocity = 1.0, when = 0) {
-    const ctx = ctxRef.current; if (!ctx) return;
-    const buf = getBuffer(instId); if (!buf) return;
-    const mix = mixGainsRef.current.get(instId); if (!mix) return;
-  
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-  
-    const semi = pitchMapRef.current[instId] || 0;
-    src.playbackRate.value = Math.pow(2, semi / 12);
-  
-    const g = ctx.createGain();
-    g.gain.value = Math.max(0, Math.min(1, velocity));
-  
-    src.connect(g).connect(mix);
-    src.start(when > 0 ? when : 0);
-  
-    if (!activeVoicesRef.current.has(instId)) activeVoicesRef.current.set(instId, new Set());
-    const voice = { src, gain: g };
-    activeVoicesRef.current.get(instId).add(voice);
-    src.onended = () => {
-      const set = activeVoicesRef.current.get(instId);
-      if (set) set.delete(voice);
-    };
+  // replace your existing playSample with this
+async function playSample(instId, velocity = 1.0, when = 0) {
+  const ctx = ctxRef.current; if (!ctx) return;
+
+  // 1) Make sure the AudioContext is running BEFORE we create/start the source
+  const justResumed = await ensureAudioNow(); // true if we resumed right now
+
+  // 2) Compute a start time. If we just resumed, nudge by a tiny amount.
+  const t = Math.max(ctx.currentTime, when || 0) + (justResumed ? 0.0005 : 0);
+
+  const buf = getBuffer(instId); if (!buf) return;
+  const mix = mixGainsRef.current.get(instId); if (!mix) return;
+
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+
+  const semi = pitchMapRef.current[instId] || 0;
+  src.playbackRate.value = Math.pow(2, semi / 12);
+
+  const g = ctx.createGain();
+  g.gain.value = Math.max(0, Math.min(1, velocity));
+
+  src.connect(g).connect(mix);
+
+  try {
+    src.start(t);
+  } catch {
+    // very defensive fallback for rare "invalid state" races
+    setTimeout(() => { try { src.start(); } catch {} }, 0);
   }
+
+  if (!activeVoicesRef.current.has(instId)) activeVoicesRef.current.set(instId, new Set());
+  const voice = { src, gain: g };
+  activeVoicesRef.current.get(instId).add(voice);
+  src.onended = () => {
+    const set = activeVoicesRef.current.get(instId);
+    if (set) set.delete(voice);
+  };
+}
+
   function setInstrumentPitch(instId, semitones) {
     const s = Math.max(-12, Math.min(12, Math.round(semitones)));
     pitchMapRef.current[instId] = s;

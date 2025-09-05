@@ -2,7 +2,6 @@
 import React from "react";
 import { pad } from "../utils/misc";
 import { STEPS_PER_BAR } from "../constants/sequencer";
-import useTapGesture from "../hooks/useTapGesture";
 
 export default function TransportBar({
   isPlaying,
@@ -13,32 +12,29 @@ export default function TransportBar({
   clearSelectedPattern,
   clearAllPatternsAndLevels,
 }) {
-  // Swipe-safe taps (fires on pointer UP if it wasn’t a scroll)
-  const playTap = useTapGesture(() => togglePlay?.(), { trigger: "up", pan: "y", slop: 10 });
-  const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
-
-  const delPatTap = useTapGesture(() => {
-    if (confirm("Clear the selected instrument's pattern?")) {
-      clearSelectedPattern?.();
-    }
-  }, { trigger: "up", pan: "y", slop: 10 });
-
-  const delAllTap = useTapGesture(() => {
-    if (
-      confirm(
-        "Clear ALL patterns and levels?\n\nThis cannot be undone."
-      )
-    ) {
-      clearAllPatternsAndLevels?.();
-    }
-  }, { trigger: "up", pan: "y", slop: 10 });
+  // Down-only tap helper: fire on pointerdown, then eat the synthetic click.
+  const downOnlyTap = (fn) => ({
+    onPointerDown: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fn?.();
+    },
+    onClickCapture: (e) => { e.preventDefault(); e.stopPropagation(); },
+    onClick:        (e) => { e.preventDefault(); e.stopPropagation(); },
+    style: {
+      touchAction: "none",                 // no gesture interpretation; fastest tap
+      WebkitTapHighlightColor: "transparent",
+      userSelect: "none",
+      WebkitUserSelect: "none",
+    },
+  });
 
   return (
     <div className="transport">
-      {/* Play / Stop (triangle / square) */}
+      {/* Play / Stop */}
       <button
         type="button"
-        {...playTap}
+        {...downOnlyTap(togglePlay)}
         className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
         aria-pressed={isPlaying}
         title={isPlaying ? "Stop" : "Play"}
@@ -47,36 +43,55 @@ export default function TransportBar({
         <span className="sq"  aria-hidden="true" />
       </button>
 
-      {/* Record (dot only) */}
+      {/* Record */}
       <button
         type="button"
-        {...recTap}
         className={`btn press rec ${isRecording ? "on" : ""}`}
         aria-pressed={isRecording}
         title="Record"
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleRecord?.(); }}
+        onClickCapture={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        style={{ touchAction: "none", WebkitTapHighlightColor: "transparent" }}
       >
         <span className="rec-dot" aria-hidden="true" />
       </button>
 
-      {/* Digital step display */}
-      <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
+      {/* Step LCD */}
+      <div className="lcd">
+        {pad(step + 1)}/{STEPS_PER_BAR}
+      </div>
 
-      {/* Clear selected (Del Pat) */}
+      {/* Del Pat */}
       <button
         type="button"
-        {...delPatTap}
         className="btn press clear-btn pat"
         title="Clear selected instrument"
+        onPointerDown={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (confirm("Clear the selected instrument's pattern?")) clearSelectedPattern?.();
+        }}
+        onClickCapture={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        style={{ touchAction: "none" }}
       >
         <span className="sym">Del Pat</span>
       </button>
 
-      {/* Clear all (Del All) */}
+      {/* Del All */}
       <button
         type="button"
-        {...delAllTap}
         className="btn press clear-btn all"
         title="Clear all"
+        onPointerDown={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
+            clearAllPatternsAndLevels?.();
+          }
+        }}
+        onClickCapture={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        style={{ touchAction: "none" }}
       >
         <span className="sym">Del All</span>
       </button>

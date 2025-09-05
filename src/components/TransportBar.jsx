@@ -13,21 +13,29 @@ export default function TransportBar({
   clearSelectedPattern,
   clearAllPatternsAndLevels,
 }) {
-  // Swipe-safe taps (fires on pointer UP if it wasn’t a scroll)
-  const playTap = useTapGesture(() => togglePlay?.(), { trigger: "up", pan: "y", slop: 10 });
-const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
+  // Use trigger:'down' so the action fires immediately on first tap.
+  // pan:'none' => no swipe guard (we don’t want scroll to cancel these).
+  const playTap = useTapGesture(() => togglePlay?.(), {
+    trigger: "down",
+    pan: "none",
+  });
 
-const delPatTap = useTapGesture(() => {
-  if (confirm("Clear the selected instrument's pattern?")) {
-    clearSelectedPattern?.();
-  }
-}, { trigger: "up", pan: "y", slop: 10 });
+  const recTap = useTapGesture(() => toggleRecord?.(), {
+    trigger: "down",
+    pan: "none",
+  });
 
-const delAllTap = useTapGesture(() => {
-  if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
-    clearAllPatternsAndLevels?.();
-  }
-}, { trigger: "up", pan: "y", slop: 10 });
+  const delPatTap = useTapGesture(() => {
+    if (confirm("Clear the selected instrument's pattern?")) {
+      clearSelectedPattern?.();
+    }
+  }, { trigger: "down", pan: "none" });
+
+  const delAllTap = useTapGesture(() => {
+    if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
+      clearAllPatternsAndLevels?.();
+    }
+  }, { trigger: "down", pan: "none" });
 
   return (
     <div className="transport">
@@ -40,10 +48,10 @@ const delAllTap = useTapGesture(() => {
         title={isPlaying ? "Stop" : "Play"}
       >
         <span className="tri" aria-hidden="true" />
-        <span className="sq"  aria-hidden="true" />
+        <span className="sq" aria-hidden="true" />
       </button>
 
-      {/* Record (dot only) */}
+      {/* Record */}
       <button
         type="button"
         {...recTap}
@@ -54,10 +62,12 @@ const delAllTap = useTapGesture(() => {
         <span className="rec-dot" aria-hidden="true" />
       </button>
 
-      {/* Digital step display */}
-      <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
+      {/* Step LCD */}
+      <div className="lcd">
+        {pad(step + 1)}/{STEPS_PER_BAR}
+      </div>
 
-      {/* Clear selected (Del Pat) */}
+      {/* Del Pat */}
       <button
         type="button"
         {...delPatTap}
@@ -67,7 +77,7 @@ const delAllTap = useTapGesture(() => {
         <span className="sym">Del Pat</span>
       </button>
 
-      {/* Clear all (Del All) */}
+      {/* Del All */}
       <button
         type="button"
         {...delAllTap}

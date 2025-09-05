@@ -29,19 +29,42 @@ export default function TransportBar({
     },
   });
 
+
+  // helper to swallow the synthetic click thoroughly
+const swallow = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.nativeEvent && typeof e.nativeEvent.stopImmediatePropagation === "function") {
+    e.nativeEvent.stopImmediatePropagation();
+  }
+};
+
+// fast, down-only tap handler
+const playDownOnly = {
+  onPointerDown: (e) => { swallow(e); togglePlay?.(); },
+  onClickCapture: swallow, // catches bubbling click before it toggles again
+  onClick: swallow,        // belt and suspenders
+  style: {
+    touchAction: "none",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  },
+};
+
   return (
     <div className="transport">
-      {/* Play / Stop */}
-      <button
-        type="button"
-        {...downOnlyTap(togglePlay)}
-        className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
-        aria-pressed={isPlaying}
-        title={isPlaying ? "Stop" : "Play"}
-      >
-        <span className="tri" aria-hidden="true" />
-        <span className="sq"  aria-hidden="true" />
-      </button>
+    {/* Play / Stop */}
+    <button
+      type="button"
+      {...playDownOnly}
+      className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
+      aria-pressed={isPlaying}
+      title={isPlaying ? "Stop" : "Play"}
+    >
+      <span className="tri" aria-hidden="true" />
+      <span className="sq"  aria-hidden="true" />
+    </button>
 
       {/* Record */}
       <button

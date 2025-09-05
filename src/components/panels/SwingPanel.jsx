@@ -1,5 +1,7 @@
+// src/components/panels/SwingPanel.jsx
 import React from "react";
 import FoldSection from "../ui/FoldSection";
+import useTapGesture from "../../hooks/useTapGesture";
 
 export default function SwingPanel({
   show, onToggle,
@@ -11,6 +13,14 @@ export default function SwingPanel({
   const type = instSwingType[selected] ?? "none";
   const amt  = instSwingAmt[selected] ?? 0;
   const isOff = type === "none";
+
+  // touch-friendly style for sliders
+  const touchInputStyle = {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  };
 
   return (
     <FoldSection title="Groove" show={show} onToggle={onToggle}>
@@ -24,13 +34,17 @@ export default function SwingPanel({
             { val: "32",   label: "32"  },
           ].map(opt => {
             const active = type === opt.val;
+            const tap = useTapGesture(() => {
+              setInstSwingType(prev => ({ ...prev, [selected]: opt.val }));
+            }, { pan: "y", slop: 10 });
+
             return (
               <button
                 key={opt.val}
                 type="button"
+                {...tap}
                 className={`sg2-btn ${active ? "on" : ""}`}
                 aria-pressed={active}
-                onClick={() => setInstSwingType(prev => ({ ...prev, [selected]: opt.val }))}
                 title={`Swing grid: ${opt.label}`}
               >
                 {opt.label}
@@ -52,6 +66,7 @@ export default function SwingPanel({
               }
               disabled={isOff}
               title="Swing amount (%)"
+              style={touchInputStyle}
             />
             <div className={`swing-lcd ${isOff ? "is-disabled" : ""}`}>
               <span className="lcd-label">&nbsp;&nbsp;</span>
@@ -70,6 +85,7 @@ export default function SwingPanel({
               value={globalSwingPct}
               onChange={(e) => setGlobalSwingPct(parseInt(e.target.value, 10))}
               title={`Global swing: ${globalSwingPct}%`}
+              style={touchInputStyle}
             />
             <div className="swing-lcd swing-lcd--global">
               <span className="lcd-label">&nbsp;&nbsp;</span>

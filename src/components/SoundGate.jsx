@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 export default function SoundGate({ engine, onlyOnIOS = true }) {
   const [ready, setReady] = useState(() => engine.getCtx?.()?.state === "running");
 
-  // Detect iOS (incl. iPadOS on MacIntel)
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent || "";
     const iThing = /iPhone|iPad|iPod/i.test(ua);
@@ -12,16 +11,11 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
     return iThing || iPadOnMac;
   }, []);
 
-  // Try to auto-resume once on mount
+  // If context is already running (or not iOS when onlyOnIOS), show nothing
   useEffect(() => {
     const ctx = engine.getCtx?.();
     if (!ctx) return;
-    if (ctx.state === "running") { setReady(true); return; }
-
-    (async () => {
-      try { await engine.ensureRunning?.(); } catch {}
-      if (engine.getCtx?.()?.state === "running") setReady(true);
-    })();
+    if (ctx.state === "running") setReady(true);
 
     const onState = () => setReady(engine.getCtx?.()?.state === "running");
     ctx.onstatechange = onState;
@@ -30,41 +24,56 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
 
   if (ready || (onlyOnIOS && !isIOS)) return null;
 
-  const nudgeMedia = async () => {
+  // Fire-and-forget helpers that stay in the same event frame.
+  const tryResumeSync = () => {
+    try {
+      const ctx = engine.getCtx?.();
+      if (ctx && ctx.state !== "running") {
+        // Do NOT await — keep it synchronous to satisfy iOS gesture requirement.
+        ctx.resume();
+      }
+    } catch {}
+    try { engine.ensureRunning?.(); } catch {}
+  };
+
+  const nudgeMediaSync = () => {
     try {
       const a = new Audio(
         "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       );
       a.playsInline = true;
-      await a.play();
-      a.pause();
+      // don't await; kick it off and ignore
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+      setTimeout(() => { try { a.pause(); a.src = ""; } catch {} }, 180);
     } catch {}
   };
 
-  const onContinue = async (e) => {
-    // Let the event bubble so any document-level unlock also runs
+  // Tap/click anywhere OR the button
+  const unlockNow = (e) => {
     e.preventDefault?.();
+    // DO NOT stopPropagation — let your document-level unlock listeners also run.
+    tryResumeSync();
+    nudgeMediaSync();
 
-    // Try to unlock explicitly
-    await engine.ensureRunning?.();
-    await nudgeMedia();
-
-    // Re-check shortly; if still suspended we still dismiss (your choice)
-    requestAnimationFrame(() => {
-      const okNow = engine.getCtx?.()?.state === "running";
-      if (okNow) { setReady(true); return; }
-      setTimeout(() => setReady(true), 120);
-    });
+    // Dismiss promptly; if resume completes slightly later, onstatechange will have setReady anyway.
+    requestAnimationFrame(() => setReady(true));
   };
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Sound tip"
+      aria-labelledby="sg-title"
+      onPointerDown={unlockNow}
+      onClick={unlockNow}
       style={{
-        position: "fixed", inset: 0, zIndex: 99999, display: "grid", placeItems: "center",
-        background: "rgba(0,0,0,.6)"
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(0,0,0,.6)",
       }}
     >
       <div
@@ -84,36 +93,46 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
           WebkitUserSelect: "none",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+        <h2 id="sg-title" style={{ fontSize: 14, fontWeight: 800, margin: 0, marginBottom: 8 }}>
           Hi there!
-        </div>
-
-        <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
-          <li>Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.</li>
+        </h2>
+  
+        <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
+          <li>
+            Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.
+          </li>
         </ul>
-
-        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>
-          <div>
-            This is a learning project to explore the React framework.
-            It's a <b>Rhythm Composer</b> to create beats in a drum-computer style with
-            sidechain compression, delay, reverb, saturation, swing, and drum-bus compression.
-          </div>
+  
+        <div style={{ marginTop: 14, fontSize: 12, opacity: 0.9 }}>
+          <p style={{ margin: 0, marginBottom: 8 }}>
+            This is a learning project to explore the React framework. It’s a drum-machine-style
+            rhythm maker with:
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.35 }}>
+            <li>16/32-step grid (place hits)</li>
+            <li>Pitch (tune each sound)</li>
+            <li>Sidechain (auto-duck other sounds)</li>
+            <li>Delay/Reverb (space and echoes)</li>
+            <li>Saturation (add grit)</li>
+            <li>Swing (groove/shuffle)</li>
+            <li>Drum-bus compression (glue the kit)</li>
+          </ul>
+          <p style={{ margin: "8px 0 0 0" }}>Have fun! :)</p>
         </div>
-
-        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+  
+        <div style={{ marginTop: 12, fontSize: 11, opacity: 0.8 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Disclaimer</div>
-          <div>
-            Provided “as is”, without warranties. Data is stored locally in your browser; 
-            please export backups if needed. I can’t guarantee against data loss or bugs.
-            Have fun! :)
-          </div>
+          <p style={{ margin: 0 }}>
+            Provided “as is”, without warranties. Data is stored locally in your browser; please
+            export backups if needed. I can’t guarantee against data loss or bugs.
+          </p>
         </div>
-
+  
         <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
             type="button"
-            onPointerDown={onContinue}
-            onClick={onContinue}
+            onPointerDown={(e) => { e.stopPropagation(); unlockNow(e); }}
+            onClick={(e) => { e.stopPropagation(); unlockNow(e); }}
             style={{
               padding: "8px 12px",
               borderRadius: 8,
@@ -131,4 +150,5 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
       </div>
     </div>
   );
+  
 }

@@ -1,9 +1,10 @@
+// src/components/SoundGate.jsx
 import React, { useEffect, useMemo, useState } from "react";
 
 export default function SoundGate({ engine, onlyOnIOS = true }) {
-  const [ready, setReady] = useState(() => engine.getCtx()?.state === "running");
+  const [ready, setReady] = useState(() => engine.getCtx?.()?.state === "running");
 
-  // iOS (incl. iPadOS on MacIntel)
+  // Detect iOS (incl. iPadOS on MacIntel)
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent || "";
     const iThing = /iPhone|iPad|iPod/i.test(ua);
@@ -42,53 +43,46 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
     } catch {}
   };
 
-  const tryUnlock = async (e) => {
-    // make *sure* this gesture is used for audio
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
-
+  const onAcknowledge = async (e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
     await engine.ensureRunning?.();
     await nudgeMedia();
-
-    // re-check after microtask and a tick; iOS sometimes flips to "running" slightly later
     requestAnimationFrame(() => {
       const okNow = engine.getCtx?.()?.state === "running";
       if (okNow) { setReady(true); return; }
-
       setTimeout(() => {
-        const okLater = engine.getCtx?.()?.state === "running";
-        if (okLater) setReady(true);
-        // else keep the gate visible; user can hit "Continue anyway"
+        if (engine.getCtx?.()?.state === "running") setReady(true);
       }, 120);
     });
   };
 
   const dismissAnyway = (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
+    e.preventDefault?.();
+    e.stopPropagation?.();
     setReady(true); // let user proceed even if audio stayed suspended
   };
 
   return (
     <div
-      // full-screen overlay
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sound tip"
       style={{
         position: "fixed", inset: 0, zIndex: 99999, display: "grid", placeItems: "center",
-        background: "rgba(0,0,0,.6)",
+        background: "rgba(0,0,0,.6)"
       }}
-      // allow both pointer and click to cover all iOS cases
-      onPointerDown={tryUnlock}
-      onClick={tryUnlock}
     >
       <div
         style={{
-          background: "rgba(20,20,28,.9)",
+          background: "rgba(20,20,28,.94)",
           border: "1px solid rgba(255,255,255,.12)",
           borderRadius: 12,
           padding: "16px 18px",
           color: "#fff",
-          textAlign: "center",
-          maxWidth: 360,
+          maxWidth: 420,
+          width: "calc(100% - 32px)",
+          textAlign: "left",
           boxShadow: "0 12px 30px rgba(0,0,0,.45)",
           touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
@@ -96,34 +90,31 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
           WebkitUserSelect: "none",
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-          🔊 Tap to enable sound
-        </div>
-        <div style={{ opacity: .8, fontSize: 14, lineHeight: 1.35 }}>
-          If still silent, turn <b>OFF Silent Mode</b> (ring switch).
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+          🔈 If it’s silent…
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "center" }}>
-          <button
-            type="button"
-            onPointerDown={tryUnlock}
-            onClick={tryUnlock}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,.2)",
-              background: "linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08))",
-              color: "#fff",
-              cursor: "pointer",
-              touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              userSelect: "none",
-              WebkitUserSelect: "none",
-            }}
-          >
-            Enable
-          </button>
+        <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
+          <li>Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.</li>
+          <li>On iOS, audio may start only after your first tap—this is normal.</li>
+        </ul>
 
+        <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>About</div>
+          <div>
+            This is a small learning project to explore the React framework and Web&nbsp;Audio.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Disclaimer</div>
+          <div>
+            Provided “as is”, without warranties. Data is stored locally in your browser; 
+            please export backups if needed. I can’t guarantee against data loss or bugs.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
             type="button"
             onPointerDown={dismissAnyway}
@@ -133,15 +124,30 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
               borderRadius: 8,
               border: "1px solid rgba(255,255,255,.12)",
               background: "transparent",
-              color: "rgba(255,255,255,.85)",
+              color: "rgba(255,255,255,.9)",
               cursor: "pointer",
               touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              userSelect: "none",
-              WebkitUserSelect: "none",
             }}
           >
-            Continue anyway
+            Continue
+          </button>
+
+          <button
+            type="button"
+            onPointerDown={onAcknowledge}
+            onClick={onAcknowledge}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,.2)",
+              background: "linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08))",
+              color: "#fff",
+              cursor: "pointer",
+              touchAction: "manipulation",
+              fontWeight: 700,
+            }}
+          >
+            Got it
           </button>
         </div>
       </div>

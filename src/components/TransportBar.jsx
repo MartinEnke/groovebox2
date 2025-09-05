@@ -13,29 +13,25 @@ export default function TransportBar({
   clearSelectedPattern,
   clearAllPatternsAndLevels,
 }) {
-  // Use trigger:'down' so the action fires immediately on first tap.
-  // pan:'none' => no swipe guard (we don’t want scroll to cancel these).
-  const playTap = useTapGesture(() => togglePlay?.(), {
-    trigger: "down",
-    pan: "none",
-  });
-
-  const recTap = useTapGesture(() => toggleRecord?.(), {
-    trigger: "down",
-    pan: "none",
-  });
+  // Swipe-safe taps (fires on pointer UP if it wasn’t a scroll)
+  const playTap = useTapGesture(() => togglePlay?.(), { trigger: "up", pan: "y", slop: 10 });
+  const recTap  = useTapGesture(() => toggleRecord?.(), { trigger: "up", pan: "y", slop: 10 });
 
   const delPatTap = useTapGesture(() => {
     if (confirm("Clear the selected instrument's pattern?")) {
       clearSelectedPattern?.();
     }
-  }, { trigger: "down", pan: "none" });
+  }, { trigger: "up", pan: "y", slop: 10 });
 
   const delAllTap = useTapGesture(() => {
-    if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
+    if (
+      confirm(
+        "Clear ALL patterns and levels?\n\nThis cannot be undone."
+      )
+    ) {
       clearAllPatternsAndLevels?.();
     }
-  }, { trigger: "down", pan: "none" });
+  }, { trigger: "up", pan: "y", slop: 10 });
 
   return (
     <div className="transport">
@@ -48,10 +44,10 @@ export default function TransportBar({
         title={isPlaying ? "Stop" : "Play"}
       >
         <span className="tri" aria-hidden="true" />
-        <span className="sq" aria-hidden="true" />
+        <span className="sq"  aria-hidden="true" />
       </button>
 
-      {/* Record */}
+      {/* Record (dot only) */}
       <button
         type="button"
         {...recTap}
@@ -62,12 +58,10 @@ export default function TransportBar({
         <span className="rec-dot" aria-hidden="true" />
       </button>
 
-      {/* Step LCD */}
-      <div className="lcd">
-        {pad(step + 1)}/{STEPS_PER_BAR}
-      </div>
+      {/* Digital step display */}
+      <div className="lcd">{pad(step + 1)}/{STEPS_PER_BAR}</div>
 
-      {/* Del Pat */}
+      {/* Clear selected (Del Pat) */}
       <button
         type="button"
         {...delPatTap}
@@ -77,7 +71,7 @@ export default function TransportBar({
         <span className="sym">Del Pat</span>
       </button>
 
-      {/* Del All */}
+      {/* Clear all (Del All) */}
       <button
         type="button"
         {...delAllTap}

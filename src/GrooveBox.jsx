@@ -26,16 +26,13 @@ import SessionBar from "./components/header/SessionBar";
 import { useSessionStore } from "./state/useSessionStore";
 
 import useAudioEngine from "./engine/useAudioEngine";
+import { bindGlobalAudioUnlock } from "./engine/unlockAudio";
 
 import useSessions from "./session/useSessions";
 
 
-
 import useDisableZoomKeepScroll from "./hooks/useDisableZoomKeepScroll";
 import useNoHorizontalWheel from "./hooks/useNoHorizontalWheel";
-
-
-
 
 
 
@@ -141,6 +138,13 @@ export default function GrooveBox() {
 
   // --- audio engine (WebAudio graph) ---
   const engine = useAudioEngine();
+
+  // 🔊 WebAudio unlock on first user gesture anywhere
+  useEffect(() => {
+    bindGlobalAudioUnlock(() => engine?.ctx || engine?.audioContext || engine?.audio?.ctx);
+    // If you use Tone.js, use:
+    // bindGlobalAudioUnlock(() => Tone.context);
+  }, [engine]);
 
 
 // put near your other refs

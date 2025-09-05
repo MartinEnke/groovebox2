@@ -1,5 +1,6 @@
 // src/components/PadButton.jsx
 import React from "react";
+import { ensureAudioNow } from "../engine/unlockAudio";
 
 export default function PadButton({ label, sub, onPress }) {
   return (
@@ -7,8 +8,12 @@ export default function PadButton({ label, sub, onPress }) {
       type="button"
       className="pad-btn"
       data-tap-exempt
-      onPointerDown={(e) => { e.preventDefault(); onPress?.(); }}
-      onContextMenu={(e) => e.preventDefault()} // avoid long-press menu on iOS
+      onPointerDown={(e) => {
+        e.preventDefault();       // keep it a single, crisp gesture
+        ensureAudioNow();         // 🔊 make sure AudioContext is running
+        onPress?.();
+      }}
+      onContextMenu={(e) => e.preventDefault()}
       style={{
         touchAction: "none",
         WebkitTapHighlightColor: "transparent",

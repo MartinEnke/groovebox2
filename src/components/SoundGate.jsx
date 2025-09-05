@@ -91,12 +91,12 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
         }}
       >
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
-          🔈 If it’s silent…
+          Welcome :)
         </div>
 
         <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
           <li>Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.</li>
-          <li>On iOS, audio may start only after your first tap—this is normal.</li>
+        
         </ul>
 
         <div style={{ marginTop: 14, fontSize: 13, opacity: 0.85 }}>
@@ -132,23 +132,7 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
             Continue
           </button>
 
-          <button
-            type="button"
-            onPointerDown={onAcknowledge}
-            onClick={onAcknowledge}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,.2)",
-              background: "linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08))",
-              color: "#fff",
-              cursor: "pointer",
-              touchAction: "manipulation",
-              fontWeight: 700,
-            }}
-          >
-            Got it
-          </button>
+          
         </div>
       </div>
     </div>

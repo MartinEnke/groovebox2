@@ -1,6 +1,7 @@
 // src/components/fx/FXPanel.jsx
 import React from "react";
 import FoldSection from "../ui/FoldSection";
+import useTapGesture from "../../hooks/useTapGesture";
 
 export default function FXPanel({
   show, onToggle,
@@ -25,6 +26,14 @@ export default function FXPanel({
   const revPct   = instReverbWet[selected] ?? 0;
   const satPct   = instSatWet?.[selected] ?? 0;
 
+  // touch-friendly style for sliders / native inputs
+  const touchInputStyle = {
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  };
+
   return (
     <FoldSection title="FX" show={show} onToggle={onToggle}>
       <div className="fx-row fx-panel three">
@@ -33,7 +42,10 @@ export default function FXPanel({
           <div className="fx-label">DELAY</div>
           <input
             className="slider slider-fx"
-            type="range" min={0} max={100} step={1}
+            type="range"
+            min={0}
+            max={100}
+            step={1}
             value={delayPct}
             onChange={(e) => {
               const pct = parseInt(e.target.value, 10);
@@ -41,6 +53,7 @@ export default function FXPanel({
               updateDelaySends(selected, pct);
             }}
             title="Delay wet (%)"
+            style={touchInputStyle}
           />
           <div className="revlen-wrap">
             {[
@@ -50,19 +63,17 @@ export default function FXPanel({
             ].map(opt => {
               const on = instDelayMode[selected] === opt.key;
               return (
-                <button
+                <FXToggleButton
                   key={opt.key}
-                  type="button"
-                  className={`revlen-btn ${on ? "on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => {
+                  on={on}
+                  title={`Delay mode ${opt.label}`}
+                  onTap={() => {
                     setInstDelayMode(prev => ({ ...prev, [selected]: opt.key }));
                     updateDelaySends(selected);
                   }}
-                  title={`Delay mode ${opt.label}`}
                 >
                   {opt.label}
-                </button>
+                </FXToggleButton>
               );
             })}
           </div>
@@ -73,7 +84,10 @@ export default function FXPanel({
           <div className="fx-label">REVERB</div>
           <input
             className="slider slider-fx"
-            type="range" min={0} max={100} step={1}
+            type="range"
+            min={0}
+            max={100}
+            step={1}
             value={revPct}
             onChange={(e) => {
               const pct = parseInt(e.target.value, 10);
@@ -81,24 +95,23 @@ export default function FXPanel({
               updateReverbSends(selected, pct);
             }}
             title="Reverb wet (%)"
+            style={touchInputStyle}
           />
           <div className="revlen-wrap">
             {["S","M","L"].map(m => {
               const on = instRevMode[selected] === m;
               return (
-                <button
+                <FXToggleButton
                   key={m}
-                  type="button"
-                  className={`revlen-btn ${on ? "on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => {
+                  on={on}
+                  title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
+                  onTap={() => {
                     setInstRevMode(prev => ({ ...prev, [selected]: m }));
                     updateReverbSends(selected);
                   }}
-                  title={m === "S" ? "Short (4 steps)" : m === "M" ? "Medium (8 steps)" : "Long (16 steps)"}
                 >
                   {m}
-                </button>
+                </FXToggleButton>
               );
             })}
           </div>
@@ -109,7 +122,10 @@ export default function FXPanel({
           <div className="fx-label">SATURATION</div>
           <input
             className="slider slider-fx"
-            type="range" min={0} max={100} step={1}
+            type="range"
+            min={0}
+            max={100}
+            step={1}
             value={satPct}
             onChange={(e) => {
               const pct = parseInt(e.target.value, 10);
@@ -117,6 +133,7 @@ export default function FXPanel({
               updateSat(selected, pct);
             }}
             title="Saturation amount (mix % / drive)"
+            style={touchInputStyle}
           />
           <div className="revlen-wrap">
             {[
@@ -126,24 +143,40 @@ export default function FXPanel({
             ].map(opt => {
               const on = (instSatMode?.[selected] ?? "tape") === opt.key;
               return (
-                <button
+                <FXToggleButton
                   key={opt.key}
-                  type="button"
-                  className={`revlen-btn ${on ? "on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => {
+                  on={on}
+                  title={`Saturation mode: ${opt.label}`}
+                  onTap={() => {
                     setInstSatMode(prev => ({ ...prev, [selected]: opt.key }));
                     updateSat(selected);
                   }}
-                  title={`Saturation mode: ${opt.label}`}
                 >
                   {opt.label}
-                </button>
+                </FXToggleButton>
               );
             })}
           </div>
         </div>
       </div>
     </FoldSection>
+  );
+}
+
+/** Generic FX toggle button with tap-vs-scroll guard */
+function FXToggleButton({ on, title, onTap, children }) {
+  // Scroll-safe, one-tap (same settings as Sidechain’s buttons)
+  const tap = useTapGesture(onTap, { pan: "y", slop: 10 });
+
+  return (
+    <button
+      type="button"
+      {...tap}
+      className={`revlen-btn ${on ? "on" : ""}`}
+      aria-pressed={on}
+      title={title}
+    >
+      {children}
+    </button>
   );
 }

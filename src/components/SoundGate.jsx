@@ -1,4 +1,3 @@
-// src/components/SoundGate.jsx
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
@@ -24,7 +23,7 @@ export default function SoundGate({
     return iThing || iPadOnMac;
   }, []);
 
-  // Optional auto-resume on mount
+  // Try to auto-resume once (optional)
   useEffect(() => {
     if (!autoResume) return;
     const ctx = engine.getCtx?.();
@@ -44,9 +43,12 @@ export default function SoundGate({
     return () => { if (ctx) ctx.onstatechange = null; };
   }, [engine, autoResume]);
 
+  // If we only want this on iOS and it’s not iOS, bail
   if (onlyOnIOS && !isIOS) return null;
 
+  // With requireAcknowledge=true, we ignore `ready` and show until user clicks Continue
   const shouldShow = requireAcknowledge ? !ack : !ready;
+
   if (!shouldShow) return null;
 
   const nudgeMedia = async () => {
@@ -63,22 +65,22 @@ export default function SoundGate({
   const unlockNow = async (e) => {
     e.preventDefault?.();
     e.stopPropagation?.();
+
+    // user intent: try to resume and then mark as ready/ack
     try { await engine.ensureRunning?.(); } catch {}
     await nudgeMedia();
+
+    // mark both: audio ready (if possible) and user acknowledged
     setReady(engine.getCtx?.()?.state === "running");
     setAck(true);
   };
-
-  const accent = "#1fe0b3";
-  const shellFont =
-    "'Inter', 'Avenir Next', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="sg-title"
-      // Button-only dismiss — backdrop clicks do nothing to avoid accidental close
+      // NOTE: do NOT attach unlock handlers to the backdrop; button only.
       style={{
         position: "fixed",
         inset: 0,
@@ -90,92 +92,70 @@ export default function SoundGate({
     >
       <div
         style={{
-          fontFamily: shellFont,
           background: "rgba(20,20,28,.94)",
           border: "1px solid rgba(255,255,255,.12)",
-          borderRadius: 14,
-          // Bigger on desktop: generous maxWidth
-          maxWidth: 560,                      // ↑ was 420
-          width: "calc(100% - 40px)",
-          padding: "18px 20px",
-          color: "#f5f7fa",
+          borderRadius: 12,
+          padding: "16px 18px",
+          color: "#fff",
+          maxWidth: 420,
+          width: "calc(100% - 32px)",
           textAlign: "left",
-          lineHeight: 1.45,
-          boxShadow: "0 16px 40px rgba(0,0,0,.5)",
+          boxShadow: "0 12px 30px rgba(0,0,0,.45)",
           touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
           userSelect: "none",
           WebkitUserSelect: "none",
         }}
       >
-        <h2
-          id="sg-title"
-          style={{
-            margin: 0,
-            marginBottom: 10,
-            fontSize: 18,                      // ↑ slightly larger
-            fontWeight: 800,
-            letterSpacing: 0.2,
-            color: "#e9fff7",
-            textShadow: "0 0 18px rgba(31,224,179,.12)",
-          }}
-        >
+        <h2 id="sg-title" style={{ fontSize: 14, fontWeight: 800, margin: 0, marginBottom: 8 }}>
           Hi there!
         </h2>
 
-        <p style={{ margin: 0, fontSize: 15 }}>
-          Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch) and raise the volume.
-        </p>
+        <div style={{ margin: 0, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
+          Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.
+        </div>
 
-        <div style={{ marginTop: 16, fontSize: 14.5, opacity: 0.95 }}>
+        <div style={{ marginTop: 14, fontSize: 12, opacity: 0.9 }}>
           <p style={{ margin: 0, marginBottom: 8 }}>
-            This is a learning project to explore React.<br />
-            It’s a drum-machine-style rhythm maker with:
+            This is a learning project to explore React.<br/>
+            It’s a drum-machine style rhythm maker with:
           </p>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.35 }}>
             <li>16/32-step grid (place hits)</li>
             <li>Pitch (tune each sound)</li>
-            <li>
-              Sidechain <span style={{ color: accent }}>(auto-duck)</span> other sounds
-            </li>
+            <li>Sidechain (auto-duck other sounds)</li>
             <li>Delay / Reverb (space & echoes)</li>
             <li>Saturation (add grit)</li>
             <li>Swing (groove / shuffle)</li>
             <li>Drum-bus compression (glue the kit)</li>
           </ul>
-          <p style={{ margin: "10px 0 0 0", color: "#e9fff7" }}>Have fun! :)</p>
+          <p style={{ margin: "8px 0 0 0" }}>Have fun! :)</p>
         </div>
 
-        <div style={{ marginTop: 14, fontSize: 12.5, opacity: 0.85 }}>
-          <div style={{ fontWeight: 750, marginBottom: 4, color: "#f0f3f7" }}>Disclaimer</div>
+        <div style={{ marginTop: 12, fontSize: 11, opacity: 0.8 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Disclaimer</div>
           <p style={{ margin: 0 }}>
-            Data lives locally in your browser —
-            <span style={{ color: accent }}> consider exporting a backup</span>.<br />
+            Data lives locally in your browser — consider exporting a backup.<br/>
             Occasional bugs or data loss are possible; no warranties.
           </p>
         </div>
 
-        <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
             type="button"
             onPointerDown={(e) => { e.stopPropagation(); unlockNow(e); }}
             onClick={(e) => { e.stopPropagation(); unlockNow(e); }}
             style={{
-              fontFamily: shellFont,
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,.18)",
-              background: `linear-gradient(180deg, ${accent}33, ${accent}1f)`,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,.2)",
+              background: "linear-gradient(180deg, rgba(31,224,179,.22), rgba(31,224,179,.12))",
               color: "#eafff6",
               cursor: "pointer",
-              fontWeight: 800,
-              letterSpacing: 0.3,
-              boxShadow:
-                "0 0 16px rgba(31,224,179,.26), inset 0 1px 0 rgba(255,255,255,.14), 0 3px 0 rgba(0,0,0,.45)",
-              transition: "transform .05s ease, filter .15s ease",
+              touchAction: "manipulation",
+              fontWeight: 700,
+              boxShadow: "0 0 14px rgba(6,214,160,.28), inset 0 1px 0 rgba(255,255,255,.12)",
             }}
-            onMouseDown={(e) => e.currentTarget.style.transform = "translateY(1px)"}
-            onMouseUp={(e) => e.currentTarget.style.transform = "translateY(0)"}
           >
             Continue
           </button>

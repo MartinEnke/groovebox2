@@ -118,7 +118,7 @@
   background-clip: text; -webkit-background-clip: text;
   color: transparent; -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 6px 20px rgba(139,92,246,.18));
-  animation: neoAurora 12s ease-in-out infinite alternate;
+  animation: neoAurora 8s ease-in-out infinite alternate;
 }
 @keyframes neoAurora { 0%{background-position:0% 50%} 100%{background-position:100% 50%} }
 
@@ -742,6 +742,44 @@
   :root[data-scheme="neo"] .inst-btn,
   [data-scheme="neo"] .mute-btn { min-width:0; }
 }
+
+
+/* Instruments — mobile text fit */
+@media (max-width: 640px){
+  [data-scheme="neo"] .inst-btn{
+    font-size: clamp(11px, 3vw, 12px);
+    letter-spacing: .02em;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 12px 10px;
+  }
+  [data-scheme="neo"] .inst-btn::after{ margin-top: 6px; }
+}
+
+
+/* (Optional) If you prefer single-line with ellipsis on mobile, swap this in instead:
+@media (max-width: 640px){
+  [data-scheme="neo"] .inst-btn{
+    
+    font-size: clamp(11px, 3.2vw, 13px);
+    letter-spacing: .02em;
+    line-height: 1.1;
+
+    
+    white-space: normal;
+    overflow-wrap: break-word;   
+    hyphens: auto;
+
+    
+    padding: 12px 10px;
+  }
+  [data-scheme="neo"] .inst-btn::after{
+    margin-top: 6px; 
+  }
+}
+*/
 
 /* =========================
    CHANNEL — PADS + FADER (NEO)

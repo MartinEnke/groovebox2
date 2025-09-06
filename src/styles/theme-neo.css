@@ -5,9 +5,17 @@
 /* Fonts */
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap");
 
-/* ---------- Vars ---------- */
+/* ---------- Tokens (vars + spacing) ---------- */
 :root[data-scheme="neo"],
-[data-scheme="neo"] {
+[data-scheme="neo"]{
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 14px;
+  --space-6: 16px;
+
   /* Base */
   --neo-bg-0: #05060a;
   --neo-bg-1: #070a12;
@@ -45,7 +53,7 @@
   --t-med: .2s ease;
 }
 
-/* Cosmic background */
+/* ---------- Background ---------- */
 :root[data-scheme="neo"] body,
 [data-scheme="neo"] body {
   color: var(--neo-text);
@@ -63,7 +71,7 @@
   background-blend-mode: screen, screen, screen, screen, normal;
 }
 
-/* ---------- Panels (glassy) ---------- */
+/* ---------- Panel ---------- */
 :root[data-scheme="neo"] .gb-retro-panel,
 [data-scheme="neo"] .gb-retro-panel {
   display: grid;
@@ -91,7 +99,7 @@
   pointer-events:none;
 }
 
-/* ---------- Header & wordmark ---------- */
+/* ---------- Header & Brand ---------- */
 :root[data-scheme="neo"] .gb-retro-header,
 [data-scheme="neo"] .gb-retro-header {
   display:flex; align-items:center; gap:12px; padding-bottom:8px;
@@ -117,7 +125,7 @@
 :root[data-scheme="neo"] .gb-theme-switch,
 [data-scheme="neo"] .gb-theme-switch { margin-left:auto; display:inline-flex; gap:8px; }
 
-/* Theme buttons (pills, holo) */
+/* Theme buttons */
 :root[data-scheme="neo"] .gb-theme-btn,
 [data-scheme="neo"] .gb-theme-btn {
   min-width: 80px; height: 34px; padding: 0 14px;
@@ -147,6 +155,60 @@
     0 0 36px rgba(255,200,107,.25),
     inset 0 1px 0 rgba(255,255,255,.45);
 }
+
+/* =========================================
+   MOBILE (≤ 640px)
+   ========================================= */
+@media (max-width: 640px){
+  /* Page safe-area: half the base padding + device notch insets */
+  [data-scheme="neo"].gb-root{
+    --page-pad: calc(var(--space-1) / 8);
+    padding-left:  calc(var(--page-pad) + env(safe-area-inset-left));
+    padding-right: calc(var(--page-pad) + env(safe-area-inset-right));
+    box-sizing: border-box;
+  }
+
+  /* Header: logo left, toggles right; rely on root padding (no negative margins) */
+  :root[data-scheme="neo"] .gb-retro-header{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root[data-scheme="neo"] .gb-wordmark{
+    justify-self: start;
+    font-size: clamp(26px, 9.5vw, 40px);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :root[data-scheme="neo"] .gb-theme-switch{
+    margin: 0;
+    justify-self: end;
+    gap: 6px;
+  }
+
+  :root[data-scheme="neo"] .gb-theme-btn{
+    min-width: 68px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 10px;
+    letter-spacing: .10em;
+  }
+
+  /* Optional: if any component used only-left margins, normalize them */
+  :root[data-scheme="neo"] .pads-2x2.tiny-gap{
+    margin-inline: var(--space-4) !important;
+  }
+}
+
+
+  
 
 /* ---------- Rows (glass cards) ---------- */
 :root[data-scheme="neo"] .gb-row,
@@ -570,6 +632,49 @@
 }
 
 /* If you prefer *no* colored outline, comment the last box-shadow layer on each row */
+
+
+/* SESSION: mobile fixes */
+@media (max-width: 640px){
+  /* 1) Top row: let the select shrink inside the card */
+  [data-scheme="neo"] .sessionbar-neo .session-row--top{
+    grid-template-columns: auto 1fr;         /* was auto minmax(220px,1fr) */
+  }
+  [data-scheme="neo"] .sessionbar-neo .session-select{
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;                             /* allow shrink */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;                  /* long session names won’t push layout */
+  }
+
+  /* 2) Buttons: 2 rows × 3 columns, equal widths, flexible */
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons{
+    display: grid !important;                 /* override previous flex */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    justify-self: stretch;                    /* fill the row */
+  }
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button, .btn){
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;                  /* keep labels tidy */
+  }
+
+  /* 3) Import button edge cases (label-based or custom class) */
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button, .btn)[data-action="import"],
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons .btn--import,
+  [data-scheme="neo"] .sessionbar-neo .session-row--buttons label[for*="import"]{
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 
 
 /* =========================
@@ -1627,54 +1732,3 @@
 
    
 
-   /* =========================
-   MOBILE FIXES / OVERRIDES
-   ========================= */
-
-/* 1) Global left nudge (~4px) on narrow screens
-   - Shifts the whole UI slightly to the left to fix the padding asymmetry.
-   - If your top-level wrapper isn't .gb-retro-panel, swap this selector to that wrapper.
-*/
-@media (max-width: 640px){
-  :root[data-scheme="neo"] body{ overflow-x: hidden; }
-  :root[data-scheme="neo"] body { position: relative; left: -12px; }
-
-}
-
-/* 2) Session section: 6 buttons -> 2 rows × 3 buttons on mobile */
-@media (max-width: 640px){
-  :root[data-scheme="neo"] .sessionbar-neo .session-row--buttons{
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;                 /* row + column gaps */
-    flex-wrap: unset;         /* override previous nowrap */
-    width: 100%;
-    justify-content: stretch; /* full width grid */
-  }
-  :root[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button, .btn){
-    min-width: 0;
-    width: 100%;              /* each button fills its grid cell */
-    height: 34px;
-    padding: 0 8px;
-    font-size: 11px;          /* a touch smaller for cramped screens */
-    letter-spacing: .06em;
-  }
-}
-
-/* 3) Instrument buttons: smaller text + safe wrapping on mobile
-   - Prevents long labels from spilling out of the button.
-*/
-@media (max-width: 640px){
-  :root[data-scheme="neo"] .inst-btn{
-    font-size: clamp(11px, 3.4vw, 13px);
-    letter-spacing: .02em;
-    line-height: 1.1;
-    white-space: normal;      /* allow wrapping */
-    word-break: break-word;   /* break very long words if needed */
-    text-wrap: balance;       /* nicer multi-line balance (safe to ignore if unsupported) */
-    padding: 12px 10px;       /* a hair tighter to gain a few pixels */
-  }
-  :root[data-scheme="neo"] .inst-btn::after{
-    margin-top: 6px;          /* keep the step bar snug under smaller text */
-  }
-}

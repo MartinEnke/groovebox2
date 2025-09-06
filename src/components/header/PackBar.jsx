@@ -9,10 +9,9 @@ export default function PackBar({
   bpm, setBpm,
   scheme = "retro",
 }) {
-  // Tap-vs-scroll guard for the metronome button (one-tap even while playing)
   const metTap = useTapGesture(() => cycleMetronomeMode?.(), { pan: "y", slop: 10 });
 
-  // shared mobile-friendly touch props for inputs
+  // For sliders/buttons etc.
   const inputTouchProps = useMemo(
     () => ({
       style: {
@@ -21,6 +20,21 @@ export default function PackBar({
         userSelect: "none",
         WebkitUserSelect: "none",
       },
+    }),
+    []
+  );
+
+  // SPECIAL: for <select> — DO NOT set userSelect:none on iOS
+  const selectTouchProps = useMemo(
+    () => ({
+      style: {
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+      },
+      // Make sure no parent tap-guard swallows the event
+      onPointerDownCapture: (e) => e.stopPropagation(),
+      onTouchStartCapture: (e) => e.stopPropagation(),
+      onClickCapture: (e) => e.stopPropagation(),
     }),
     []
   );
@@ -39,7 +53,7 @@ export default function PackBar({
       <div className="packbar-retro">
         <div className="packbar-line packbar-line1">
           <select
-            {...inputTouchProps}
+            {...selectTouchProps}
             value={selectedPack}
             onChange={(e) => setSelectedPack(e.target.value)}
             disabled={packLoading}
@@ -81,14 +95,13 @@ export default function PackBar({
     );
   }
 
-  // NEO — [Pack label][select][Met] on row 1, BPM row 2
+  // NEO
   return (
     <div className="packbar-neo">
       <div className="packbar-line1">
         <span className="bar-label">Pack</span>
-
         <select
-          {...inputTouchProps}
+          {...selectTouchProps}
           className="pack-select"
           value={selectedPack}
           onChange={(e) => setSelectedPack(e.target.value)}

@@ -44,14 +44,11 @@ export default function SoundGate({
     return () => { if (ctx) ctx.onstatechange = null; };
   }, [engine, autoResume]);
 
-  // Respect platform filter
   if (onlyOnIOS && !isIOS) return null;
 
-  // Show logic: if requireAcknowledge → wait for button; else → hide when audio is running
   const shouldShow = requireAcknowledge ? !ack : !ready;
   if (!shouldShow) return null;
 
-  // Small media "nudge" for some iOS builds
   const nudgeMedia = async () => {
     try {
       const a = new Audio(
@@ -66,30 +63,22 @@ export default function SoundGate({
   const unlockNow = async (e) => {
     e.preventDefault?.();
     e.stopPropagation?.();
-
     try { await engine.ensureRunning?.(); } catch {}
     await nudgeMedia();
-
-    // Update both flags so the panel closes reliably
     setReady(engine.getCtx?.()?.state === "running");
     setAck(true);
-
-    // If explicit acknowledgement is required, force-hide regardless of ctx state
-    if (requireAcknowledge) setReady(true);
   };
 
   const accent = "#1fe0b3";
   const shellFont =
-    "'Inter','Avenir Next','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif";
+    "'Inter', 'Avenir Next', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="sg-title"
-      // Backdrop is inert (button-only dismissal)
-      onClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
+      // Button-only dismiss — backdrop clicks do nothing to avoid accidental close
       style={{
         position: "fixed",
         inset: 0,
@@ -100,14 +89,13 @@ export default function SoundGate({
       }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
         style={{
           fontFamily: shellFont,
           background: "rgba(20,20,28,.94)",
           border: "1px solid rgba(255,255,255,.12)",
           borderRadius: 14,
-          maxWidth: 560, // a bit larger on desktop
+          // Bigger on desktop: generous maxWidth
+          maxWidth: 560,                      // ↑ was 420
           width: "calc(100% - 40px)",
           padding: "18px 20px",
           color: "#f5f7fa",
@@ -125,11 +113,11 @@ export default function SoundGate({
           style={{
             margin: 0,
             marginBottom: 10,
-            fontSize: 18,
+            fontSize: 18,                      // ↑ slightly larger
             fontWeight: 800,
             letterSpacing: 0.2,
             color: "#e9fff7",
-            textShadow: "0 0 18px rgba(31,224,179,.12)", // teal glow
+            textShadow: "0 0 18px rgba(31,224,179,.12)",
           }}
         >
           Hi there!
@@ -145,13 +133,15 @@ export default function SoundGate({
             It’s a drum-machine-style rhythm maker with:
           </p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
-            <li><span style={{ color: "#7dd3fc" }}>16/32-step grid</span> (place hits)</li>
-            <li><span style={{ color: "#93c5fd" }}>Pitch</span> (tune each sound)</li>
-            <li>Sidechain <span style={{ color: accent }}>(auto-duck)</span> other sounds</li>
-            <li><span style={{ color: "#a78bfa" }}>Delay</span> / <span style={{ color: "#c4b5fd" }}>Reverb</span> (space & echoes)</li>
-            <li><span style={{ color: "#f9a74a" }}>Saturation</span> (add grit)</li>
-            <li><span style={{ color: "#facc15" }}>Swing</span> (groove / shuffle)</li>
-            <li><span style={{ color: "#34d399" }}>Drum-bus compression</span> (glue the kit)</li>
+            <li>16/32-step grid (place hits)</li>
+            <li>Pitch (tune each sound)</li>
+            <li>
+              Sidechain <span style={{ color: accent }}>(auto-duck)</span> other sounds
+            </li>
+            <li>Delay / Reverb (space & echoes)</li>
+            <li>Saturation (add grit)</li>
+            <li>Swing (groove / shuffle)</li>
+            <li>Drum-bus compression (glue the kit)</li>
           </ul>
           <p style={{ margin: "10px 0 0 0", color: "#e9fff7" }}>Have fun! :)</p>
         </div>
@@ -159,8 +149,8 @@ export default function SoundGate({
         <div style={{ marginTop: 14, fontSize: 12.5, opacity: 0.85 }}>
           <div style={{ fontWeight: 750, marginBottom: 4, color: "#f0f3f7" }}>Disclaimer</div>
           <p style={{ margin: 0 }}>
-            Data lives locally in your browser —{" "}
-            <span style={{ color: accent }}>consider exporting a backup</span>.<br />
+            Data lives locally in your browser —
+            <span style={{ color: accent }}> consider exporting a backup</span>.<br />
             Occasional bugs or data loss are possible; no warranties.
           </p>
         </div>
@@ -184,8 +174,8 @@ export default function SoundGate({
                 "0 0 16px rgba(31,224,179,.26), inset 0 1px 0 rgba(255,255,255,.14), 0 3px 0 rgba(0,0,0,.45)",
               transition: "transform .05s ease, filter .15s ease",
             }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "translateY(1px)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+            onMouseDown={(e) => e.currentTarget.style.transform = "translateY(1px)"}
+            onMouseUp={(e) => e.currentTarget.style.transform = "translateY(0)"}
           >
             Continue
           </button>

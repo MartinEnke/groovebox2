@@ -176,13 +176,13 @@ export default function SoundGate({
           </p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             <li>
-              <span style={{ color: "#7dd3fc" }}>16/32-step grid</span> (place hits)
+              <span style={{ color: "#1ad3fc" }}>16/32-step grid</span> (place hits)
             </li>
             <li>
               <span style={{ color: "#93c5fd" }}>Pitch</span> (tune each sound)
             </li>
             <li>
-              Sidechain <span style={{ color: accent }}>(auto-duck)</span> other sounds
+            <span style={{ color: "#f1b1ef" }}>Sidechain</span> (auto-duck other sounds)
             </li>
             <li>
               <span style={{ color: "#a78bfa" }}>Delay</span> /{" "}
@@ -204,9 +204,9 @@ export default function SoundGate({
         <div style={{ marginTop: 14, fontSize: 12.5, opacity: 0.85 }}>
           <div style={{ fontWeight: 750, marginBottom: 4, color: "#f0f3f7" }}>Disclaimer</div>
           <p style={{ margin: 0 }}>
-            Data lives locally in your browser.{" "} <br />
-            <span style={{ color: accent }}>Consider exporting session backups.</span>.<br />
-            Occasional bugs or data loss are possible. No warranties.
+            Session data lives locally in your browser.{" "} <br />
+            <span style={{ color: accent }}>Consider exporting backups.</span><br />
+            No warranties. 
           </p>
         </div>
 

@@ -1625,101 +1625,56 @@
    }
    
 
+   
+
    /* =========================
-   NEO — housekeeping & fallbacks
-   Paste this at the end of the file
+   MOBILE FIXES / OVERRIDES
    ========================= */
 
-/* 1) Single prefix helper (use going forward) */
-:where([data-scheme="neo"]) {
-  color-scheme: dark;
-  /* define spacing if not global */
-  --space-1: var(--space-1, 6px);
-  --space-2: var(--space-2, 10px);
-  --space-4: var(--space-4, 16px);
+/* 1) Global left nudge (~4px) on narrow screens
+   - Shifts the whole UI slightly to the left to fix the padding asymmetry.
+   - If your top-level wrapper isn't .gb-retro-panel, swap this selector to that wrapper.
+*/
+@media (max-width: 640px){
+  :root[data-scheme="neo"] body{ overflow-x: hidden; }
+  :root[data-scheme="neo"] body { position: relative; left: -12px; }
+
 }
 
-/* 2) Wordmark perf hint (only here) */
-:where([data-scheme="neo"]) .gb-wordmark {
-  will-change: background-position; /* avoid global will-change */
-}
-
-/* 3) Backdrop-filter graceful fallback */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :where([data-scheme="neo"]) :is(
-    .gb-retro-panel,
-    .gb-row,
-    .btn-retro,
-    .gb-retro-panel button:not(.gb-theme-btn),
-    .inst-btn,
-    .mute-btn,
-    .vfader-slot,
-    .lcd-compact,
-    .sc-btn,
-    .fx-block,
-    .revlen-btn,
-    .toggle-chip,
-    .swing-card.compact,
-    .swing-lcd,
-    .sbus-card,
-    .sbus-lcd,
-    .transport,
-    .transport .btn.press,
-    .metro-btn,
-    .packbar-neo .pack-select,
-    .sessionbar-neo .session-select
-  ) {
-    /* Slightly stronger opaque glass as a fallback */
-    background: rgba(24, 28, 40, 0.45);
+/* 2) Session section: 6 buttons -> 2 rows × 3 buttons on mobile */
+@media (max-width: 640px){
+  :root[data-scheme="neo"] .sessionbar-neo .session-row--buttons{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;                 /* row + column gaps */
+    flex-wrap: unset;         /* override previous nowrap */
+    width: 100%;
+    justify-content: stretch; /* full width grid */
+  }
+  :root[data-scheme="neo"] .sessionbar-neo .session-row--buttons :where(button, .btn){
+    min-width: 0;
+    width: 100%;              /* each button fills its grid cell */
+    height: 34px;
+    padding: 0 8px;
+    font-size: 11px;          /* a touch smaller for cramped screens */
+    letter-spacing: .06em;
   }
 }
 
-/* 4) Forced-colors support (Windows high contrast) */
-@media (forced-colors: active) {
-  :where([data-scheme="neo"]) :is(
-    .gb-retro-panel,
-    .gb-row,
-    .btn-retro,
-    .inst-btn,
-    .mute-btn,
-    .vfader-slot,
-    .sc-btn,
-    .fx-block,
-    .revlen-btn,
-    .toggle-chip,
-    .swing-card.compact,
-    .sbus-card,
-    .transport
-  ) {
-    border-color: CanvasText;
-    background: Canvas;
-    color: CanvasText;
-    box-shadow: none;
+/* 3) Instrument buttons: smaller text + safe wrapping on mobile
+   - Prevents long labels from spilling out of the button.
+*/
+@media (max-width: 640px){
+  :root[data-scheme="neo"] .inst-btn{
+    font-size: clamp(11px, 3.4vw, 13px);
+    letter-spacing: .02em;
+    line-height: 1.1;
+    white-space: normal;      /* allow wrapping */
+    word-break: break-word;   /* break very long words if needed */
+    text-wrap: balance;       /* nicer multi-line balance (safe to ignore if unsupported) */
+    padding: 12px 10px;       /* a hair tighter to gain a few pixels */
   }
-  :where([data-scheme="neo"]) :is(.lcd, .lcd-compact, .swing-lcd, .sbus-lcd) {
-    border-color: CanvasText;
-    background: Canvas;
-    color: CanvasText;
+  :root[data-scheme="neo"] .inst-btn::after{
+    margin-top: 6px;          /* keep the step bar snug under smaller text */
   }
-  :where([data-scheme="neo"]) :is(button, .btn, .toggle-chip, .revlen-btn, .metro-btn) {
-    forced-color-adjust: none; /* keep pressed/on states visible */
-  }
-}
-
-/* 5) Mobile glass cost cap */
-@media (max-width: 640px) {
-  :where([data-scheme="neo"]) {
-    --neo-blur: 10px; /* lighter on phones */
-  }
-}
-
-/* 6) Consolidated vfader orientation (keep this, remove earlier conflicting vfader transforms) */
-:where([data-scheme="neo"]) .vfader {
-  transform: translate(-50%, -50%) rotate(-90deg);
-}
-:where([data-scheme="neo"]) .vfader::-webkit-slider-thumb {
-  margin-top: calc((var(--track-th, 8px) - var(--thumb-h, 26px)) / 2) !important;
-}
-:where([data-scheme="neo"]) .vfader::-moz-range-thumb {
-  margin-top: calc((var(--track-th, 8px) - var(--thumb-h, 26px)) / 2) !important;
 }

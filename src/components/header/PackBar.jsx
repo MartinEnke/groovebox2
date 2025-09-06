@@ -24,16 +24,38 @@ export default function PackBar({
     []
   );
 
-  // SPECIAL: for <select> — DO NOT set userSelect:none on iOS
+  /**
+   * SPECIAL: for <select> on iOS — ensure SINGLE TAP opens the picker.
+   * - Stop parent tap guards at capture phase.
+   * - On first touchend, focus() + click() to open immediately.
+   * - preventDefault() to avoid the synthetic follow-up click.
+   * - Mark as data-tap-exempt so any pointer-based guards skip it.
+   */
   const selectTouchProps = useMemo(
     () => ({
+      "data-tap-exempt": "", // recognized by useTapGesture's isExempt()
       style: {
         touchAction: "manipulation",
         WebkitTapHighlightColor: "transparent",
+        userSelect: "auto",
+        WebkitUserSelect: "auto",
+        pointerEvents: "auto",
       },
-      // Make sure no parent tap-guard swallows the event
+      // Keep parents from swallowing the interaction
       onPointerDownCapture: (e) => e.stopPropagation(),
+      onMouseDownCapture: (e) => e.stopPropagation(),
       onTouchStartCapture: (e) => e.stopPropagation(),
+      // Force the native picker to open on first tap on iOS Safari
+      onTouchEndCapture: (e) => {
+        e.stopPropagation();
+        const el = e.currentTarget; // <select>
+        if (el && !el.disabled) {
+          try { el.focus(); } catch {}
+          try { el.click(); } catch {}
+        }
+        // prevent ghost click that would require a second tap
+        e.preventDefault();
+      },
       onClickCapture: (e) => e.stopPropagation(),
     }),
     []

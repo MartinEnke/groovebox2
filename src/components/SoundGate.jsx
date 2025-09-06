@@ -204,9 +204,9 @@ export default function SoundGate({
         <div style={{ marginTop: 14, fontSize: 12.5, opacity: 0.85 }}>
           <div style={{ fontWeight: 750, marginBottom: 4, color: "#f0f3f7" }}>Disclaimer</div>
           <p style={{ margin: 0 }}>
-            Data lives locally in your browser —{" "}
-            <span style={{ color: accent }}>consider exporting a backup</span>.<br />
-            Occasional bugs or data loss are possible; no warranties.
+            Data lives locally in your browser.{" "} <br />
+            <span style={{ color: accent }}>Consider exporting session backups.</span>.<br />
+            Occasional bugs or data loss are possible. No warranties.
           </p>
         </div>
 

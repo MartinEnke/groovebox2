@@ -990,6 +990,65 @@
 }
 @media (max-width:640px){ [data-scheme="neo"] .mode-col{ margin-left:-28px; } }
 
+
+/* PADS + FADER — mobile fit */
+@media (max-width: 640px){
+  /* 1) Tighten the layout via smaller tokens */
+  [data-scheme="neo"] .channel-block.pads-left{
+    --pad-size: clamp(46px, 22vw, 88px);   /* was clamp(58px, 30vw, 160px) */
+    --pad-gap: 8px;                        /* was 10px */
+    --extra-pad-fader-gap: 14px;           /* was 26px */
+
+    --track-th: 6px;                       /* was 8px */
+    --thumb-w: 14px;                       /* was 16px */
+    --thumb-h: 22px;                       /* was 26px */
+
+    --lcd-h: 24px;                         /* was 28px */
+    --solo-h: 34px;                        /* was 36px */
+    --stack-gap: 6px;                      /* was 8px */
+
+    /* keep columns constrained so they don't overflow */
+    grid-template-columns: var(--pads-col-w) minmax(28px, 34px) minmax(auto, 1fr);
+    column-gap: var(--extra-pad-fader-gap);
+    max-width: 100%;
+  }
+
+  /* 2) Pads block: smaller side margin, keep computed width */
+  [data-scheme="neo"] .pads-2x2.tiny-gap{
+    margin-left: var(--space-2);           /* was var(--space-4) */
+    width: var(--pads-col-w);
+    gap: var(--pad-gap);
+    grid-template-columns: repeat(2, var(--pad-size));
+    grid-auto-rows: var(--pad-size);
+  }
+
+  /* 3) Pad visuals + label sizing */
+  [data-scheme="neo"] .pad-btn::after{
+    left: 8px; right: 8px; bottom: 8px; height: 5px; /* proportionally smaller glow bar */
+  }
+  [data-scheme="neo"] .pad-btn__label{
+    font-size: clamp(12px, 4.2vw, 16px);   /* was 18px */
+    letter-spacing: .03em;
+  }
+  [data-scheme="neo"] .pad-btn__sub{
+    font-size: clamp(9px, 2.8vw, 11px);    /* was 12px */
+  }
+
+  /* 4) Fader column: narrower slot matching smaller thumb */
+  [data-scheme="neo"] .vfader-slot{
+    width: max(28px, calc(var(--thumb-h) + 8px));  /* was 32px */
+    padding: 6px 4px;
+  }
+
+  /* 5) Mode column: slightly smaller buttons and gentler left pull */
+  [data-scheme="neo"] .mode-col{
+    --mode-btn: clamp(40px, 5vw, 50px);    /* was clamp(48px, 5vw, 56px) */
+    margin-left: -10px;                    /* was -28px on mobile */
+  }
+}
+
+
+
 /* =========================
    SIDECHAIN — NEO match
    ========================= */

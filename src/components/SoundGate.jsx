@@ -98,14 +98,15 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
         </h2>
   
         <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
-          <li>
+          <div>
             Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.
-          </li>
+            </div>
         </ul>
   
         <div style={{ marginTop: 14, fontSize: 12, opacity: 0.9 }}>
           <p style={{ margin: 0, marginBottom: 8 }}>
-            This is a learning project to explore the React framework. It’s a drum-machine-style
+            This is a learning project to explore the React framework. <br/>
+            It’s a drum-machine-style
             rhythm maker with:
           </p>
           <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.35 }}>
@@ -123,8 +124,8 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
         <div style={{ marginTop: 12, fontSize: 11, opacity: 0.8 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Disclaimer</div>
           <p style={{ margin: 0 }}>
-            Provided “as is”, without warranties. Data is stored locally in your browser; please
-            export backups if needed. I can’t guarantee against data loss or bugs.
+          Data is stored locally in your browser—consider exporting a backup. <br/>
+          Occasional bugs or data loss are possible. No warranties.”
           </p>
         </div>
   

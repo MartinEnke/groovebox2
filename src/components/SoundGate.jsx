@@ -97,11 +97,11 @@ export default function SoundGate({ engine, onlyOnIOS = true }) {
           Hi there!
         </h2>
   
-        <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
-          <div>
+      
+          <div style={{ margin: 0, paddingLeft: 16, lineHeight: 1.4, fontSize: 14, opacity: 0.95 }}>
             Turn <b>OFF Silent Mode</b> (ringer switch) and raise the volume.
             </div>
-        </ul>
+      
   
         <div style={{ marginTop: 14, fontSize: 12, opacity: 0.9 }}>
           <p style={{ margin: 0, marginBottom: 8 }}>

@@ -84,6 +84,9 @@ export default function SoundGate({
           role="dialog"
           aria-modal="true"
           aria-labelledby="sg-title"
+          // Backdrop is inert — clicks don't dismiss
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           style={{
             position: "fixed",
             inset: 0,
@@ -100,7 +103,7 @@ export default function SoundGate({
               background: "rgba(20,20,28,.94)",
               border: "1px solid rgba(255,255,255,.12)",
               borderRadius: 14,
-              maxWidth: 560,               // bigger on desktop
+              maxWidth: 560, // bigger on desktop
               width: "calc(100% - 40px)",
               padding: "18px 20px",
               color: "#f5f7fa",
@@ -112,6 +115,8 @@ export default function SoundGate({
               userSelect: "none",
               WebkitUserSelect: "none",
             }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <h2
               id="sg-title"
@@ -148,7 +153,8 @@ export default function SoundGate({
                   <span style={{ color: "#1fe0b3" }}>Sidechain</span> (auto-duck other sounds)
                 </li>
                 <li>
-                  <span style={{ color: "#a78bfa" }}>Delay</span> / <span style={{ color: "#c4b5fd" }}>Reverb</span> (space & echoes)
+                  <span style={{ color: "#a78bfa" }}>Delay</span> /{" "}
+                  <span style={{ color: "#c4b5fd" }}>Reverb</span> (space & echoes)
                 </li>
                 <li>
                   <span style={{ color: "#f9a74a" }}>Saturation</span> (add grit)
@@ -175,8 +181,16 @@ export default function SoundGate({
             <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
                 type="button"
+                aria-label="Continue"
                 onPointerDown={(e) => { e.stopPropagation(); unlockNow(e); }}
                 onClick={(e) => { e.stopPropagation(); unlockNow(e); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    unlockNow(e);
+                  }
+                }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -194,6 +208,7 @@ export default function SoundGate({
                 }}
                 onMouseDown={(e) => (e.currentTarget.style.transform = "translateY(1px)")}
                 onMouseUp={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+                onTouchEnd={(e) => (e.currentTarget.style.transform = "translateY(0)")}
               >
                 Continue
               </button>
@@ -201,5 +216,6 @@ export default function SoundGate({
           </div>
         </div>
       );
+      
       
 }

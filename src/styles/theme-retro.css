@@ -33,6 +33,15 @@
   --tap: 44px;
 }
 
+/* Base ~390px wide phone (iPhone 12/13-ish) */
+:root[data-scheme="retro"] {
+    --ui-scale: clamp(0.90, calc(100vi / 390), 1.12);  /* 320–438px phones */
+    --tap: calc(44px * var(--ui-scale));               /* was fixed 44px */
+    --radius: calc(12px * var(--ui-scale));
+    --font-ctrl: calc(12px * var(--ui-scale));
+    --font-small: calc(11px * var(--ui-scale));
+  }
+
 /* Background hint when retro */
 :root[data-scheme="retro"] body,
 [data-scheme="retro"] body {
@@ -825,6 +834,8 @@
   overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; border: 0;
 }
+
+
 
 /* =========================
    Instruments — Retro finish

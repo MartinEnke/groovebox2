@@ -1,5 +1,5 @@
 // src/components/TransportBar.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useCallback } from "react";
 import { pad } from "../utils/misc";
 import { STEPS_PER_BAR } from "../constants/sequencer";
 import useTapGesture from "../hooks/useTapGesture";
@@ -14,28 +14,65 @@ export default function TransportBar({
   clearAllPatternsAndLevels,
 }) {
   /**
-   * Single-tap friendly capture props for instant buttons:
-   * - NO stopPropagation on pointerdown/touchstart (lets trigger:"down" fire)
-   * - Prevent ghost click on touchend
-   * - Mark as data-tap-exempt so parent tap guards ignore these buttons
+   * Instant mobile-friendly press behavior:
+   * - Fire on touchstart (prevents any delay).
+   * - Suppress the subsequent synthetic click (ghost click).
+   * - Also handle pointer/mouse for desktop.
    */
-  const tapCaptureDownProps = useMemo(
-    () => ({
-      "data-tap-exempt": "",
-      onTouchEndCapture: (e) => {
+  const useInstantPress = (onPress) => {
+    const suppressClickRef = useRef(false);
+
+    const onTouchStart = useCallback((e) => {
+      // First, stop the gesture from bubbling to any global tap guards
+      e.stopPropagation();
+      // Prevent the follow-up click
+      e.preventDefault();
+      suppressClickRef.current = true;
+
+      onPress?.();
+    }, [onPress]);
+
+    const onPointerDown = useCallback((e) => {
+      // If this came from touch, we already handled it on touchstart
+      if (e.pointerType === "touch") return;
+      onPress?.();
+    }, [onPress]);
+
+    const onMouseDown = useCallback((e) => {
+      // Safety for non-pointer browsers
+      onPress?.();
+    }, [onPress]);
+
+    const onClickCapture = useCallback((e) => {
+      if (suppressClickRef.current) {
         e.preventDefault();
         e.stopPropagation();
+        suppressClickRef.current = false;
+      }
+    }, []);
+
+    return {
+      "data-tap-exempt": "",
+      onTouchStart,
+      onPointerDown,
+      onMouseDown,
+      onClickCapture,
+      onContextMenu: (e) => e.preventDefault(),
+      style: {
+        touchAction: "none",
+        WebkitTapHighlightColor: "transparent",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       },
-      onClickCapture: (e) => e.stopPropagation(),
-      // intentionally no onPointerDownCapture / onTouchStartCapture
-    }),
-    []
-  );
+    };
+  };
+
+  const playPress = useInstantPress(() => togglePlay?.());
+  const recPress  = useInstantPress(() => toggleRecord?.());
 
   /**
-   * For confirm-style deletes (trigger on "up"):
-   * keep the safer capture stops so parents don't eat the tap,
-   * and prevent the ghost click.
+   * Delete buttons: keep tap guard on "up" (with small slop) + capture stops
+   * so they work with a single tap and don’t get swallowed by parents.
    */
   const tapCaptureUpProps = useMemo(
     () => ({
@@ -48,26 +85,12 @@ export default function TransportBar({
     []
   );
 
-  // Play/Stop: fire immediately on pointerdown
-  const playTap = useTapGesture(() => togglePlay?.(), {
-    trigger: "down",
-    pan: "none",
-  });
-
-  // Record: instant as well
-  const recTap = useTapGesture(() => toggleRecord?.(), {
-    trigger: "down",
-    pan: "none",
-  });
-
-  // Delete selected pattern (safer on "up")
   const delPatTap = useTapGesture(() => {
     if (confirm("Clear the selected instrument's pattern?")) {
       clearSelectedPattern?.();
     }
   }, { trigger: "up", pan: "y", slop: 10 });
 
-  // Delete ALL
   const delAllTap = useTapGesture(() => {
     if (confirm("Clear ALL patterns and levels?\n\nThis cannot be undone.")) {
       clearAllPatternsAndLevels?.();
@@ -79,14 +102,10 @@ export default function TransportBar({
       {/* Play / Stop */}
       <button
         type="button"
-        {...tapCaptureDownProps}
-        {...playTap}
-        // avoid scroll interference for this control
-        style={{ ...(playTap.style || {}), touchAction: "none" }}
+        {...playPress}
         className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
         aria-pressed={isPlaying}
         title={isPlaying ? "Stop" : "Play"}
-        onContextMenu={(e) => e.preventDefault()}
       >
         <span className="tri" aria-hidden="true" />
         <span className="sq"  aria-hidden="true" />
@@ -95,13 +114,10 @@ export default function TransportBar({
       {/* Record */}
       <button
         type="button"
-        {...tapCaptureDownProps}
-        {...recTap}
-        style={{ ...(recTap.style || {}), touchAction: "none" }}
+        {...recPress}
         className={`btn press rec ${isRecording ? "on" : ""}`}
         aria-pressed={isRecording}
         title="Record"
-        onContextMenu={(e) => e.preventDefault()}
       >
         <span className="rec-dot" aria-hidden="true" />
       </button>

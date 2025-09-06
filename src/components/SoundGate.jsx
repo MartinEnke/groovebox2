@@ -172,7 +172,8 @@ export default function SoundGate({
         <div style={{ marginTop: 16, fontSize: 14.5, opacity: 0.95 }}>
           <p style={{ margin: 0, marginBottom: 8 }}>
             This is a learning project to explore React.<br />
-            It’s a drum-machine-style rhythm maker with:
+            It’s a mobile first - <br />
+            drum-machine-style rhythm maker with:
           </p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             <li>

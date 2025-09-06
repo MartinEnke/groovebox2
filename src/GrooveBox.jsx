@@ -1279,12 +1279,7 @@ return (
     data-scheme={scheme}
   >
     
-    <SoundGate
-  engine={engine}
-  onlyOnIOS={false}       // show on macOS/Windows as well
-  autoResume={false}      // don’t auto-dismiss on mount
-  requireAcknowledge={true} // keep showing until user clicks Continue
-/>
+    <SoundGate engine={engine} onlyOnIOS />
 
     {/* RETRO PANEL: Brand row + controls */}
     

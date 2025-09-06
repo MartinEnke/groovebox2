@@ -1,28 +1,23 @@
 // src/components/SessionBar.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import useTapGesture from "../../hooks/useTapGesture";
 
 const PERSIST_TRIED_KEY = "gb-persist-tried";
 
 export default function SessionBar({
-  // user sessions
   sessions = {},
   currentSessionName = "",
   loadNamedSession = () => {},
   saveNamedSession = () => {},
   deleteNamedSession = () => {},
 
-  // presets (read-only)
   presets = {},
   currentPresetName = "",
   loadPreset = () => {},
   isPresetActive = false,
 
-  // file ops
   exportSessionToFile = () => {},
   importSessionFromFile = () => {},
-
-  // misc
   onNewSession = () => {},
 }) {
   const sortedUserNames = Object
@@ -72,7 +67,7 @@ export default function SessionBar({
     }
   };
 
-  // touch-friendly styles for native inputs
+  // For buttons (ok to block text selection)
   const touchInputStyle = {
     touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
@@ -80,12 +75,23 @@ export default function SessionBar({
     WebkitUserSelect: "none",
   };
 
-  // Hidden file input (tap-only trigger)
+  // SPECIAL: for <select> — no user-select:none, and stop bubbling so tap guards don't swallow it
+  const selectTouchProps = useMemo(
+    () => ({
+      style: {
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+      },
+      onPointerDownCapture: (e) => e.stopPropagation(),
+      onTouchStartCapture: (e) => e.stopPropagation(),
+      onClickCapture: (e) => e.stopPropagation(),
+    }),
+    []
+  );
+
   const fileRef = useRef(null);
   const importTap = useTapGesture(() => fileRef.current?.click(), { pan: "y", slop: 10 });
-
-  // Button taps (one-tap while playing, swipe-safe)
-  const saveTap = useTapGesture(onClickSave, { pan: "y", slop: 10 });
+  const saveTap   = useTapGesture(onClickSave, { pan: "y", slop: 10 });
   const saveAsTap = useTapGesture(() => {
     const name = prompt(
       "Save As (new session name):",
@@ -95,14 +101,12 @@ export default function SessionBar({
     if (sessions[name] && !confirm(`"${name}" exists. Overwrite?`)) return;
     saveNamedSession(name);
   }, { pan: "y", slop: 10 });
-
   const deleteTap = useTapGesture(() => {
     if (!currentSessionName) return;
     if (confirm(`Delete session "${currentSessionName}"?`)) {
       deleteNamedSession(currentSessionName);
     }
   }, { pan: "y", slop: 10 });
-
   const exportTap = useTapGesture(() => exportSessionToFile(), { pan: "y", slop: 10 });
   const newTap    = useTapGesture(() => onNewSession(),        { pan: "y", slop: 10 });
 
@@ -115,7 +119,7 @@ export default function SessionBar({
           value={selectValue}
           onChange={(e) => handleChange(e.target.value)}
           title="Select session or preset"
-          style={touchInputStyle}
+          {...selectTouchProps}
         >
           <option value="">— choose —</option>
 
@@ -142,16 +146,11 @@ export default function SessionBar({
       </div>
 
       <div className="session-row session-row--buttons">
-        <button type="button" className="btn" {...saveTap}>
+        <button type="button" className="btn" style={touchInputStyle} {...saveTap}>
           {saveButtonLabel}
         </button>
 
-        <button
-          type="button"
-          className="btn"
-          title="Save As…"
-          {...saveAsTap}
-        >
+        <button type="button" className="btn" title="Save As…" style={touchInputStyle} {...saveAsTap}>
           Save As
         </button>
 
@@ -159,6 +158,7 @@ export default function SessionBar({
           type="button"
           className="btn"
           title="Delete selected session"
+          style={touchInputStyle}
           {...deleteTap}
           disabled={!currentSessionName || isPresetActive}
         >
@@ -169,6 +169,7 @@ export default function SessionBar({
           type="button"
           className="btn"
           title="Export current state to file"
+          style={touchInputStyle}
           {...exportTap}
         >
           Export
@@ -185,22 +186,12 @@ export default function SessionBar({
           style={{ display: "none" }}
         />
 
-        {/* Import (tap-vs-scroll guarded) */}
-        <button
-          type="button"
-          className="btn import-btn"
-          title="Import session from file"
-          {...importTap}
-        >
+        {/* Import trigger */}
+        <button type="button" className="btn import-btn" title="Import session from file" style={touchInputStyle} {...importTap}>
           Import
         </button>
 
-        <button
-          type="button"
-          className="btn"
-          title="Clear current session"
-          {...newTap}
-        >
+        <button type="button" className="btn" title="Clear current session" style={touchInputStyle} {...newTap}>
           New
         </button>
       </div>

@@ -16,7 +16,7 @@ export default function SoundGate({
   const [ready, setReady] = useState(() => engine.getCtx?.()?.state === "running");
   const [ack, setAck] = useState(false);
 
-  // iOS (incl. iPadOS-on-Mac)
+  // Detect iOS (incl. iPadOS-on-Mac)
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent || "";
     const iThing = /iPhone|iPad|iPod/i.test(ua);
@@ -44,11 +44,12 @@ export default function SoundGate({
     return () => { if (ctx) ctx.onstatechange = null; };
   }, [engine, autoResume]);
 
+  // Show policy (same behavior as your working file)
   if (onlyOnIOS && !isIOS) return null;
-
   const shouldShow = requireAcknowledge ? !ack : !ready;
   if (!shouldShow) return null;
 
+  // Tiny silent WAV to "prime" audio routes on some iOS builds
   const nudgeMedia = async () => {
     try {
       const a = new Audio(
@@ -60,18 +61,23 @@ export default function SoundGate({
     } catch {}
   };
 
+  // Button handler — keeps your working semantics (it always dismisses)
   const unlockNow = async (e) => {
     e.preventDefault?.();
     e.stopPropagation?.();
     try { await engine.ensureRunning?.(); } catch {}
     await nudgeMedia();
+    // Mark audio state (if running) and always acknowledge to hide panel
     setReady(engine.getCtx?.()?.state === "running");
     setAck(true);
   };
 
+  // Styling tokens (colors match your app vibe)
   const accent = "#1fe0b3";
+  const accentDim = "rgba(31,224,179,.22)";
+  const aquaText = "#e9fff7";
   const shellFont =
-    "'Inter', 'Avenir Next', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
+    "'Inter','Avenir Next','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif";
 
     return (
         <div

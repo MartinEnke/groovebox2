@@ -1030,6 +1030,30 @@
 */
 
 
+/* PADS ~15% smaller + tiny gap; SOLO smaller (mobile) */
+@media (max-width: 640px){
+  /* Pads */
+  [data-scheme="neo"] .channel-block.pads-left{
+    /* ~15% down from 58px / 30vw / 160px */
+    --pad-size: clamp(49px, 25.5vw, 136px);
+    --pad-gap: 8px; /* keep a tiny gap */
+    /* (no need to re-declare --pads-col-w / --stack-h; they resolve from vars) */
+  }
+  /* keep the glow bar proportionate inside the smaller pads */
+  [data-scheme="neo"] .pad-btn::after{
+    left: 8px; right: 8px; bottom: 8px; height: 5px;
+  }
+
+  /* Solo button smaller */
+  [data-scheme="neo"] .vfader-wrap { --solo-h: 30px; }      /* was 36px */
+  [data-scheme="neo"] .solo-btn.edge,
+  [data-scheme="neo"] .solo-btn{
+    min-width: 46px;                                         /* was 54px */
+    padding: 0 12px;
+    font-size: 10px;                                         /* was 11px */
+  }
+}
+
 
 /* =========================
    SIDECHAIN — NEO match

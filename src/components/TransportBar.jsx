@@ -14,36 +14,41 @@ export default function TransportBar({
   clearAllPatternsAndLevels,
 }) {
   /**
-   * Make single-tap rock solid on mobile:
-   * - Fire play/record immediately on pointerdown (no swipe guard).
-   * - Stop propagation at capture phase so no parent tap-guards interfere.
-   * - On touchend, prevent the synthetic click (ghost click).
+   * Single-tap friendly capture props for instant buttons:
+   * - NO stopPropagation on pointerdown/touchstart (lets trigger:"down" fire)
+   * - Prevent ghost click on touchend
+   * - Mark as data-tap-exempt so parent tap guards ignore these buttons
    */
   const tapCaptureDownProps = useMemo(
     () => ({
-      onPointerDownCapture: (e) => e.stopPropagation(),
-      onTouchStartCapture:  (e) => e.stopPropagation(),
-      onTouchEndCapture:    (e) => { e.stopPropagation(); e.preventDefault(); },
-      onClickCapture:       (e) => e.stopPropagation(),
+      "data-tap-exempt": "",
+      onTouchEndCapture: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      onClickCapture: (e) => e.stopPropagation(),
+      // intentionally no onPointerDownCapture / onTouchStartCapture
     }),
     []
   );
 
   /**
-   * For confirm-style deletes we still use the safer "up" trigger,
-   * but we also guard against parent handlers and ghost clicks.
+   * For confirm-style deletes (trigger on "up"):
+   * keep the safer capture stops so parents don't eat the tap,
+   * and prevent the ghost click.
    */
   const tapCaptureUpProps = useMemo(
     () => ({
+      "data-tap-exempt": "",
       onPointerDownCapture: (e) => e.stopPropagation(),
       onTouchStartCapture:  (e) => e.stopPropagation(),
-      onTouchEndCapture:    (e) => { e.stopPropagation(); e.preventDefault(); },
+      onTouchEndCapture:    (e) => { e.preventDefault(); e.stopPropagation(); },
       onClickCapture:       (e) => e.stopPropagation(),
     }),
     []
   );
 
-  // Play/Stop: fire immediately on pointerdown, no swipe guard
+  // Play/Stop: fire immediately on pointerdown
   const playTap = useTapGesture(() => togglePlay?.(), {
     trigger: "down",
     pan: "none",
@@ -76,7 +81,7 @@ export default function TransportBar({
         type="button"
         {...tapCaptureDownProps}
         {...playTap}
-        // hard-override touchAction for this button to avoid scroll cancellation
+        // avoid scroll interference for this control
         style={{ ...(playTap.style || {}), touchAction: "none" }}
         className={`btn press playstop ${isPlaying ? "is-playing" : ""}`}
         aria-pressed={isPlaying}

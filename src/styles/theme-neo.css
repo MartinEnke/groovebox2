@@ -787,7 +787,7 @@
 
   [data-scheme="neo"] .inst-btn .inst-label{
     display: block;
-    max-width: 100%;
+    max-width: 90%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: clip; /* we’re going to scale instead of ellipsis */
@@ -798,14 +798,14 @@
   @supports (font-size: 1cqi){
     [data-scheme="neo"] .inst-btn .inst-label{
       /* tune 6.8–7.6cqi to taste */
-      font-size: clamp(9px, 7.2cqi, 14px);
+      font-size: clamp(7px, 7.2cqi, 12px);
     }
   }
 
   /* Fallback if container units aren’t supported */
   @supports not (font-size: 1cqi){
     [data-scheme="neo"] .inst-btn .inst-label{
-      font-size: clamp(9px, 2.6vw, 13px);
+      font-size: clamp(7px, 2.6vw, 12px);
     }
   }
 }

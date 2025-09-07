@@ -747,7 +747,7 @@
 /* Instruments — mobile text fit */
 @media (max-width: 640px){
   [data-scheme="neo"] .inst-btn{
-    font-size: clamp(11px, 3vw, 12px);
+    font-size: clamp(11px, 2vw, 12px);
     letter-spacing: .02em;
     line-height: 1.1;
     white-space: nowrap;
@@ -1900,3 +1900,60 @@
 
    
 
+
+   /* =========================
+   STEP EDITOR — phone full-bleed + comfy fit (NEO)
+   ========================= */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+  /* 1) Full-bleed container that ignores parent padding but keeps tiny gutters */
+  :root[data-scheme="neo"] .step-editor,
+  [data-scheme="neo"] .step-editor{
+    margin-left:  calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left:  max(6px, env(safe-area-inset-left));
+    padding-right: max(6px, env(safe-area-inset-right));
+    max-width: none;         /* allow full stretch */
+    width: 100vw;
+    box-sizing: border-box;
+  }
+
+  /* 2) Ensure steps can actually expand (iOS quirk) */
+  :root[data-scheme="neo"] .step-editor .row-steps,
+  [data-scheme="neo"] .step-editor .row-steps{
+    width: 100%;
+    min-width: 0 !important;
+    gap: 6px;                /* more pixels for cells */
+  }
+  :root[data-scheme="neo"] .step-editor .row-steps button,
+  [data-scheme="neo"] .step-editor .row-steps button{
+    min-width: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  /* 3) Slightly smaller header controls to free width for the grid */
+  :root[data-scheme="neo"] .btn.btn-ab,
+  [data-scheme="neo"] .btn.btn-ab{
+    min-width: 40px;
+    height: 38px;
+    font-size: 12px;
+    letter-spacing: .06em;
+  }
+  :root[data-scheme="neo"] .btn.btn-ab-chevron,
+  [data-scheme="neo"] .btn.btn-ab-chevron{
+    min-width: 40px;
+    height: 38px;
+    font-size: 18px;
+  }
+}
+
+/* Ultra-tight phones (≤360px): one more squeeze */
+@media (max-width: 360px) and (any-hover: none) and (any-pointer: coarse){
+  :root[data-scheme="neo"] .step-editor .row-steps,
+  [data-scheme="neo"] .step-editor .row-steps{ gap: 4px; }
+
+  :root[data-scheme="neo"] .btn.btn-ab,
+  [data-scheme="neo"] .btn.btn-ab{ min-width: 36px; height: 36px; font-size: 11px; }
+
+  :root[data-scheme="neo"] .btn.btn-ab-chevron,
+  [data-scheme="neo"] .btn.btn-ab-chevron{ min-width: 36px; height: 36px; font-size: 16px; }
+}

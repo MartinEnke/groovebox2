@@ -811,6 +811,33 @@
 }
 
 
+/* FINAL OVERRIDES — mobile instrument text never wraps */
+@media (max-width: 640px){
+  /* Match the generic button rule's scope, but be more specific */
+  [data-scheme="neo"].gb-root .gb-retro-panel button.inst-btn{
+    /* single line, no wrap */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+
+    /* size that actually shrinks on small screens */
+    font-size: clamp(10px, 2.6vw, 12px) !important;
+    line-height: 1.05 !important;
+    letter-spacing: .02em !important;
+
+    /* a hair tighter so long names fit */
+    padding: 12px 10px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* keep the step bar tight under smaller labels */
+  [data-scheme="neo"].gb-root .gb-retro-panel button.inst-btn::after{
+    margin-top: 6px !important;
+  }
+}
+
+
 /* =========================
    CHANNEL — PADS + FADER (NEO)
    ========================= */

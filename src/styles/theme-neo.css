@@ -747,7 +747,7 @@
 /* Instruments — mobile text fit */
 @media (max-width: 640px){
   [data-scheme="neo"] .inst-btn{
-    font-size: clamp(11px, 2vw, 12px);
+    font-size: clamp(9px, 2vw, 9px);
     letter-spacing: .02em;
     line-height: 1.1;
     white-space: nowrap;
@@ -1902,58 +1902,42 @@
 
 
    /* =========================
-   STEP EDITOR — NEO phone: full width, no overflow
+   STEP EDITOR — NEO phone: max width with 1px gutters
    ========================= */
 @media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
-
-  /* Full width within safe areas; centered; no overflow */
   :root[data-scheme="neo"] .step-editor,
   [data-scheme="neo"] .step-editor{
-    /* Prefer dynamic viewport to avoid 100vw overshoot */
-    width: min(100%, calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right)));
-    /* Fallback if dvw isn’t supported */
-    @supports not (width: 100dvw) {
-      width: min(100%, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)));
-    }
+    /* cancel parent padding but leave exactly 1px per side */
+    margin-left:  calc(-1 * (var(--page-pad, 0px) + env(safe-area-inset-left)  - 1px));
+    margin-right: calc(-1 * (var(--page-pad, 0px) + env(safe-area-inset-right) - 1px));
 
-    margin-left: auto;
-    margin-right: auto;
-    padding-left:  max(6px, env(safe-area-inset-left));
-    padding-right: max(6px, env(safe-area-inset-right));
+    /* keep at least the safe area, otherwise use 1px */
+    padding-left:  max(1px, env(safe-area-inset-left));
+    padding-right: max(1px, env(safe-area-inset-right));
+
     max-width: none;
     box-sizing: border-box;
-
-    /* prevent tiny sub-pixel leaks */
-    overflow-x: clip;
+    overflow-x: clip; /* guard against sub-pixel bleed */
   }
 
-  /* Make sure the grid inside can actually shrink to fit */
+  /* ensure grid can shrink properly on iOS */
   :root[data-scheme="neo"] .step-editor .row-steps,
   [data-scheme="neo"] .step-editor .row-steps{
     width: 100%;
     min-width: 0 !important;
-    gap: 6px;                /* comfy but tight gaps */
-  }
-
-  /* (Optional) shave header controls a hair so more width goes to steps */
-  :root[data-scheme="neo"] .btn.btn-ab,
-  [data-scheme="neo"] .btn.btn-ab{
-    min-width: 40px; height: 38px; font-size: 12px; letter-spacing: .06em;
-  }
-  :root[data-scheme="neo"] .btn.btn-ab-chevron,
-  [data-scheme="neo"] .btn.btn-ab-chevron{
-    min-width: 40px; height: 38px; font-size: 18px;
+    gap: 6px;
   }
 }
 
-/* Ultra-tight phones (≤360px): one more squeeze, still no overflow */
-@media (max-width: 360px) and (any-hover: none) and (any-pointer: coarse){
-  :root[data-scheme="neo"] .step-editor .row-steps,
-  [data-scheme="neo"] .step-editor .row-steps{ gap: 4px; }
-
-  :root[data-scheme="neo"] .btn.btn-ab,
-  [data-scheme="neo"] .btn.btn-ab{ min-width: 36px; height: 36px; font-size: 11px; }
-
-  :root[data-scheme="neo"] .btn.btn-ab-chevron,
-  [data-scheme="neo"] .btn.btn-ab-chevron{ min-width: 36px; height: 36px; font-size: 16px; }
+/* Fallback for browsers without env()/max() support */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+  @supports not (padding-left: max(1px, env(safe-area-inset-left))) {
+    :root[data-scheme="neo"] .step-editor,
+    [data-scheme="neo"] .step-editor{
+      margin-left:  calc(-1 * (var(--page-pad, 0px) - 1px));
+      margin-right: calc(-1 * (var(--page-pad, 0px) - 1px));
+      padding-left: 1px;
+      padding-right: 1px;
+    }
+  }
 }

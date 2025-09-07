@@ -208,7 +208,62 @@
 }
 
 
-  
+  /* =========================
+   HEADER — Neo mobile fit (no cut-offs)
+   ========================= */
+@media (max-width: 640px){
+  /* Make both header columns actually shrink */
+  [data-scheme="neo"] .gb-retro-header{
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,auto);
+    align-items: center;
+    gap: clamp(4px, 1.4vw, 8px);
+    margin: 0;
+    padding: 0;
+  }
+  /* Critical for grid overflow: allow children to shrink */
+  [data-scheme="neo"] .gb-retro-header > *{ min-width: 0; }
+
+  /* Brand/wordmark can ellipsize sooner */
+  [data-scheme="neo"] .gb-brand{ min-width: 0; }
+  [data-scheme="neo"] .gb-wordmark{
+    max-width: 100%;
+    font-size: clamp(22px, 8.5vw, 34px); /* a hair smaller on narrow phones */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    justify-self: start;
+  }
+
+  /* Theme switch: single line, tighter gaps, shrinkable buttons */
+  [data-scheme="neo"] .gb-theme-switch{
+    display: flex;
+    flex-wrap: nowrap;
+    gap: clamp(4px, 1.4vw, 8px);
+    justify-self: end;
+    min-width: 0;            /* allow container to shrink */
+  }
+  [data-scheme="neo"] .gb-theme-btn{
+    min-width: clamp(52px, 24vw, 68px); /* <- smaller floor so it never clips */
+    height: 32px;
+    padding: 0 clamp(6px, 2.4vw, 10px);
+    font-size: clamp(9px, 2.8vw, 10px);
+    letter-spacing: .08em;   /* less tracking = shorter labels */
+  }
+}
+
+/* Ultra-tight phones (≤360px): allow a neat wrap so nothing gets cut */
+@media (max-width: 360px){
+  [data-scheme="neo"] .gb-theme-switch{
+    flex-wrap: wrap;         /* wrap onto 2 lines if needed */
+    row-gap: 4px;
+  }
+  [data-scheme="neo"] .gb-theme-btn{
+    flex: 1 1 46%;           /* two buttons share the row evenly */
+    min-width: 0;            /* let text ellipsize if still tight */
+  }
+}
+
 
 /* ---------- Rows (glass cards) ---------- */
 :root[data-scheme="neo"] .gb-row,

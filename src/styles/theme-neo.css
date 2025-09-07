@@ -1050,41 +1050,6 @@
 
 
 
-/* Instruments — mobile text fit */
-@media (max-width: 640px){
-  [data-scheme="neo"] .inst-btn{
-    /* shrink + tighten tracking for narrow screens */
-    font-size: clamp(11px, 3.2vw, 13px);
-    letter-spacing: .02em;
-    line-height: 1.1;
-
-    /* allow wrapping and sensible breaking */
-    white-space: normal;
-    overflow-wrap: break-word;   /* aka word-break: break-word */
-    hyphens: auto;
-
-    /* a bit tighter padding to gain pixels */
-    padding: 12px 10px;
-  }
-  [data-scheme="neo"] .inst-btn::after{
-    margin-top: 6px; /* keep the step bar close under smaller text */
-  }
-}
-
-/* (Optional) If you prefer single-line with ellipsis on mobile, swap this in instead:
-@media (max-width: 640px){
-  [data-scheme="neo"] .inst-btn{
-    font-size: clamp(11px, 3vw, 12px);
-    letter-spacing: .02em;
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 12px 10px;
-  }
-  [data-scheme="neo"] .inst-btn::after{ margin-top: 6px; }
-}
-*/
 
 
 /* PADS ~15% smaller + tiny gap; SOLO smaller (mobile) */

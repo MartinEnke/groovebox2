@@ -759,27 +759,57 @@
 }
 
 
-/* (Optional) If you prefer single-line with ellipsis on mobile, swap this in instead:
+/* ===== Instruments — NEO mobile: single-line fit ===== */
 @media (max-width: 640px){
   [data-scheme="neo"] .inst-btn{
-    
-    font-size: clamp(11px, 3.2vw, 13px);
-    letter-spacing: .02em;
-    line-height: 1.1;
-
-    
-    white-space: normal;
-    overflow-wrap: break-word;   
-    hyphens: auto;
-
-    
+    /* keep inside the button */
+    max-width: 100%;
+    min-width: 0;
     padding: 12px 10px;
+
+    /* never two lines */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    /* mild shrink on small screens */
+    letter-spacing: .02em;
+    font-size: clamp(10px, 2.7vw, 13px);
   }
-  [data-scheme="neo"] .inst-btn::after{
-    margin-top: 6px; 
+  [data-scheme="neo"] .inst-btn::after{ margin-top: 6px; }
+}
+
+/* ===== (Optional) Perfect autoshrink, no ellipsis =====
+   Wrap the label as: <button class="inst-btn"><span class="inst-label">Snare Tight</span></button>
+   This scales text to the button’s width via container units. */
+@media (max-width: 640px){
+  [data-scheme="neo"] .inst-btn{ container-type: inline-size; }
+
+  [data-scheme="neo"] .inst-btn .inst-label{
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip; /* we’re going to scale instead of ellipsis */
+    letter-spacing: .015em;
+  }
+
+  /* Use button width for font sizing when supported */
+  @supports (font-size: 1cqi){
+    [data-scheme="neo"] .inst-btn .inst-label{
+      /* tune 6.8–7.6cqi to taste */
+      font-size: clamp(9px, 7.2cqi, 14px);
+    }
+  }
+
+  /* Fallback if container units aren’t supported */
+  @supports not (font-size: 1cqi){
+    [data-scheme="neo"] .inst-btn .inst-label{
+      font-size: clamp(9px, 2.6vw, 13px);
+    }
   }
 }
-*/
+
 
 /* =========================
    CHANNEL — PADS + FADER (NEO)

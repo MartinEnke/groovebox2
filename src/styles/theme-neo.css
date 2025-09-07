@@ -1763,38 +1763,72 @@
      :root[data-scheme="neo"] .transport .clear-btn{ min-width: 72px; }
    }
    
-   
-   /* TRANSPORT — NEO (mobile fit) */
-@media (max-width: 640px){
-  [data-scheme="neo"] .transport{
-    /* more usable width inside the global frame */
-    margin-left: var(--page-pad);
-    margin-right: var(--page-pad);
-    padding: 8px 10px;
-
-    /* squeeze grid spacing a hair */
-    column-gap: 8px;
-
-    /* let children shrink instead of overflowing */
-    grid-template-columns: auto auto 1fr auto auto;
+   /* =========================
+   TRANSPORT — phones: wider frame + equal LCD height (NEO)
+   ========================= */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse) {
+  /* Wider bar with comfy inner padding */
+  :root[data-scheme="neo"] .transport,
+  [data-scheme="neo"] .transport {
+    margin-left:  max(2px, env(safe-area-inset-left));   /* a bit wider than before */
+    margin-right: max(2px, env(safe-area-inset-right));
+    padding: 10px 10px;                                   /* more inner gap to the frame */
+    grid-template-columns: auto auto 1fr auto auto;       /* ▶  ●  [LCD flex]  Del Pat  Del All */
+    column-gap: 9px;                                      /* subtle breathing room */
   }
-  [data-scheme="neo"] .transport > *{ min-width: 0; }
+  :root[data-scheme="neo"] .transport > *,
+  [data-scheme="neo"] .transport > * { min-width: 0; }    /* allow shrinking */
 
-  /* LCD: narrower + same height as buttons */
-  [data-scheme="neo"] .transport .lcd{
-    min-width: 68px;          /* was 90px */
-    height: 40px;             /* match .btn.press height */
+  /* Make LCD exactly the same height as buttons */
+  :root[data-scheme="neo"] .transport .lcd,
+  [data-scheme="neo"] .transport .lcd {
+    height: 36px;               /* match buttons */
+    min-width: 54px;            /* compact */
+    max-width: 84px;            /* don’t let it balloon */
     padding: 0 8px;
+    font-size: 11px;
+    letter-spacing: .04em;
+    justify-self: center;
   }
 
-  /* Normalize special buttons to button row height */
-  [data-scheme="neo"] .transport .playstop{ height: 40px; }  /* was 36px */
-  [data-scheme="neo"] .transport .rec{ height: 40px; }       /* was 36px */
+  /* Button sizes (kept compact so everything fits) */
+  :root[data-scheme="neo"] .transport .btn.press,
+  [data-scheme="neo"] .transport .btn.press {
+    min-width: 40px;
+    height: 36px;               /* matches LCD */
+    padding: 0 10px;
+    font-size: 10px;
+    letter-spacing: .04em;
+  }
 
-  /* Optional: allow slightly smaller Clear labels to help fit */
-  [data-scheme="neo"] .transport .clear-btn{ min-width: 68px; } /* was 72px in your mobile rule */
+  /* Play/Stop + Record match height */
+  :root[data-scheme="neo"] .transport .playstop,
+  [data-scheme="neo"] .transport .playstop { width: 48px; height: 36px; }
+  :root[data-scheme="neo"] .transport .rec,
+  [data-scheme="neo"] .transport .rec { width: 40px; height: 36px; }
+
+  /* Slimmer clear buttons so all elements fit inside the frame */
+  :root[data-scheme="neo"] .transport .clear-btn,
+  [data-scheme="neo"] .transport .clear-btn { min-width: 56px; }
+  :root[data-scheme="neo"] .transport .clear-btn.pat,
+  [data-scheme="neo"] .transport .clear-btn.pat { min-width: 60px; } /* tiny favor for "Del Pat" */
+  :root[data-scheme="neo"] .transport .clear-btn.all,
+  [data-scheme="neo"] .transport .clear-btn.all { min-width: 56px; }
+
+  /* Labels stay tidy and never wrap */
+  :root[data-scheme="neo"] .transport .clear-btn .sym,
+  [data-scheme="neo"] .transport .clear-btn .sym {
+    white-space: nowrap;
+    line-height: 1;
+    font-size: 10px;
+    letter-spacing: .02em;
+    display: inline-block;
+    transform: scaleX(.95);
+    transform-origin: center;
+  }
 }
 
+   
    /* =========================
       STEP EDITOR — NEO + mobile
       ========================= */

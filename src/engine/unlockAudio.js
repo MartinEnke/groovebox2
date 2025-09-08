@@ -1,40 +1,80 @@
 // src/engine/unlockAudio.js
 let getCtxRef = null;
+let armed = false;
 
-// Call this once (e.g., in GrooveBox) to provide a way to access your audio context.
 export function bindGlobalAudioUnlock(getCtx) {
   getCtxRef = getCtx;
-  const resume = () => { ensureAudioNow(); };
-  const opts = { passive: true, capture: true };
-  window.addEventListener("pointerdown", resume, opts);
-  window.addEventListener("keydown", resume, opts);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") ensureAudioNow();
-  }, opts);
+  if (armed) return;             // don't double-bind in StrictMode/dev
+  armed = true;
+
+  const opts = { capture: true, passive: false };
+
+  const onGesture = async () => {
+    const did = await ensureAudioNow();
+    if (did) {
+      primeSilentTick();         // fully warms outputs on iOS
+      teardown();
+    }
+  };
+
+  const onVis = () => {
+    if (document.visibilityState === "visible") onGesture();
+  };
+
+  function teardown() {
+    window.removeEventListener("pointerdown", onGesture, opts);
+    window.removeEventListener("touchstart", onGesture, opts);
+    window.removeEventListener("mousedown", onGesture, opts);
+    window.removeEventListener("click", onGesture, opts);
+    window.removeEventListener("keydown", onGesture, opts);
+    document.removeEventListener("visibilitychange", onVis, opts);
+    armed = false;
+  }
+
+  window.addEventListener("pointerdown", onGesture, opts);
+  window.addEventListener("touchstart", onGesture, opts);
+  window.addEventListener("mousedown", onGesture, opts);
+  window.addEventListener("click", onGesture, opts);
+  window.addEventListener("keydown", onGesture, opts);
+  document.addEventListener("visibilitychange", onVis, opts);
 }
 
-/**
- * Ensures the WebAudio context is running.
- * @returns {Promise<boolean>} true if we resumed the context on this call (i.e., it had been suspended)
- */
+/** Ensures the WebAudio context is running. Returns true if we resumed now. */
 export async function ensureAudioNow() {
   try {
     if (!getCtxRef) return false;
+
+    // Tone.js path (if you use it internally)
+    if (typeof window !== "undefined" && window.Tone && window.Tone.context) {
+      if (window.Tone.context.state !== "running") {
+        await window.Tone.start();        // must be in user gesture
+        return true;
+      }
+      return false;
+    }
+
+    // Raw AudioContext path
     const ctx = getCtxRef();
     if (!ctx) return false;
-
-    // If you use Tone.js, you can do:
-    // if (window.Tone && Tone.context && Tone.context.state !== 'running') {
-    //   await Tone.start();
-    //   return true;
-    // }
-
-    if (ctx.state === "suspended" || ctx.state === "interrupted") {
-      await ctx.resume();         // must happen before starting any sources
-      return true;                // we just resumed
+    if (ctx.state !== "running") {
+      await ctx.resume();                 // call happens during the gesture
+      return true;
     }
-  } catch (e) {
-    // swallow—some browsers throw if resume not allowed
-  }
-  return false;                   // already running (or no ctx)
+  } catch (_) {}
+  return false;
+}
+
+/** Plays a 0-sample silent buffer to “open” the output path on iOS. */
+function primeSilentTick() {
+  try {
+    const ctx = getCtxRef();
+    if (!ctx) return;
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(g).connect(ctx.destination);
+    src.start(0);
+    src.stop(0);
+  } catch {}
 }

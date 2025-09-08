@@ -129,15 +129,18 @@ export default function GrooveBox() {
   const { bpm, isPlaying, isRecording, step, metMode } = state.transport;
   const selected = state.instrumentMix.selected;
 
+  
   // audio engine
-  const engine = useAudioEngine();
+const engine = useAudioEngine();
 
-  // 🔊 WebAudio unlock on first user gesture anywhere
-  useEffect(() => {
-    bindGlobalAudioUnlock(() => engine?.ctx || engine?.audioContext || engine?.audio?.ctx);
-    // If you use Tone.js, use:
-    // bindGlobalAudioUnlock(() => Tone.context);
-  }, [engine]);
+// 🔊 Global unlock
+useEffect(() => {
+  bindGlobalAudioUnlock(() =>
+    (engine?.getCtx && engine.getCtx()) ||
+    engine?.ctx || engine?.audioContext || engine?.audio?.ctx || null
+  );
+}, [engine]);
+
 
 
 // put near your other refs

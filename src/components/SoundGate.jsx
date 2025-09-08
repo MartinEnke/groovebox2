@@ -154,7 +154,7 @@ export default function SoundGate({
           id="sg-title"
           style={{
             margin: 0,
-            marginBottom: 10,
+            marginBottom: 20,
             fontSize: 18,
             fontWeight: 800,
             letterSpacing: 0.2,

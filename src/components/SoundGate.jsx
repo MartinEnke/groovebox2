@@ -127,6 +127,7 @@ export default function SoundGate({
         display: "grid",
         placeItems: "center",
         background: "rgba(0,0,0,.6)",
+        paddingTop: 12, // try 12 (or 5) pixels
       }}
     >
       <div
@@ -166,8 +167,8 @@ export default function SoundGate({
         </h2>
 
         <p style={{ margin: 0, fontSize: 15 }}>
-          Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch) and raise the volume.<br />
-          <b style={{ color: "#b1113c" }}>Note!</b> For safety, double-taps are required on Transport panel.
+          Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch).<br />
+          For safety, <b style={{ color: "#b1113c" }}>double-taps</b> are required on Transport panel.
         </p>
 
         <div style={{ marginTop: 16, fontSize: 14.5, opacity: 0.95 }}>

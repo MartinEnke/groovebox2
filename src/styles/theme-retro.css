@@ -2670,3 +2670,43 @@
 /* Fallback: if some rule forces flex, push the switches to the right */
 :root[data-scheme="retro"] .gb-retro-header{ column-gap: 12px; }
 :root[data-scheme="retro"] .gb-theme-switch{ margin-left: auto; }
+
+/* RETRO — Step Editor: remove the odd right padding on phones */
+@media (max-width: 640px) and (any-hover: none) and (any-pointer: coarse){
+
+  /* Prefer stable viewport units so full-bleed aligns perfectly */
+  @supports (width: 1svw){
+    [data-scheme="retro"] .step-editor{
+      /* full-bleed, but based on the *stable* viewport width */
+      margin-left:  calc(50% - 50svw) !important;
+      margin-right: calc(50% - 50svw) !important;
+
+      /* tiny, symmetric gutters only */
+      padding-left:  max(6px, env(safe-area-inset-left)) !important;
+      padding-right: max(6px, env(safe-area-inset-right)) !important;
+
+      /* prevent sub-pixel overflow that looks like padding on the right */
+      overflow-x: clip;
+      box-sizing: border-box;
+    }
+  }
+
+  /* Fallback if svw isn't supported: disable full-bleed and keep even gutters */
+  @supports not (width: 1svw){
+    [data-scheme="retro"] .step-editor{
+      margin-left:  6px !important;
+      margin-right: 6px !important;
+      padding-left:  0 !important;
+      padding-right: 0 !important;
+      max-width: none !important;
+      overflow-x: clip;
+    }
+  }
+
+  /* Ensure the steps grid doesn't force extra width */
+  [data-scheme="retro"] .step-editor .row-steps{
+    width: 100%;
+    min-width: 0 !important;
+    gap: 6px; /* keep your compact spacing */
+  }
+}

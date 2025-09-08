@@ -1630,34 +1630,7 @@
    }
    
    
-   /* GROOVE — buttons in one horizontal row (keep 3 stacked sections overall) */
-:root[data-scheme="neo"] .swing-card.compact .swing-grid-inline{
-  display: grid !important;
-  grid-auto-flow: column !important;         /* ← one row */
-  grid-auto-columns: var(--sg-size, 48px) !important;
-  gap: var(--sg-gap, 10px) !important;
-  justify-content: start !important;
-  align-items: center !important;
-  overflow-x: auto !important;               /* scroll if too many buttons */
-  scrollbar-width: thin;
-}
-
-/* (still stack the sections: buttons row, slider A row, slider B row) */
-:root[data-scheme="neo"] .swing-card.compact{
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  row-gap: 12px !important;
-}
-:root[data-scheme="neo"] .swing-card.compact :where(.swing-grid-2x2, .swing-inline, .swing-slider-row){
-  grid-column: 1 / -1 !important;
-}
-:root[data-scheme="neo"] .swing-card.compact .swing-slider-row{
-  display: grid !important;
-  grid-template-columns: 1fr auto !important; /* slider track + LCD */
-  align-items: center !important;
-}
-
-
+   
 
    /* =========================
       SUM BUS — NEO glass
@@ -2135,6 +2108,37 @@
 
      
 
+
+     /* GROOVE — buttons in one horizontal row (keep 3 stacked sections overall) */
+:root[data-scheme="neo"] .swing-card.compact .swing-grid-inline{
+  display: grid !important;
+  grid-auto-flow: column !important;         /* ← one row */
+  grid-auto-columns: var(--sg-size, 48px) !important;
+  gap: var(--sg-gap, 10px) !important;
+  justify-content: start !important;
+  align-items: center !important;
+  overflow-x: auto !important;               /* scroll if too many buttons */
+  scrollbar-width: thin;
+}
+
+/* (still stack the sections: buttons row, slider A row, slider B row) */
+:root[data-scheme="neo"] .swing-card.compact{
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  row-gap: 12px !important;
+}
+:root[data-scheme="neo"] .swing-card.compact :where(.swing-grid-2x2, .swing-inline, .swing-slider-row){
+  grid-column: 1 / -1 !important;
+}
+:root[data-scheme="neo"] .swing-card.compact .swing-slider-row{
+  display: grid !important;
+  grid-template-columns: 1fr auto !important; /* slider track + LCD */
+  align-items: center !important;
+}
+
+
+
+
 /* =========================
    HEADER — keep toggles on the right (desktop)
    ========================= */
@@ -2164,3 +2168,26 @@
   :root[data-scheme="neo"] .gb-retro-header{ column-gap: 12px; }
   :root[data-scheme="neo"] .gb-theme-switch{ margin-left: auto; }
   
+
+
+  /* Make the brand column a container, so the logo can size to it */
+:root[data-scheme="neo"] .gb-brand{
+  container-type: inline-size; /* now we can use cqi units */
+}
+
+/* Auto-scale the logo to its column; stays tidy on narrow phones */
+:root[data-scheme="neo"] .gb-wordmark{
+  font-size: clamp(20px, 9.5cqi, 40px) !important; /* scales with .gb-brand width */
+  line-height: 1;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Fallback for older browsers without container queries */
+@supports not (container-type: inline-size){
+  :root[data-scheme="neo"] .gb-wordmark{
+    font-size: clamp(20px, 7.5vw, 40px) !important;
+  }
+}

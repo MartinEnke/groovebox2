@@ -167,13 +167,13 @@ export default function SoundGate({
 
         <p style={{ margin: 0, fontSize: 15 }}>
           Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch) and raise the volume.<br />
-          <b style={{ color: "#b1113c" }}>Note!</b> For safety, double-taps required on Transport panel.
+          <b style={{ color: "#b1113c" }}>Note!</b> For safety, double-taps are required on Transport panel.
         </p>
 
         <div style={{ marginTop: 16, fontSize: 14.5, opacity: 0.95 }}>
           <p style={{ margin: 0, marginBottom: 8 }}>
-            This is a learning project to explore React.<br />
-            It’s a mobile first - <br />
+            This is a learning project to explore <b style={{ color: "#fff999" }}>React</b>.<br />
+            It’s a <b style={{ color: "#e777a3" }}>mobile first</b> - <br />
             drum-machine-style rhythm maker with:
           </p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
@@ -212,7 +212,7 @@ export default function SoundGate({
           </p>
         </div>
 
-        <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ marginTop: 1, display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
             type="button"
             onTouchStart={(e) => unlockNow(e)}
@@ -220,13 +220,13 @@ export default function SoundGate({
             onClick={(e) => unlockNow(e)}
             style={{
               fontFamily: shellFont,
-              padding: "10px 14px",
+              padding: "6px 7px",
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,.18)",
               background: `linear-gradient(180deg, ${accent}33, ${accent}1f)`,
               color: "#eafff6",
               cursor: "pointer",
-              fontWeight: 800,
+              fontWeight: 400,
               letterSpacing: 0.3,
               boxShadow:
                 "0 0 16px rgba(31,224,179,.26), inset 0 1px 0 rgba(255,255,255,.14), 0 3px 0 rgba(0,0,0,.45)",

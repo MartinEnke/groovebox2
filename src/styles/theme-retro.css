@@ -2571,3 +2571,102 @@
     [data-scheme="retro"] .btn.btn-ab-chevron{ min-width: 36px; height: 36px; font-size: 16px; }
   }
   
+
+  /* =========================================
+   NARROW LOCK — force the mobile/narrow look on any screen
+   ========================================= */
+:root[data-scheme="retro"]{
+  --page-max: 520px; /* tweak 680–820px to taste */
+}
+
+/* 1) CLAMP: everything directly under <body> (with an opt-out) */
+[data-scheme="retro"] body > *:not(.retro-full-bleed){
+  width: min(100%, var(--page-max)) !important;
+  max-width: var(--page-max) !important;
+  margin-inline: auto !important;
+  box-sizing: border-box;
+}
+
+/* 1b) If your app has a named root wrapper, clamp that too (safe no-op if absent) */
+[data-scheme="retro"] :where(.gb-root, #app, main){
+  width: min(100%, var(--page-max)) !important;
+  max-width: var(--page-max) !important;
+  margin-inline: auto !important;
+}
+
+/* 2) KILL desktop multi-column layouts that make the page feel "wide" */
+[data-scheme="retro"] .fx-row.fx-panel.three{ grid-template-columns: 1fr !important; }
+[data-scheme="retro"] .sbus-grid{ grid-template-columns: 1fr !important; }
+
+/* 3) Make size scales follow the container, not the viewport */
+[data-scheme="retro"] .gb-wordmark{ font-size: clamp(22px, 8.5cqw, 34px) !important; }
+[data-scheme="retro"] .channel-block.pads-left{ --pad-size: clamp(49px, 25.5cqw, 136px) !important; }
+[data-scheme="retro"] .mode-col{ --mode-btn: clamp(48px, 5cqw, 56px) !important; }
+[data-scheme="retro"] .swing-grid-2x2{ --sg-size: clamp(44px, 4.8cqw, 56px) !important; }
+[data-scheme="retro"] .swing-grid-inline{ --sg-size: clamp(40px, 4.4cqw, 52px) !important; }
+
+/* 4) Safety: don’t let inner blocks overflow the clamp */
+[data-scheme="retro"] :where(.gb-retro-panel, .gb-row, .fx-row, .swing-card, .sbus-card, .transport, .step-editor){
+  max-width: 100% !important;
+}
+
+/* Optional: add class="retro-full-bleed" to any element that SHOULD remain full width
+   (e.g., a decorative banner). */
+
+
+/* GROOVE — buttons in one horizontal row (keep 3 stacked sections overall) */
+:root[data-scheme="retro"] .swing-card.compact .swing-grid-inline{
+  display: grid !important;
+  grid-auto-flow: column !important;         /* ← one row */
+  grid-auto-columns: var(--sg-size, 48px) !important;
+  gap: var(--sg-gap, 10px) !important;
+  justify-content: start !important;
+  align-items: center !important;
+  overflow-x: auto !important;               /* scroll if too many buttons */
+  scrollbar-width: thin;
+}
+
+/* (still stack the sections: buttons row, slider A row, slider B row) */
+:root[data-scheme="retro"] .swing-card.compact{
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  row-gap: 12px !important;
+}
+:root[data-scheme="retro"] .swing-card.compact :where(.swing-grid-2x2, .swing-inline, .swing-slider-row){
+  grid-column: 1 / -1 !important;
+}
+:root[data-scheme="retro"] .swing-card.compact .swing-slider-row{
+  display: grid !important;
+  grid-template-columns: 1fr auto !important; /* slider track + LCD */
+  align-items: center !important;
+}
+
+
+/* =========================
+   HEADER — keep toggles on the right (desktop)
+   ========================= */
+@media (min-width: 641px){
+  :root[data-scheme="retro"] .gb-retro-header{
+    display: grid !important;
+    grid-template-columns: 1fr auto !important; /* logo grows, toggles size to content */
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  :root[data-scheme="retro"] .gb-retro-header > *{ min-width: 0 !important; }
+  :root[data-scheme="retro"] .gb-brand{ min-width: 0 !important; }
+  :root[data-scheme="retro"] .gb-wordmark{
+    justify-self: start !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  :root[data-scheme="retro"] .gb-theme-switch{
+    justify-self: end !important;  /* stays on the right */
+    margin: 0 !important;
+  }
+}
+
+/* Fallback: if some rule forces flex, push the switches to the right */
+:root[data-scheme="retro"] .gb-retro-header{ column-gap: 12px; }
+:root[data-scheme="retro"] .gb-theme-switch{ margin-left: auto; }

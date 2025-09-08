@@ -264,7 +264,24 @@
   }
 }
 
-
+/* =========================
+   GLOBAL TOP TRIM — Neo (≈5px up, notch-safe)
+   ========================= */
+   @media (max-width: 640px){
+    /* Move the entire app up a touch */
+    [data-scheme="neo"].gb-root{
+      /* keep left/right you already set; just trim the TOP */
+      /* protect the notch: subtract up to 5px, but never past 0 */
+      padding-top: env(safe-area-inset-top, 0px);
+      margin-top: calc(-1 * clamp(0px, env(safe-area-inset-top, 0px), 5px));
+      /* If your device has no notch (env=0), this becomes 0; with a notch, it trims exactly 5px */
+    }
+  
+    /* Also shave a hair inside the first panel/header if present */
+    [data-scheme="neo"] .gb-retro-panel:first-of-type { margin-top: -3px; }
+    [data-scheme="neo"] .gb-retro-header { padding-top: 0; }
+  }
+  
 /* ---------- Rows (glass cards) ---------- */
 :root[data-scheme="neo"] .gb-row,
 [data-scheme="neo"] .gb-row {

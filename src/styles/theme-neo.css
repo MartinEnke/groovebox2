@@ -114,7 +114,7 @@
   /* sizing/placement (kept) */
   font-family: "Sora","Space Grotesk",var(--font-ui);
   font-weight: 800;
-  font-size: clamp(32px, 9vw, 68px);
+  font-size: clamp(32px, 8.0vw, 68px);
   letter-spacing: 1px;
   line-height: 1;
   margin: 0;
@@ -199,7 +199,7 @@
 
   :root[data-scheme="neo"] .gb-wordmark{
     justify-self: start;
-    font-size: clamp(26px, 8.5vw, 40px);
+    font-size: clamp(26px, 8.0vw, 40px);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;

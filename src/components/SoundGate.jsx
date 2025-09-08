@@ -158,15 +158,16 @@ export default function SoundGate({
             fontSize: 18,
             fontWeight: 800,
             letterSpacing: 0.2,
-            color: "#e9fff7",
-            textShadow: "0 0 18px rgba(31,224,179,.12)", // teal glow
+            color: "#a1ffff",
+            textShadow: "0 0 18px rgba(195, 31, 224, 0.12)", // teal glow
           }}
         >
           Hi there!
         </h2>
 
         <p style={{ margin: 0, fontSize: 15 }}>
-          Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch) and raise the volume.
+          Turn <b style={{ color: accent }}>OFF Silent Mode</b> (ringer switch) and raise the volume.<br />
+          <b style={{ color: "#b1113c" }}>Note!</b> For safety, double-taps required on Transport panel.
         </p>
 
         <div style={{ marginTop: 16, fontSize: 14.5, opacity: 0.95 }}>

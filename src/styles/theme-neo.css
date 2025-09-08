@@ -2177,7 +2177,7 @@
 
 /* Auto-scale the logo to its column; stays tidy on narrow phones */
 :root[data-scheme="neo"] .gb-wordmark{
-  font-size: clamp(20px, 12.5cqi, 40px) !important; /* scales with .gb-brand width */
+  font-size: clamp(20px, 14.5cqi, 40px) !important; /* scales with .gb-brand width */
   line-height: 1;
   max-width: 100% !important;
   overflow: hidden !important;

@@ -201,7 +201,7 @@ export default function SoundGate({
               <span style={{ color: "#34d399" }}>Drum-bus compression</span> (glue the kit)
             </li>
           </ul>
-          <p style={{ margin: "10px 0 0 0", color: "#e9fff7" }}>Have fun! :)</p>
+          <p style={{ margin: "10px 0 0 0", color: "#e9fff7" }}><b style={{ color: "#e777a3" }}>Check out </b>session presets. Have fun! :)</p>
         </div>
 
         <div style={{ marginTop: 14, fontSize: 12.5, opacity: 0.85 }}>

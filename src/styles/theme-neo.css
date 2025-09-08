@@ -99,31 +99,50 @@
   pointer-events:none;
 }
 
-/* ---------- Header & Brand ---------- */
-:root[data-scheme="neo"] .gb-retro-header,
-[data-scheme="neo"] .gb-retro-header {
-  display:flex; align-items:center; gap:12px; padding-bottom:8px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+/* NEO — match RETRO header sizing & placement */
+[data-scheme="neo"] .gb-retro-header{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
 }
 
-:root[data-scheme="neo"] .gb-wordmark,
-[data-scheme="neo"] .gb-wordmark {
+[data-scheme="neo"] .gb-brand{ flex: 0 1 auto; min-width: 0; }
+
+/* NEO wordmark — restore gradient + animation while keeping retro sizing */
+[data-scheme="neo"] .gb-wordmark{
+  /* sizing/placement (kept) */
   font-family: "Sora","Space Grotesk",var(--font-ui);
   font-weight: 800;
-  font-size: clamp(32px, 5.5vw, 68px);
-  line-height: 1; margin:0; white-space:nowrap;
+  font-size: clamp(32px, 9vw, 68px);
+  letter-spacing: 1px;
+  line-height: 1;
+  margin: 0;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+
+  /* animated gradient fill */
   background: conic-gradient(from 180deg,
     var(--neo-a2), var(--neo-a1), var(--neo-a4), var(--neo-a3), var(--neo-a2));
   background-size: 200% 200%;
-  background-clip: text; -webkit-background-clip: text;
-  color: transparent; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 6px 20px rgba(139,92,246,.18));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;                 /* required for clip-on-text */
+  -webkit-text-fill-color: transparent;
   animation: neoAurora 8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 6px 20px rgba(139,92,246,.18));
+  will-change: background-position;
 }
-@keyframes neoAurora { 0%{background-position:0% 50%} 100%{background-position:100% 50%} }
 
-:root[data-scheme="neo"] .gb-theme-switch,
-[data-scheme="neo"] .gb-theme-switch { margin-left:auto; display:inline-flex; gap:8px; }
+/* Keep the existing keyframes */
+@keyframes neoAurora {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
 
 /* Theme buttons */
 :root[data-scheme="neo"] .gb-theme-btn,

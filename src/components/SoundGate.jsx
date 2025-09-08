@@ -127,7 +127,7 @@ export default function SoundGate({
         display: "grid",
         placeItems: "center",
         background: "rgba(0,0,0,.6)",
-        paddingTop: 12, // try 12 (or 5) pixels
+        paddingTop: 16, // try 12 (or 5) pixels
       }}
     >
       <div

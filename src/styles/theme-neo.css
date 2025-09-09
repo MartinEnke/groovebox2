@@ -2191,3 +2191,43 @@
     font-size: clamp(20px, 7.5vw, 40px) !important;
   }
 }
+
+
+
+
+/* Tell Safari we support dark UI so it won’t force light form controls */
+:root[data-scheme="retro"],
+:root[data-scheme="neo"]{
+  color-scheme: dark light;
+}
+
+/* Force custom select appearance + a solid fallback background color */
+:root[data-scheme="retro"] select,
+:root[data-scheme="neo"] select{
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #1f2024; /* solid fallback for older iOS */
+  background-image: linear-gradient(180deg, #2b2c31 0%, #1f2024 100%);
+  color: #f6f6f6;
+  border: 1px solid #2f2f35;
+  border-radius: 6px;
+  background-clip: padding-box; /* avoid white corners with radius */
+  /* optional: add right padding if you draw a custom chevron */
+  /* padding-right: 28px; */
+}
+
+/* Make sure option popover (where supported) isn’t white-on-white */
+:root[data-scheme="retro"] select option,
+:root[data-scheme="neo"] select option{
+  background-color: #1f2024;
+  color: #f6f6f6;
+}
+
+/* iOS-specific safety net: some older WebKit ignores gradients on selects */
+@supports (-webkit-touch-callout: none){
+  :root[data-scheme="retro"] select,
+  :root[data-scheme="neo"] select{
+    background-image: none;      /* keep the solid bg */
+    background-color: #1f2024 !important;
+  }
+}

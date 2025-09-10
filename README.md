@@ -10,6 +10,23 @@
 
 ---
 
+## Tech Stack
+
+|  | Tech | Purpose |
+|---|---|---|
+| <img src="https://cdn.simpleicons.org/react" height="24" alt="React" /> | **React 18** | UI, stateful components, mobile-first interactions |
+| <img src="https://cdn.simpleicons.org/vite" height="24" alt="Vite" /> | **Vite** | Dev server, HMR, fast builds, glob imports for presets |
+| <img src="https://cdn.simpleicons.org/mdnwebdocs" height="24" alt="Web Audio API" /> | **Web Audio API** | Audio engine: voices, choke, ducking, delay, reverb (IR), saturation, metronome |
+| <img src="https://cdn.simpleicons.org/javascript" height="24" alt="JavaScript" /> | **JavaScript (ES Modules)** | App logic, scheduler, gesture handling, storage utilities |
+| <img src="https://cdn.simpleicons.org/nodedotjs" height="24" alt="Node.js" /> | **Node.js (LTS)** | Tooling runtime for dev/build via Vite |
+| <img src="https://cdn.simpleicons.org/css3" height="24" alt="CSS3" /> | **CSS3** | Theming (RETRO/NEO), layout, tap-safe sizing (≥16px), motion/utility classes |
+| <img src="https://cdn.simpleicons.org/html5" height="24" alt="HTML5" /> | **HTML5** | Semantic structure, accessibility attributes (e.g., `aria-pressed`) |
+| <img src="https://cdn.simpleicons.org/w3c" height="24" alt="Web Storage API" /> | **Web Storage API** | `localStorage` (sessions/theme) + `sessionStorage` (short-term UI) |
+| <img src="https://cdn.simpleicons.org/w3c" height="24" alt="File & Blob APIs" /> | **File & Blob APIs** | JSON **Export/Import** for backups (`Blob`, `URL`, `FileReader`) |
+| <img src="https://cdn.simpleicons.org/rollupdotjs" height="24" alt="Rollup" /> | **Rollup (via Vite)** | Production bundling & code splitting |
+| <img src="https://cdn.simpleicons.org/npm" height="24" alt="npm" /> | **npm** | Dependency management & project scripts |
+
+
 ## A Kind Note on Collaboration
 
 I’m keeping this project **All Rights Reserved** for now — but I truly love collaborating.  

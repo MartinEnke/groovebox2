@@ -1,13 +1,14 @@
 # GrooveBox — Mobile‑First Drum Computer (React + Web Audio)
 
-| ![Banner 1](src/assets/banner1.png) | ![Banner 2](src/assets/banner2.png) | ![Banner 3](src/assets/banner3.png) |
-|---|---|---|
+![License: Contact Author](https://img.shields.io/badge/license-contact--author-orange)
 
 > A tap‑friendly, mobile‑first groovebox for the browser. Pick a pack, tap pads, record patterns, swing the feel, add delay/reverb/saturation, set up sidechain ducking, and manage sessions — all on mobile or desktop.  
 > **Stack:** React, Vite, Web Audio API, `localStorage` (+ `sessionStorage` where appropriate).
 
----
+| ![Banner 1](src/assets/banner1.png) | ![Banner 2](src/assets/banner2.png) | ![Banner 3](src/assets/banner3.png) |
+|---|---|---|
 
+---
 
 ## A Kind Note on Collaboration
 

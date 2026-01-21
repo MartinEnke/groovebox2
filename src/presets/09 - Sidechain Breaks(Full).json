@@ -30,16 +30,16 @@
         0.75,
         0,
         0,
-        0,
-        0,
+        0.45,
+        0.45,
         0.75,
         1,
         0,
         0,
         1,
         0,
-        0,
-        0
+        0.45,
+        0.45
       ]
     },
     "snare": {
@@ -387,8 +387,8 @@
   },
   "rowActive": {
     "kick": {
-      "A": true,
-      "B": false
+      "A": false,
+      "B": true
     },
     "snare": {
       "A": true,
@@ -506,7 +506,7 @@
     "snare": 49,
     "clap": 90,
     "tom1": 89,
-    "tom2": 96,
+    "tom2": 33,
     "rim": 100,
     "tam": 18,
     "hihat": 71,
@@ -530,7 +530,7 @@
     "snare": 69,
     "clap": 68,
     "tom1": 55,
-    "tom2": 93,
+    "tom2": 97,
     "rim": 63,
     "tam": 43,
     "hihat": 45,
@@ -762,7 +762,7 @@
   },
   "selected": "tom2",
   "instPitchSemi": {
-    "kick": 2,
+    "kick": 3,
     "snare": 2,
     "clap": 9,
     "tom1": 12,

@@ -35,11 +35,11 @@
         0.75,
         1,
         0,
-        0,
+        0.45,
         1,
+        0.45,
         0,
-        0,
-        0
+        0.45
       ]
     },
     "snare": {
@@ -387,8 +387,8 @@
   },
   "rowActive": {
     "kick": {
-      "A": true,
-      "B": false
+      "A": false,
+      "B": true
     },
     "snare": {
       "A": true,
@@ -428,14 +428,14 @@
     }
   },
   "instGainsDb": {
-    "kick": -4.9,
-    "snare": -4.6,
-    "clap": -20.1,
-    "tom1": -6.2,
-    "tom2": -9.1,
+    "kick": -8,
+    "snare": -5.8,
+    "clap": -10,
+    "tom1": -4.6,
+    "tom2": -6.4,
     "rim": -24,
-    "tam": -14.8,
-    "hihat": -7.9,
+    "tam": -18.3,
+    "hihat": -11.6,
     "openhihat": -6.2,
     "ride": -15.5
   },
@@ -444,12 +444,12 @@
     "snare": false,
     "clap": false,
     "tom1": false,
-    "tom2": false,
+    "tom2": true,
     "rim": false,
     "tam": false,
     "hihat": false,
-    "openhihat": false,
-    "ride": false
+    "openhihat": true,
+    "ride": true
   },
   "soloActive": false,
   "instSwingType": {
@@ -468,7 +468,7 @@
     "kick": 26,
     "snare": 83,
     "clap": 14,
-    "tom1": 23,
+    "tom1": 10,
     "tom2": 52,
     "rim": 20,
     "tam": 20,
@@ -482,7 +482,7 @@
     "snare": 100,
     "clap": 5,
     "tom1": 100,
-    "tom2": 11,
+    "tom2": 35,
     "rim": 6,
     "tam": 81,
     "hihat": 74,
@@ -493,7 +493,7 @@
     "kick": "N3_4",
     "snare": "N16",
     "clap": "N3_4",
-    "tom1": "N16",
+    "tom1": "N3_4",
     "tom2": "N16",
     "rim": "N16",
     "tam": "N3_4",
@@ -714,7 +714,7 @@
     "release": 0.25,
     "knee": 3
   },
-  "sumGainDb": 6.6,
+  "sumGainDb": 6.5,
   "limiterOn": true,
   "sumLowCut": false,
   "sumHighCut": false,
@@ -760,7 +760,7 @@
       "B": false
     }
   },
-  "selected": "tom2",
+  "selected": "kick",
   "instPitchSemi": {
     "kick": 2,
     "snare": 2,
